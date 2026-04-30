@@ -1,13 +1,13 @@
 <template>
   <div class="bot-client">
     <!-- Chatbot Toggle Button -->
-    <button class="chatbot-toggle" @click="isOpen = !isOpen" :class="{ 'is-open': isOpen }">
+    <!-- <button class="chatbot-toggle" @click="isOpen = !isOpen" :class="{ 'is-open': isOpen }">
       <svg v-if="!isOpen" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
       <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-    </button>
+    </button> -->
 
     <!-- Floating AI Chatbot Widget -->
-    <div class="chatbot-widget card" :class="{ 'widget-open': isOpen }">
+    <!-- <div class="chatbot-widget card" :class="{ 'widget-open': isOpen }">
       <div class="chat-header">
         <div class="chat-avatar">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>
@@ -31,7 +31,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 

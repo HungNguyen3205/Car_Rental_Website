@@ -13,6 +13,7 @@ class Car extends Model
         'name',
         'price_per_day',
         'type',
+        'city',
         'status',
         'image',
         'category_id'

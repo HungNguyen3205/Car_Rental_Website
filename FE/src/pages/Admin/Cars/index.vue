@@ -1,409 +1,536 @@
 <template>
   <div class="admin-page">
-    <!-- Hero Section Simplified for Admin -->
-    <section class="hero-section">
-      <div class="hero-content">
-        <span class="badge">Khu vực Ban Quản Trị</span>
-        <h1 class="hero-title">Quản Lý Trạng Thái <span>Phương Tiện</span></h1>
-        <p class="hero-subtitle">Theo dõi và cập nhật trạng thái các phương tiện cho thuê trong thời gian thực. Bạn có quyền được thay đổi thông tin hệ thống.</p>
-      </div>
-      <div class="hero-bg-shape"></div>
-    </section>
-
-    <!-- Search Box for Admin -->
-    <section class="search-box-wrapper app-container">
-      <div class="search-box card">
-        <div class="search-field">
-          <label>Tìm kiếm nhanh</label>
-          <input type="text" placeholder="Nhập tên xe, biển số xe..." />
+    <!-- Header -->
+    <header class="page-header">
+      <div class="header-main">
+        <div class="header-icon"><i class="fa-solid fa-car-rear"></i></div>
+        <div>
+          <h1 class="page-title">Danh Sách <span>Phương Tiện</span></h1>
+          <p class="page-subtitle">Quản lý và cập nhật thông tin đội xe của bạn một cách nhanh chóng.</p>
         </div>
-        <div class="search-separator"></div>
-        <div class="search-field">
-          <label>Lọc trạng thái</label>
-          <select class="custom-select">
+      </div>
+      <button class="btn-primary" @click="openModal()"><i class="fa-solid fa-plus"></i> Thêm xe mới</button>
+    </header>
+
+    <!-- Content Card -->
+    <div class="content-card card">
+      <!-- Search & Filters -->
+      <div class="table-tools">
+        <div class="search-input">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Tìm theo tên xe, loại xe..." v-model="searchQuery" />
+        </div>
+        <div class="filter-group">
+          <select v-model="filterStatus" class="form-select">
             <option value="">Tất cả trạng thái</option>
-            <option value="available">Sẵn sàng (Trống)</option>
-            <option value="rented">Đang cho thuê</option>
+            <option value="available">Sẵn sàng</option>
+            <option value="maintenance">Bảo trì</option>
           </select>
         </div>
-        <button class="btn-primary search-btn">Tìm Kiếm</button>
-      </div>
-    </section>
-
-    <!-- Car Listing Section with Admin Controls -->
-    <section class="fleet-section app-container">
-      <div class="section-heading" style="display: flex; justify-content: space-between; align-items: center;">
-        <div style="text-align: left;">
-          <h2>Danh Sách Phương Tiện</h2>
-          <p>Quản lý toàn bộ danh sách xe hiển thị cho khách hàng</p>
-        </div>
-        <button class="btn-primary">+ Thêm xe mới</button>
       </div>
 
-      <div class="car-grid" v-if="!loading">
-        <div class="car-card card" v-for="car in cars" :key="car.id">
-          <!-- Status Badge -->
-          <div class="car-badge" :class="(!car.status || car.status === 'available') ? 'bg-success' : 'bg-warning'">
-            {{ (!car.status || car.status === 'available') ? 'Sẵn sàng' : 'Đang thuê' }}
-          </div>
-          
-          <div class="car-img-container">
-            <img :src="car.image" :alt="car.name" />
-          </div>
-          <div class="car-info">
-            <span class="type">{{ car.type }} (ID-0{{ car.id }})</span>
-            <h3 class="car-name">{{ car.name }}</h3>
-            <div class="car-specs">
-              <span class="spec"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m12 16 4-4-4-4"/><path d="M8 12h8"/></svg> Tự động</span>
-              <span class="spec"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> 5 chỗ</span>
-            </div>
-            
-            <div class="car-footer">
-              <div class="price-wrapper">
-                <span class="price">{{ (car.price / 1000).toLocaleString() }}k</span>
-                <span class="unit">/ngày</span>
-              </div>
-            </div>
-
-            <!-- Admin Actions -->
-            <div class="admin-actions">
-              <button class="btn-outline btn-sm">Chỉnh sửa</button>
-              <button class="btn-primary btn-sm status-toggle" @click="toggleStatus(car)">
-                Đổi trạng thái
-              </button>
-            </div>
-          </div>
-        </div>
+      <!-- Professional Table -->
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th width="50">#</th>
+              <th>Thông tin xe</th>
+              <th>Loại xe</th>
+              <th>Giá thuê</th>
+              <th>Khu vực</th>
+              <th>Trạng thái</th>
+              <th width="150" class="text-center">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(car, index) in filteredCars" :key="car.id">
+              <td>{{ index + 1 }}</td>
+              <td>
+                <div class="car-cell">
+                  <img :src="car.image" class="car-thumb" />
+                  <div class="car-details">
+                    <span class="car-name">{{ car.name }}</span>
+                    <span class="car-id">ID: #CAR-{{ car.id }}</span>
+                  </div>
+                </div>
+              </td>
+              <td><span class="tag-outline">{{ car.category_name || car.type }}</span></td>
+              <td>
+                <span class="price-text">{{ formatCurrency(car.price_per_day) }}</span>
+                <small>/ngày</small>
+              </td>
+              <td><i class="fa-solid fa-location-dot"></i> {{ car.city?.toUpperCase() }}</td>
+              <td>
+                <span class="status-badge" :class="car.status === 'available' ? 'status-ok' : 'status-warn'">
+                  {{ car.status === 'available' ? 'Sẵn sàng' : 'Bảo trì' }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button class="btn-icon" @click="openBookingModal(car)" title="Đặt ngay"><i class="fa-solid fa-calendar-plus"></i></button>
+                <button class="btn-icon" @click="openModal(car)" title="Sửa"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button class="btn-icon" @click="toggleStatus(car)" title="Đổi trạng thái"><i class="fa-solid fa-shuffle"></i></button>
+                <button class="btn-icon text-danger" @click="deleteCar(car.id)" title="Xóa"><i class="fa-solid fa-trash-can"></i></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div v-else class="loading-state">
+
+      <!-- Loading Overlay -->
+      <div v-if="loading" class="loading-overlay">
         <div class="spinner"></div>
-        <p>Đang tải dữ liệu xe...</p>
       </div>
-    </section>
+    </div>
+
+    <!-- Edit/Add Modal (Simplified for demo, but functional) -->
+    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div class="modal-content card">
+        <div class="modal-header">
+          <h3>{{ editingCar.id ? 'Cập nhật thông tin xe' : 'Thêm xe mới' }}</h3>
+          <button class="btn-close" @click="showModal = false"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Tên xe</label>
+              <input type="text" v-model="editingCar.name" placeholder="VD: Mercedes C300" />
+            </div>
+            <div class="form-group">
+              <label>Giá thuê (VNĐ/Ngày)</label>
+              <input type="number" v-model="editingCar.price_per_day" />
+            </div>
+            <div class="form-group">
+              <label>Thành phố</label>
+              <input type="text" v-model="editingCar.city" />
+            </div>
+            <div class="form-group">
+              <label>Loại xe</label>
+              <select v-model="editingCar.category_id">
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label>Link ảnh xe</label>
+              <input type="text" v-model="editingCar.image" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline" @click="showModal = false">Hủy</button>
+          <button class="btn-primary" @click="saveCar">Lưu thay đổi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Booking Modal Added for Admin -->
+    <div v-if="showBookingModal" class="modal-overlay" @click.self="showBookingModal = false">
+      <div class="modal-content card animate-in">
+        <button class="btn-close" @click="showBookingModal = false">&times;</button>
+        <div class="modal-header">
+          <h3>Tạo đơn đặt xe nhanh</h3>
+          <p>Nhập thông tin bên dưới để Trợ lý AI xác nhận</p>
+        </div>
+        
+        <div class="modal-body" v-if="selectedCar">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Ngày lấy xe</label>
+                    <input type="datetime-local" v-model="bookingData.startDate" />
+                </div>
+                <div class="form-group">
+                    <label>Ngày trả xe</label>
+                    <input type="datetime-local" v-model="bookingData.endDate" />
+                </div>
+                <div class="form-group full">
+                    <label>Địa điểm nhận xe</label>
+                    <input type="text" v-model="bookingData.address" placeholder="Nhập địa chỉ..." />
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-outline" @click="showBookingModal = false">Hủy</button>
+          <button class="btn-primary" @click="confirmBooking">Xác Nhận & Gửi AI</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import baseRequest from '../../../core/baseRequest';
 
 const cars = ref([]);
+const categories = ref([]);
 const loading = ref(true);
+const searchQuery = ref('');
+const filterStatus = ref('');
+const showModal = ref(false);
+const editingCar = ref({});
 
-onMounted(async () => {
-  try {
-    const response = await baseRequest.get('cars');
-    if (response.data) {
-      cars.value = response.data;
-    }
-  } catch (error) {
-    console.error("Error fetching cars:", error);
-  } finally {
-    loading.value = false;
-  }
+// Booking Handoff Logic
+const showBookingModal = ref(false);
+const selectedCar = ref(null);
+const bookingData = ref({
+    startDate: new Date().toISOString().slice(0, 16),
+    endDate: new Date(new Date().getTime() + 86400000).toISOString().slice(0, 16),
+    address: ''
 });
 
-const toggleStatus = (car) => {
-  // Toggle the specific car status locally for simulation
-  if(!car.status || car.status === 'available') {
-    car.status = 'rented';
-  } else {
-    car.status = 'available';
-  }
-  // This would ideally fire a PUT/POST request to backend
-  alert(`Đổi thành công trạng thái xe ${car.name} thành: ${car.status === 'available' ? 'Sẵn sàng' : 'Đang thuê'}`);
+const filteredCars = computed(() => {
+  return cars.value.filter(car => {
+    const matchSearch = car.name.toLowerCase().includes(searchQuery.value.toLowerCase());
+    const matchStatus = filterStatus.value === '' || car.status === filterStatus.value;
+    return matchSearch && matchStatus;
+  });
+});
+
+const fetchCars = async () => {
+  loading.value = true;
+  try {
+    const res = await baseRequest.get('admin/cars/data');
+    if (res.data.status) cars.value = res.data.data;
+  } catch (err) { console.error(err); }
+  finally { loading.value = false; }
 };
+
+const fetchCategories = async () => {
+  try {
+    const res = await baseRequest.get('client/categories');
+    if (res.data.status) categories.value = res.data.data;
+  } catch (err) { console.error(err); }
+};
+
+const openModal = (car = null) => {
+  if (car) {
+    editingCar.value = { ...car };
+  } else {
+    editingCar.value = {
+      name: '',
+      price_per_day: 500000,
+      city: 'sg',
+      category_id: categories.value[0]?.id || 1,
+      image: 'https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg?auto=compress&cs=tinysrgb&w=800'
+    };
+  }
+  showModal.value = true;
+};
+
+const saveCar = async () => {
+  const url = editingCar.value.id ? 'admin/cars/update' : 'admin/cars/create';
+  try {
+    const res = await baseRequest.post(url, editingCar.value);
+    if (res.data.status) {
+      alert(res.data.message);
+      showModal.value = false;
+      fetchCars();
+    }
+  } catch (err) { alert("Có lỗi xảy ra"); }
+};
+
+const toggleStatus = async (car) => {
+  try {
+    const res = await baseRequest.post('admin/cars/status', { id: car.id });
+    if (res.data.status) {
+      alert(res.data.message);
+      fetchCars();
+    }
+  } catch (err) { alert("Lỗi hệ thống"); }
+};
+
+const deleteCar = async (id) => {
+  if (!confirm("Bạn có chắc chắn muốn xóa xe này?")) return;
+  try {
+    const res = await baseRequest.post('admin/cars/delete', { id });
+    if (res.data.status) {
+      alert(res.data.message);
+      fetchCars();
+    }
+  } catch (err) { alert("Lỗi hệ thống"); }
+};
+
+const formatCurrency = (val) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+};
+
+const openBookingModal = (car) => {
+    selectedCar.value = car;
+    showBookingModal.value = true;
+};
+
+const isLocationValid = (car) => {
+    if (!bookingData.value.address) return false;
+    if (!car.city) return true;
+    const query = bookingData.value.address.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const city = car.city.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return query.includes(city);
+};
+
+const confirmBooking = () => {
+    if (!isLocationValid(selectedCar.value)) {
+        alert(`Vui lòng nhập địa chỉ thuộc thành phố ${selectedCar.value.city}!`);
+        return;
+    }
+    
+    window.dispatchEvent(new CustomEvent('trigger-ai-booking', {
+        detail: {
+            car: selectedCar.value,
+            startDate: bookingData.value.startDate,
+            endDate: bookingData.value.endDate,
+            address: bookingData.value.address
+        }
+    }));
+    
+    showBookingModal.value = false;
+};
+
+onMounted(() => {
+  fetchCars();
+  fetchCategories();
+});
 </script>
 
 <style scoped>
-/* Hero Section (Matching Client but slightly shorter) */
-.hero-section {
-  position: relative;
-  padding: 100px 24px 100px;
-  background: linear-gradient(to right, #f8fafc, #cbd5e1);
-  overflow: hidden;
-  text-align: center;
-}
-
-.hero-bg-shape {
-  position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 800px;
-  height: 800px;
-  background: radial-gradient(circle, rgba(37,99,235,0.05) 0%, rgba(37,99,235,0) 70%);
-  border-radius: 50%;
-  z-index: 0;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.badge {
-  display: inline-block;
-  background: rgba(37, 99, 235, 0.1);
-  color: var(--color-primary);
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin-bottom: 24px;
-}
-
-.hero-title {
-  font-size: 3rem;
-  font-weight: 800;
-  line-height: 1.2;
-  color: #0f172a;
-  margin-bottom: 16px;
-  letter-spacing: -1px;
-}
-
-.hero-title span {
-  color: var(--color-primary);
-}
-
-.hero-subtitle {
-  font-size: 1.125rem;
-  color: #475569;
-  line-height: 1.6;
-  max-width: 600px;
-  margin-inline: auto;
-}
-
-/* Search Box (Admin Version) */
-.search-box-wrapper {
-  margin-top: -36px;
-  position: relative;
-  z-index: 10;
-}
-
-.search-box {
-  display: flex;
-  padding: 12px;
-  align-items: stretch;
-  background: white;
-  gap: 12px;
-}
-
-.search-field {
-  flex: 1;
+.admin-page {
   display: flex;
   flex-direction: column;
-  padding: 8px 12px;
+  gap: 24px;
 }
 
-.search-field label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.header-main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-icon {
+  width: 60px;
+  height: 60px;
+  background: white;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.page-title span { color: var(--color-primary); }
+.page-subtitle { color: #64748b; margin-top: 4px; }
+
+.content-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Tools */
+.table-tools {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.search-input {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-input i {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.search-input input {
+  width: 100%;
+  padding: 12px 16px 12px 48px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.search-input input:focus {
+  border-color: var(--color-primary);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  background: #f8fafc;
+  padding: 16px 24px;
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
 }
 
-.search-field input, .custom-select {
-  border: none;
-  background: transparent;
-  font-size: 0.95rem;
-  color: var(--color-text-main);
-  outline: none;
-  font-family: inherit;
+.data-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
   font-weight: 500;
-  width: 100%;
 }
 
-.search-separator {
-  width: 1px;
-  background: var(--color-border);
-  margin: 8px 0;
-}
-
-.search-btn {
-  margin-left: 8px;
-  padding: 0 32px;
-}
-
-/* Fleet Section */
-.fleet-section {
-  padding: 60px 24px;
-}
-
-.section-heading h2 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 8px;
-}
-
-.section-heading p {
-  color: var(--color-text-muted);
-}
-
-.car-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 32px;
-  margin-top: 32px;
-}
-
-.car-card {
-  position: relative;
+.car-cell {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
-.car-badge {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  color: white;
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
-  font-weight: 600;
-  z-index: 2;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-}
-
-.bg-success {
-  background: #16a34a;
-}
-
-.bg-warning {
-  background: #ea580c;
-}
-
-.car-img-container {
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
+.car-thumb {
+  width: 80px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 8px;
   background: #f1f5f9;
 }
 
-.car-img-container img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease;
-}
+.car-details { display: flex; flex-direction: column; }
+.car-name { font-weight: 700; color: #0f172a; }
+.car-id { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
 
-.car-info {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
+.price-text { font-weight: 800; color: var(--color-primary); }
 
-.type {
+.tag-outline {
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--color-text-muted);
   font-weight: 600;
-  margin-bottom: 8px;
 }
 
-.car-name {
-  font-size: 1.25rem;
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 16px;
 }
 
-.car-specs {
+.status-ok { background: #dcfce7; color: #166534; }
+.status-warn { background: #fee2e2; color: #991b1b; }
+
+.actions-cell {
   display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.spec {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.875rem;
-  color: #475569;
-}
-
-.spec svg {
-  color: var(--color-primary);
-}
-
-.car-footer {
-  padding-bottom: 16px;
-  border-bottom: 1px dashed var(--color-border);
-  margin-bottom: 16px;
-}
-
-.price-wrapper {
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
-}
-
-.price {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: var(--color-primary);
-}
-
-.unit {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-/* Admin Actions Buttons on Card */
-.admin-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: auto;
-}
-
-.btn-sm {
-  padding: 8px 12px;
-  font-size: 0.875rem;
-  flex: 1;
-  text-align: center;
+  gap: 8px;
   justify-content: center;
 }
 
-.status-toggle {
-  background: #475569;
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.status-toggle:hover {
-  background: #334155;
+.btn-icon:hover {
+  background: #f8fafc;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
-.loading-state {
-  text-align: center;
-  padding: 60px;
-  color: var(--color-text-muted);
+.btn-icon.text-danger:hover {
+  color: #ef4444;
+  border-color: #ef4444;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--color-border);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  margin: 0 auto 16px;
-  animation: spin 1s linear infinite;
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.modal-content {
+  width: 100%;
+  max-width: 600px;
+  padding: 0;
 }
 
-@media (max-width: 992px) {
-  .search-box { flex-direction: column; align-items: stretch; padding: 24px; }
-  .search-separator { width: 100%; height: 1px; margin: 8px 0; }
-  .search-btn { margin-top: 16px; margin-left: 0; padding: 14px; }
-  .section-heading { flex-direction: column; align-items: flex-start; gap: 16px; }
+.modal-header {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.modal-body { padding: 24px; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.form-group.full { grid-column: span 2; }
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  outline: none;
+}
+
+.modal-footer {
+  padding: 20px 24px;
+  background: #f8fafc;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .header-main { gap: 12px; }
+  .page-title { font-size: 1.25rem; }
+  .table-tools { flex-direction: column; }
 }
 </style>

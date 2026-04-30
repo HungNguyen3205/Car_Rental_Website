@@ -11,16 +11,19 @@ export default {
         }
         return { Authorization: 'Bearer ' + token }
     },
-    get(url) {
-        return axios.get(`${apiUrl}/${url}`, { headers: this.getHeader() });
+    get(url, config = {}) {
+        return axios.get(`${apiUrl}/${url}`, { ...config, headers: { ...this.getHeader(), ...config.headers } });
     },
-    post(url, data) {
-        return axios.post(`${apiUrl}/${url}`, data, { headers: this.getHeader() });
+    post(url, data, config = {}) {
+        return axios.post(`${apiUrl}/${url}`, data, { ...config, headers: { ...this.getHeader(), ...config.headers } });
     },
-    delete(url) {
-        return axios.delete(`${apiUrl}/${url}`, { headers: this.getHeader() });
+    patch(url, data, config = {}) {
+        return axios.patch(`${apiUrl}/${url}`, data, { ...config, headers: { ...this.getHeader(), ...config.headers } });
     },
-    put(url, data) {
-        return axios.put(`${apiUrl}/${url}`, data, { headers: this.getHeader() });
+    put(url, data, config = {}) {
+        return axios.put(`${apiUrl}/${url}`, data, { ...config, headers: { ...this.getHeader(), ...config.headers } });
+    },
+    delete(url, config = {}) {
+        return axios.delete(`${apiUrl}/${url}`, { ...config, headers: { ...this.getHeader(), ...config.headers } });
     },
 }

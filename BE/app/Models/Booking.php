@@ -18,7 +18,10 @@ class Booking extends Model
         'ly_do_thue',
         'tong_tien',
         'tinh_trang',
-        'is_thanh_toan'
+        'is_thanh_toan',
+        'dia_chi_nhan_xe',
+        'dia_chi_tra_xe',
+        'bill_image'
     ];
 
     public function car()

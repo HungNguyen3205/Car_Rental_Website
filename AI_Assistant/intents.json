@@ -1,0 +1,135 @@
+{
+  "intents": [
+    {
+      "tag": "chao_hoi",
+      "patterns": [
+        "Hi",
+        "Hello",
+        "Xin chào",
+        "Chào bạn",
+        "Có ai ở đó không?",
+        "Chào bot"
+      ],
+      "responses": [
+        "Xin chào! Tôi là Trợ lý DriveRent. Tôi có thể giúp gì cho bạn hôm nay? 😊",
+        "Chào bạn! Bạn đang quan tâm đến dòng xe VinFast nào của chúng tôi ạ?",
+        "Rất vui được gặp bạn! Bạn cần tư vấn về thủ tục thuê xe phải không?"
+      ]
+    },
+    {
+      "tag": "tam_biet",
+      "patterns": [
+        "Tạm biệt",
+        "Hẹn gặp lại",
+        "Bye",
+        "Cảm ơn nhé",
+        "Xong rồi"
+      ],
+      "responses": [
+        "Cảm ơn bạn đã quan tâm! Hẹn gặp lại bạn sớm trên những hành trình xanh. 👋",
+        "Chúc bạn một ngày tuyệt vời! Đừng quên liên hệ nếu cần hỗ trợ thêm nhé.",
+        "Tạm biệt! DriveRent luôn sẵn sàng đồng hành cùng bạn."
+      ]
+    },
+    {
+      "tag": "huong_dan_thue",
+      "patterns": [
+        "Thuê xe thế nào?",
+        "Làm sao để đặt xe?",
+        "Hướng dẫn tôi thuê xe",
+        "Tôi muốn thuê xe",
+        "Quy trình thuê xe"
+      ],
+      "responses": [
+        "<div class='chat-card'><h4>🚗 Hướng dẫn thuê xe</h4><p>1. Chọn xe tại menu <b>Đội xe</b><br>2. Nhấn <b>Thuê ngay</b> và chọn ngày<br>3. Thanh toán cọc qua mã QR mà tôi cung cấp</p></div>"
+      ]
+    },
+    {
+      "tag": "gia_thue",
+      "patterns": [
+        "Giá thuê xe thế nào?",
+        "Giá bao nhiêu một ngày?",
+        "Thuê xe có đắt không?",
+        "Bảng giá thuê xe"
+      ],
+      "responses": [
+        "Giá thuê xe VinFast tại DriveRent dao động từ 600.000đ đến 2.500.000đ/ngày tùy dòng xe (VF5, VFe34, VF8, VF9). Bạn có thể xem giá chi tiết tại trang <b>Đội xe</b> nhé!"
+      ]
+    },
+    {
+      "tag": "xe_vf8",
+      "patterns": [
+        "Tôi muốn thuê VF8",
+        "Xe VF8 giá bao nhiêu?",
+        "VF8 còn xe không?",
+        "VinFast VF8"
+      ],
+      "responses": [
+        "VinFast VF8 là dòng SUV điện hạng D đẳng cấp. Giá thuê hiện tại khoảng 1.200.000đ/ngày. Bạn hãy vào mục Đội xe để kiểm tra tính sẵn có tại khu vực của mình nhé! ✨"
+      ]
+    },
+    {
+      "tag": "xe_vf9",
+      "patterns": [
+        "Thuê xe VF9",
+        "VF9 giá bao nhiêu?",
+        "Xe 7 chỗ VinFast",
+        "VinFast VF9"
+      ],
+      "responses": [
+        "VinFast VF9 là dòng SUV 7 chỗ cao cấp nhất. Với không gian rộng rãi và công nghệ hiện đại, giá thuê là 2.200.000đ/ngày. Một lựa chọn tuyệt vời cho gia đình!"
+      ]
+    },
+    {
+      "tag": "thanh_toan",
+      "patterns": [
+        "Thanh toán thế nào?",
+        "Trả tiền qua đâu?",
+        "Có cần đặt cọc không?",
+        "Mã QR thanh toán",
+        "Chuyển khoản"
+      ],
+      "responses": [
+        "Bạn có thể thanh toán chuyển khoản qua mã QR mà tôi sẽ hiển thị ngay sau khi bạn đặt ngày thành công. Chúng tôi hỗ trợ tất cả các ngân hàng tại Việt Nam."
+      ]
+    },
+    {
+      "tag": "da_thanh_toan",
+      "patterns": [
+        "Tôi đã chuyển khoản",
+        "Mình đã thanh toán rồi",
+        "Đã gửi tiền",
+        "Xác nhận thanh toán giúp mình",
+        "Đã ck",
+        "Đã chuyển"
+      ],
+      "responses": [
+        "🌸 <b>Tuyệt vời!</b> Hệ thống đã ghi nhận thông báo chuyển khoản của bạn. Admin đang kiểm tra giao dịch và sẽ duyệt đơn trong vòng 5-10 phút. Bạn sẽ nhận được thông báo ngay khi đơn được chấp nhận nhé! Cảm ơn bạn đã tin tưởng DriveRent. ✨"
+      ]
+    },
+    {
+      "tag": "dia_chi",
+      "patterns": [
+        "Địa chỉ ở đâu?",
+        "Công ty ở đâu?",
+        "Lấy xe ở đâu?",
+        "Showroom ở đâu?"
+      ],
+      "responses": [
+        "DriveRent có điểm giao nhận xe tại các thành phố lớn: Hà Nội, TP.HCM, Đà Nẵng, Nha Trang và Đà Lạt. Bạn chỉ cần nhập địa chỉ, chúng tôi sẽ giao xe tận nơi!"
+      ]
+    },
+    {
+      "tag": "lien_he",
+      "patterns": [
+        "Số điện thoại liên hệ",
+        "Hotline",
+        "Cần hỗ trợ gấp",
+        "Tổng đài"
+      ],
+      "responses": [
+        "Bạn có thể gọi ngay Hotline: <b>1900 6789</b> để được hỗ trợ 24/7. DriveRent rất hân hạnh được phục vụ!"
+      ]
+    }
+  ]
+}
