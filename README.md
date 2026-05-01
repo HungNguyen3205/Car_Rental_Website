@@ -25,11 +25,58 @@
 - 🗺️ **Quản lý địa điểm:** Tích hợp bản đồ và chọn địa điểm đón/trả xe linh hoạt.
 - 💳 **Thanh toán QR:** Tích hợp thanh toán qua mã QR tiện lợi và an toàn.
 
+## 🧠 Trợ lý ảo AI Thông minh
+Điểm đặc biệt của dự án là hệ thống **AI Assistant** tự phát triển, không chỉ là chatbot thông thường:
+- **Xử lý ngôn ngữ tự nhiên (NLP):** Sử dụng thư viện `nltk` và mô hình Neural Network tùy chỉnh.
+- **Tự đào tạo (Self-trained):** Có khả năng học từ file `intents.json` để nhận diện ý định khách hàng.
+- **Tốc độ phản hồi cực nhanh:** Được triển khai trên nền tảng FastAPI giúp phản hồi gần như ngay lập tức.
+- **Tích hợp sâu:** Kết nối trực tiếp với luồng đặt xe để hỗ trợ thông tin theo thời gian thực.
+
+
 ## 🛠️ Công nghệ sử dụng
 - **Frontend:** Vue.js 3, Vite, Axios, Tailwind CSS (hoặc CSS tùy chỉnh).
 - **Backend:** Laravel 10+, MySQL.
 - **AI Assistant:** FastAPI, Python, NLP.
 - **Tools:** Git, Composer, NPM.
+
+## 🏗️ Kiến trúc hệ thống
+Dự án được xây dựng theo mô hình **Microservices-ready architecture** với sự phân tách rõ ràng:
+
+```mermaid
+graph TD
+    User((Khách hàng))
+    Admin((Quản trị viên))
+    
+    subgraph Frontend_Layer
+        FE[Vue.js 3 + Vite]
+    end
+    
+    subgraph Service_Layer
+        BE[Laravel API]
+        AI[FastAPI Assistant]
+    end
+    
+    subgraph Database_Layer
+        DB[(MySQL)]
+    end
+    
+    User --> FE
+    Admin --> FE
+    FE <--> BE
+    FE <--> AI
+    BE <--> DB
+```
+
+## 📁 Cấu trúc dự án
+```text
+Car_Rental_Website/
+├── BE/                # Backend Laravel (API & Business Logic)
+├── FE/                # Frontend Vue.js (UI/UX)
+├── AI_Assistant/      # Trợ lý ảo AI (Python, NLP, FastAPI)
+├── README.md          # Tài liệu dự án
+└── composer.phar      # Quản lý dependency PHP
+```
+
 
 ## 🚀 Hướng dẫn cài đặt
 
