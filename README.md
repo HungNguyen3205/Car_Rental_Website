@@ -64,10 +64,9 @@ python main.py
 ```
 
 ## 📸 Hình ảnh giao diện
-*(Sẽ cập nhật ảnh thực tế sau)*
 | Trang chủ | Danh sách xe |
 | :---: | :---: |
-| ![Home](FE/public/assets/images/page.png) | ![Cars](FE/public/assets/images/list_car.png) |
+| ![Home](FE/public/assets/images/list_car.png) | ![Cars](FE/public/assets/images/page.png) |
 
 ## 🤝 Liên hệ
 - **Tác giả:** HungNguyen3205
