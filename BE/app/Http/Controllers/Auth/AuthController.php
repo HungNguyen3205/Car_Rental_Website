@@ -30,9 +30,12 @@ class AuthController extends Controller
                 'message' => 'Đăng nhập Admin thành công!',
                 'token'   => $admin->createToken('token_admin')->plainTextToken,
                 'user'    => [
-                    'ho_ten' => $admin->ho_ten,
-                    'role'   => 'admin',
-                    'email'  => $admin->email
+                    'id'            => $admin->id,
+                    'ho_ten'        => $admin->ho_ten,
+                    'role'          => 'admin',
+                    'email'         => $admin->email,
+                    'so_dien_thoai'  => $admin->so_dien_thoai,
+                    'dia_chi'       => $admin->dia_chi,
                 ],
             ]);
         }
@@ -143,7 +146,7 @@ class AuthController extends Controller
 
     public function getProfile()
     {
-        $user = Auth::guard('sanctum')->user();
+        $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
         return response()->json([
             'status' => 1,
             'data'   => $user,
@@ -152,7 +155,7 @@ class AuthController extends Controller
 
     public function updateProfile(Request $request)
     {
-        $user = Auth::guard('sanctum')->user();
+        $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
         if ($user) {
             $user->update($request->only(['ho_ten', 'so_dien_thoai', 'ngay_sinh', 'gioi_tinh', 'dia_chi']));
             return response()->json([
@@ -178,7 +181,7 @@ class AuthController extends Controller
     {
         $users = User::select('id', 'ho_ten', 'email', 'so_dien_thoai', 'tinh_trang as is_active', 'created_at', DB::raw("'user' as role"))->get();
         // Since Admins might not have all fields, we handle them carefully
-        $admins = DB::table('admins')->select('id', 'ho_ten', 'email', DB::raw("'' as so_dien_thoai"), 'tinh_trang as is_active', 'created_at', DB::raw("'admin' as role"))->get();
+        $admins = DB::table('admins')->select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_trang as is_active', 'created_at', DB::raw("'admin' as role"))->get();
         
         return response()->json([
             'status' => 1,

@@ -99,6 +99,10 @@
               <label>Mật khẩu {{ modalType === 'update' ? '(Để trống nếu không đổi)' : '' }}</label>
               <input type="password" v-model="currentAdmin.password" placeholder="********" class="form-control" />
             </div>
+            <div class="form-group full">
+              <label>Địa chỉ</label>
+              <input type="text" v-model="currentAdmin.dia_chi" placeholder="Nhập địa chỉ..." class="form-control" />
+            </div>
             <div class="form-group">
                 <label>Trạng thái</label>
                 <select v-model="currentAdmin.tinh_trang" class="form-select">
@@ -135,6 +139,7 @@ const currentAdmin = ref({
     email: '',
     password: '',
     so_dien_thoai: '',
+    dia_chi: '',
     tinh_trang: 1
 });
 
@@ -162,7 +167,7 @@ const filteredAdmins = computed(() => {
 const openModal = (type, admin = null) => {
     modalType.value = type;
     if (type === 'create') {
-        currentAdmin.value = { ho_ten: '', email: '', password: '', so_dien_thoai: '', tinh_trang: 1 };
+        currentAdmin.value = { ho_ten: '', email: '', password: '', so_dien_thoai: '', dia_chi: '', tinh_trang: 1 };
     } else {
         currentAdmin.value = { ...admin, password: '' };
     }

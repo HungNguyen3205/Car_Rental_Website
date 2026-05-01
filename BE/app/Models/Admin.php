@@ -18,6 +18,7 @@ class Admin extends Authenticatable
         'email',
         'password',
         'so_dien_thoai',
+        'dia_chi',
         'tinh_trang',
     ];
 

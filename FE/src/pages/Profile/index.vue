@@ -144,26 +144,51 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import baseRequest from '../../core/baseRequest';
+import { createToaster } from "@meforma/vue-toaster";
 
+const toaster = createToaster({ position: "top-right" });
 const activeTab = ref('general');
 const user = ref({
     ho_ten: '',
     email: '',
     so_dien_thoai: '',
-    dia_chi: ''
+    dia_chi: '',
+    role: ''
 });
 
-onMounted(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-        user.value = JSON.parse(userData);
+const fetchProfile = async () => {
+    try {
+        const res = await baseRequest.get('user/profile/data');
+        if (res.data.status) {
+            // Merge with existing role from localStorage just in case API doesn't return it
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            user.value = { ...res.data.data, role: res.data.data.role || storedUser.role };
+            localStorage.setItem('user', JSON.stringify(user.value));
+        }
+    } catch (err) {
+        // Fallback to localStorage if API fails
+        const userData = localStorage.getItem('user');
+        if (userData) {
+            user.value = JSON.parse(userData);
+        }
     }
-});
+};
 
-const saveProfile = () => {
-    // In a real app, call API here
-    localStorage.setItem('user', JSON.stringify(user.value));
-    alert("Cập nhật thông tin thành công!");
+onMounted(fetchProfile);
+
+const saveProfile = async () => {
+    try {
+        const res = await baseRequest.post('user/profile/update', user.value);
+        if (res.data.status) {
+            localStorage.setItem('user', JSON.stringify(user.value));
+            toaster.success(res.data.message);
+        } else {
+            toaster.error(res.data.message);
+        }
+    } catch (err) {
+        toaster.error("Không thể kết nối đến máy chủ!");
+    }
 };
 </script>
 
