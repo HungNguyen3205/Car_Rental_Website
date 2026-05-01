@@ -12,6 +12,14 @@
   <a href="https://www.mysql.com/" target="_blank"><img src="https://img.shields.io/badge/MySQL-00000F?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL"></a>
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/github/license/HungNguyen3205/Car_Rental_Website?style=flat-square" alt="License">
+  <img src="https://img.shields.io/github/v/release/HungNguyen3205/Car_Rental_Website?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/github/stars/HungNguyen3205/Car_Rental_Website?style=flat-square" alt="Stars">
+  <img src="https://img.shields.io/github/forks/HungNguyen3205/Car_Rental_Website?style=flat-square" alt="Forks">
+</p>
+
+
 ---
 
 ## 📖 Giới thiệu
@@ -121,6 +129,12 @@ python main.py
 | Trang chủ | Quản lý hóa đơn |
 | :---: | :---: |
 | ![Admin](FE/public/assets/images/page_admin.png) | ![Manage](FE/public/assets/images/invoid.png) |
+
+## 📂 Tài liệu liên quan
+Để hiểu rõ hơn về dự án và cách đóng góp, vui lòng xem các tài liệu sau:
+- [📜 Giấy phép (License)](LICENSE) - MIT License.
+- [🤝 Hướng dẫn đóng góp](CONTRIBUTING.md) - Cách tạo PR và quy chuẩn code.
+- [📝 Nhật ký thay đổi](CHANGELOG.md) - Theo dõi tiến độ phát triển dự án.
 
 ## 🤝 Liên hệ
 - **Tác giả:** HungNguyen3205
