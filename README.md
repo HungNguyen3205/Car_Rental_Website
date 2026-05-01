@@ -111,9 +111,16 @@ python main.py
 ```
 
 ## 📸 Hình ảnh giao diện
+
+### 🌐 Giao diện Người dùng (Client)
 | Trang chủ | Danh sách xe |
 | :---: | :---: |
-| ![Home](FE/public/assets/images/list_car.png) | ![Cars](FE/public/assets/images/page.png) |
+| ![Home](FE/public/assets/images/page.png) | ![Cars](FE/public/assets/images/list_car.png) |
+
+### ⚡ Giao diện Quản trị (Admin)
+| Trang chủ | Quản lý hóa đơn |
+| :---: | :---: |
+| ![Admin](FE/public/assets/images/page_admin.png) | ![Manage](FE/public/assets/images/invoid.png) |
 
 ## 🤝 Liên hệ
 - **Tác giả:** HungNguyen3205
