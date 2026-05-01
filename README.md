@@ -67,11 +67,11 @@ python main.py
 *(Sẽ cập nhật ảnh thực tế sau)*
 | Trang chủ | Danh sách xe |
 | :---: | :---: |
-| ![Home](https://via.placeholder.com/400x250?text=Home+Page) | ![Cars](https://via.placeholder.com/400x250?text=Car+Listing) |
+| ![Home](FE/public/assets/images/page.png) | ![Cars](FE/public/assets/images/list_car.png) |
 
 ## 🤝 Liên hệ
 - **Tác giả:** HungNguyen3205
-- **Email:** example@gmail.com
+- **Email:** namhung03022005@gmail.com
 - **GitHub:** [HungNguyen3205](https://github.com/HungNguyen3205)
 
 ---
