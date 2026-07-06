@@ -742,12 +742,12 @@ const scrollToProcess = () => {
 </script>
 
 <style scoped>
-/* Hero Section Redesign - Static Full Screen */
+/* Hero Section Redesign */
 .hero-section {
     position: relative;
     height: 100vh;
     min-height: 800px;
-    background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -770,7 +770,7 @@ const scrollToProcess = () => {
     right: 0%;
     width: 100%;
     max-width: 1200px;
-    filter: drop-shadow(0 40px 100px rgba(0, 0, 0, 0.3));
+    filter: drop-shadow(0 40px 100px rgba(9, 13, 22, 0.15));
     z-index: 1;
 }
 
@@ -788,19 +788,21 @@ const scrollToProcess = () => {
   font-size: 4.2rem;
   line-height: 1.1;
   margin: 20px 0;
-  color: #0f172a;
+  color: var(--color-text-main);
+  letter-spacing: -2px;
 }
 
 .badge {
     display: inline-flex;
     padding: 8px 16px;
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(16, 185, 129, 0.08);
     color: var(--color-primary);
+    border: 1px solid rgba(16, 185, 129, 0.15);
     border-radius: 100px;
-    font-size: 0.85rem;
-    font-weight: 800;
+    font-size: 0.8rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     margin-bottom: 24px;
 }
 

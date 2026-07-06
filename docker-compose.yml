@@ -1,0 +1,84 @@
+services:
+  # --- DATABASES ---
+  # Database 1: MySQL
+  db-mysql:
+    image: mysql:8.0
+    container_name: car-rental-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: car_rental
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_PASSWORD: userpassword
+      MYSQL_USER: dbuser
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # Database 2: Redis
+  db-redis:
+    image: redis:alpine
+    container_name: car-rental-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # --- SERVICES ---
+  # Service 1: Laravel Backend
+  backend:
+    build:
+      context: ./BE
+      dockerfile: Dockerfile
+    container_name: car-rental-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=mysql
+      - DB_HOST=db-mysql
+      - DB_PORT=3306
+      - DB_DATABASE=car_rental
+      - DB_USERNAME=dbuser
+      - DB_PASSWORD=userpassword
+      - REDIS_HOST=db-redis
+      - REDIS_PORT=6379
+      - QUEUE_CONNECTION=redis
+      - CACHE_STORE=redis
+      - SESSION_DRIVER=redis
+    depends_on:
+      - db-mysql
+      - db-redis
+
+  # Service 2: Vue Frontend (Nginx)
+  frontend:
+    build:
+      context: ./FE
+      dockerfile: Dockerfile
+    container_name: car-rental-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  # Service 3: AI Assistant (Python Flask)
+  ai-assistant:
+    build:
+      context: ./AI_Assistant
+      dockerfile: Dockerfile
+    container_name: car-rental-ai
+    restart: always
+    ports:
+      - "5005:5005"
+    environment:
+      - BE_URL=http://backend:8000/api
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  redis_data:
