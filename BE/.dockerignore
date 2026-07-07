@@ -1,7 +1,6 @@
 vendor
 node_modules
 .git
-.env
 bootstrap/cache/*
 storage/framework/sessions/*
 storage/framework/views/*

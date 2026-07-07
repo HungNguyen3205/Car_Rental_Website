@@ -20,12 +20,11 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Tạo tài khoản admin mặc định
-        User::updateOrCreate(
+        \App\Models\Admin::updateOrCreate(
             ['email' => 'admin@gmail.com'],
             [
                 'ho_ten' => 'Hệ thống Quản trị',
                 'password' => Hash::make('password'),
-                'role' => 'admin',
                 'tinh_trang' => 1
             ]
         );
@@ -36,7 +35,6 @@ class DatabaseSeeder extends Seeder
             [
                 'ho_ten' => 'Khách hàng Demo',
                 'password' => Hash::make('password'),
-                'role' => 'customer',
                 'tinh_trang' => 1
             ]
         );

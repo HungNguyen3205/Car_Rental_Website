@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+RUN apt-get update && apt-get install -y libssl-dev zlib1g-dev pkg-config && pecl install redis && docker-php-ext-enable redis && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -36,4 +36,4 @@ RUN composer update --no-interaction --optimize-autoloader --no-dev --no-scripts
 EXPOSE 8000
 
 # Start server
-CMD php artisan key:generate && php artisan serve --host=0.0.0.0 --port=8000
+CMD if [ ! -f /var/www/.env ]; then cp /var/www/.env.example /var/www/.env; fi && php artisan key:generate --force && php artisan serve --host=0.0.0.0 --port=8000

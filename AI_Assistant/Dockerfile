@@ -2,22 +2,21 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Khởi tạo các thư viện hệ thống cần thiết
 RUN apt-get update && apt-get install -y \
-    build-essential \
     curl \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Copy file định nghĩa thư viện
 COPY requirements.txt .
 
-# Install dependencies (using CPU version of PyTorch to minimize image size)
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir --default-timeout=1000 torch --index-url https://download.pytorch.org/whl/cpu
+
+RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
 RUN pip install --no-cache-dir nltk
 
-# Pre-download NLTK data
-RUN python -m nltk.downloader punkt
+RUN python -m nltk.downloader punkt punkt_tab
 
 COPY . .
 
