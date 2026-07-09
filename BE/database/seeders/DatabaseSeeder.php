@@ -19,14 +19,15 @@ class DatabaseSeeder extends Seeder
             CarSeeder::class,
         ]);
 
-        // Tạo tài khoản admin mặc định
-        User::updateOrCreate(
+        // Tạo tài khoản admin mặc định trong bảng admins
+        \Illuminate\Support\Facades\DB::table('admins')->updateOrInsert(
             ['email' => 'admin@gmail.com'],
             [
                 'ho_ten' => 'Hệ thống Quản trị',
                 'password' => Hash::make('password'),
-                'role' => 'admin',
-                'tinh_trang' => 1
+                'tinh_trang' => 1,
+                'created_at' => now(),
+                'updated_at' => now()
             ]
         );
 
@@ -36,7 +37,6 @@ class DatabaseSeeder extends Seeder
             [
                 'ho_ten' => 'Khách hàng Demo',
                 'password' => Hash::make('password'),
-                'role' => 'customer',
                 'tinh_trang' => 1
             ]
         );

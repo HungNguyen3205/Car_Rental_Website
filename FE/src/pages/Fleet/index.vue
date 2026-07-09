@@ -96,7 +96,7 @@
             </div>
             
             <div class="product-actions">
-              <router-link to="/" class="btn-primary-vibe">THUÊ NGAY</router-link>
+              <router-link :to="{ path: '/', query: { car_id: car.id, city: car.city } }" class="btn-primary-vibe">THUÊ NGAY</router-link>
               <button class="btn-secondary-vibe"><i class="fa-solid fa-plus"></i></button>
             </div>
           </div>

@@ -295,10 +295,13 @@
 
 <script setup>
 import { ref, onMounted, reactive, watch, nextTick, computed, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import baseRequest from '../../core/baseRequest';
 import axios from 'axios';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css'
+
+const route = useRoute();
 
 // Use a custom directive for clicking outside
 const vClickOutside = {
@@ -472,10 +475,59 @@ const fetchCars = async (params = {}) => {
 };
 
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('scroll', handleScroll);
-  // fetchCars(); // Removed automatic fetch on mount as per user request
-  fetchProvinces();
+  await fetchProvinces();
+
+  const carId = route.query.car_id;
+  const cityQuery = route.query.city;
+
+  if (carId && cityQuery) {
+    let matchedProvince = null;
+    const cleanCity = cityQuery.toLowerCase();
+    
+    if (cleanCity === 'sg') {
+      matchedProvince = provinces.value.find(p => p.name.includes('Hồ Chí Minh') || p.id === 'Hồ Chí Minh');
+    } else if (cleanCity === 'hn') {
+      matchedProvince = provinces.value.find(p => p.name.includes('Hà Nội') || p.id === 'Hà Nội');
+    } else if (cleanCity === 'dn') {
+      matchedProvince = provinces.value.find(p => p.name.includes('Đà Nẵng') || p.id === 'Đà Nẵng');
+    } else {
+      matchedProvince = provinces.value.find(p => p.name.toLowerCase().includes(cleanCity));
+    }
+
+    if (matchedProvince) {
+      searchData.city = matchedProvince.id;
+      const cityName = matchedProvince.name;
+      if (cityName.includes('Hồ Chí Minh')) {
+        searchData.address = 'Quận 1, TP. Hồ Chí Minh';
+      } else if (cityName.includes('Hà Nội')) {
+        searchData.address = 'Hoàn Kiếm, Hà Nội';
+      } else if (cityName.includes('Đà Nẵng')) {
+        searchData.address = 'Hải Châu, Đà Nẵng';
+      } else {
+        searchData.address = cityName;
+      }
+
+      handleSearch();
+
+      let attempts = 0;
+      const checkAndExpand = setInterval(() => {
+        attempts++;
+        if (cars.value.length > 0) {
+          const targetCar = cars.value.find(c => c.id.toString() === carId.toString());
+          if (targetCar) {
+            expandingCarId.value = targetCar.id;
+            selectedCar.value = targetCar;
+            scrollResults();
+          }
+          clearInterval(checkAndExpand);
+        } else if (attempts > 30) {
+          clearInterval(checkAndExpand);
+        }
+      }, 100);
+    }
+  }
 });
 
 onUnmounted(() => {

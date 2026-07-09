@@ -18,7 +18,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '../BE/.env'))
 app = Flask(__name__)
 CORS(app)
 
-BE_URL = "http://127.0.0.1:8000/api"
+BE_URL = os.getenv("BE_URL", "http://127.0.0.1:8000/api")
 
 def safe_print(msg):
     try:
@@ -30,10 +30,11 @@ def safe_print(msg):
             pass
 
 # Ensure NLTK data is downloaded
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+for resource in ['punkt', 'punkt_tab']:
+    try:
+        nltk.data.find(f'tokenizers/{resource}')
+    except LookupError:
+        nltk.download(resource)
 
 # ======================
 # AI MODEL LOADING

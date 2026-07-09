@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 RUN pip install --no-cache-dir nltk
 
 # Pre-download NLTK data
-RUN python -m nltk.downloader punkt
+RUN python -m nltk.downloader punkt punkt_tab
 
 COPY . .
 

@@ -48,31 +48,41 @@
 - **Tools:** Git, Composer, NPM.
 
 ## 🏗️ Kiến trúc hệ thống
-Dự án được xây dựng theo mô hình **Microservices-ready architecture** với sự phân tách rõ ràng:
+Dự án được xây dựng theo mô hình **Decoupled Client-Server MVC (Model-View-Controller)** với sự phân tách rõ ràng giữa giao diện hiển thị và logic xử lý dữ liệu:
+
+*   **View (Tầng giao diện):** [Vue.js 3 + Vite](file:///d:/Nam%20%20H%C3%B9ng/Code/Car_Rental_Website/FE) đóng vai trò nhận tương tác từ người dùng và render giao diện.
+*   **Controller (Tầng điều khiển):** Các API Controllers trong [Laravel](file:///d:/Nam%20%20H%C3%B9ng/Code/Car_Rental_Website/BE) chịu trách nhiệm tiếp nhận yêu cầu từ View, điều phối xử lý logic và trả về dữ liệu định dạng JSON.
+*   **Model (Tầng dữ liệu):** Các Eloquent Models trong Laravel thực hiện truy vấn và thao tác dữ liệu với cơ sở dữ liệu MySQL.
+*   **AI Assistant (Dịch vụ hỗ trợ):** [FastAPI](file:///d:/Nam%20%20H%C3%B9ng/Code/Car_Rental_Website/AI_Assistant) đóng vai trò như một dịch vụ bổ trợ chuyên biệt để cung cấp API chatbot thông minh.
 
 ```mermaid
 graph TD
     User((Khách hàng))
     Admin((Quản trị viên))
     
-    subgraph Frontend_Layer
-        FE[Vue.js 3 + Vite]
+    subgraph View_Layer_Frontend
+        FE[Vue.js 3 - Client View]
     end
     
-    subgraph Service_Layer
-        BE[Laravel API]
-        AI[FastAPI Assistant]
+    subgraph Controller_Model_Layer_Backend
+        BE_Ctrl[Laravel Controllers]
+        BE_Model[Laravel Models]
+    end
+    
+    subgraph Helper_Service_Layer
+        AI[FastAPI AI Assistant]
     end
     
     subgraph Database_Layer
-        DB[(MySQL)]
+        DB[(MySQL Database)]
     end
     
     User --> FE
     Admin --> FE
-    FE <--> BE
-    FE <--> AI
-    BE <--> DB
+    FE <-->|HTTP API Requests| BE_Ctrl
+    FE <-->|Chat API Requests| AI
+    BE_Ctrl <--> BE_Model
+    BE_Model <--> DB
 ```
 
 ## 📁 Cấu trúc dự án
