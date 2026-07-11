@@ -30,7 +30,7 @@ class BookingController extends Controller
             if (get_class($user) === 'App\Models\Admin') {
                 // Try to find a user with the same email, or fallback to the first user
                 $linkedUser = \App\Models\User::where('email', $user->email)->first();
-                $targetUserId = $linkedUser ? $linkedUser->id : 2; // Fallback to ID 2 (Demo User)
+                $targetUserId = $linkedUser ? $linkedUser->id : (\App\Models\User::first()?->id ?? 1); // Fallback to the first available user
             }
 
             $carId     = $request->car_id;
@@ -65,6 +65,7 @@ class BookingController extends Controller
             }
 
             $diffInDays = Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate));
+            $diffInDays = ceil($diffInDays);
             if ($diffInDays < 1) $diffInDays = 1;
             $tongTien   = $diffInDays * $car->price_per_day;
 
@@ -113,7 +114,7 @@ class BookingController extends Controller
         $targetUserId = $user->id;
         if (get_class($user) === 'App\Models\Admin') {
             $linkedUser = \App\Models\User::where('email', $user->email)->first();
-            $targetUserId = $linkedUser ? $linkedUser->id : 2;
+            $targetUserId = $linkedUser ? $linkedUser->id : (\App\Models\User::first()?->id ?? 1);
         }
 
         $data = Booking::join('cars', 'bookings.car_id', '=', 'cars.id')

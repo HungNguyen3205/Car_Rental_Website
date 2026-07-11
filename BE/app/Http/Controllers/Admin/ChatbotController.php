@@ -65,7 +65,7 @@ class ChatbotController extends Controller
 
         $start_date = Carbon::parse($request->start_date);
         $end_date = Carbon::parse($request->end_date);
-        $days = $start_date->diffInDays($end_date) ?: 1;
+        $days = ceil($start_date->diffInDays($end_date)) ?: 1;
         $total = $days * $car->price_per_day;
 
         $booking = Booking::create([
