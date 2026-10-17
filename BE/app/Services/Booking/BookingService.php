@@ -132,17 +132,21 @@ class BookingService
 
             // BƯỚC 6: Tạo bản ghi đặt xe mới
             $booking = Booking::create([
-                'user_id'         => $userId,
-                'car_id'          => $car->id,
-                'ma_dat_xe'       => '',
-                'start_date'      => $startStr,
-                'end_date'        => $endStr,
-                'ly_do_thue'      => $payload['ly_do_thue'] ?? 'Thuê xe du lịch',
-                'tong_tien'       => $priceData['total_price'],
-                'tinh_trang'      => 0, // Mặc định: Chờ xác nhận (giữ lịch)
-                'is_thanh_toan'   => 0,
-                'dia_chi_nhan_xe' => $payload['dia_chi_nhan_xe'] ?? null,
-                'dia_chi_tra_xe'  => $payload['dia_chi_tra_xe'] ?? null,
+                'user_id'             => $userId,
+                'car_id'              => $car->id,
+                'ma_dat_xe'           => '',
+                'start_date'          => $startStr,
+                'end_date'            => $endStr,
+                'ly_do_thue'          => $payload['ly_do_thue'] ?? 'Thuê xe du lịch',
+                'tong_tien'           => $priceData['total_price'],
+                'tinh_trang'          => isset($payload['tinh_trang']) ? (int) $payload['tinh_trang'] : 0, // Mặc định: Chờ xác nhận (giữ lịch)
+                'is_thanh_toan'       => isset($payload['is_thanh_toan']) ? (int) $payload['is_thanh_toan'] : 0,
+                'dia_chi_nhan_xe'     => $payload['dia_chi_nhan_xe'] ?? null,
+                'dia_chi_tra_xe'      => $payload['dia_chi_tra_xe'] ?? null,
+                'created_by_admin_id' => $payload['created_by_admin_id'] ?? null,
+                'payment_confirmed_at'=> $payload['payment_confirmed_at'] ?? null,
+                'payment_confirmed_by'=> $payload['payment_confirmed_by'] ?? null,
+                'payment_note'        => $payload['payment_note'] ?? null,
             ]);
 
             // BƯỚC 7: Cập nhật mã đơn

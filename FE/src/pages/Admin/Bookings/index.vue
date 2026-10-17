@@ -10,6 +10,9 @@
         </div>
       </div>
       <div class="header-actions">
+        <router-link to="/admin/cars" class="btn-primary">
+          <i class="fa-solid fa-calendar-plus"></i> Đặt xe hộ khách
+        </router-link>
         <button class="btn-outline" @click="fetchBookings" :disabled="loading">
           <i class="fa-solid fa-rotate" :class="{ 'fa-spin': loading }"></i> Làm mới dữ liệu
         </button>
@@ -101,7 +104,11 @@
                   <div class="user-avatar">{{ booking.user_name ? booking.user_name.charAt(0).toUpperCase() : 'U' }}</div>
                   <div class="user-info">
                     <span class="name">{{ booking.user_name || 'Khách vãng lai' }}</span>
-                    <span class="email">{{ booking.user_email || 'Chưa có email' }}</span>
+                    <span class="email"><i class="fa-solid fa-envelope"></i> {{ booking.user_email || 'Chưa có email' }}</span>
+                    <span class="phone" v-if="booking.user_phone"><i class="fa-solid fa-phone"></i> {{ booking.user_phone }}</span>
+                    <span v-if="booking.created_by_admin_name" class="badge-creator-admin" title="Đơn được nhân viên/admin đặt hộ">
+                      <i class="fa-solid fa-user-shield"></i> Hộ bởi: {{ booking.created_by_admin_name }}
+                    </span>
                   </div>
                 </div>
               </td>
@@ -775,7 +782,20 @@ onUnmounted(() => {
 .user-cell { display: flex; align-items: center; gap: 10px; }
 .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: #E2E8F0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; color: #475569; }
 .user-info .name { display: block; font-weight: 700; color: var(--color-text-main); font-size: 0.88rem; }
-.user-info .email { font-size: 0.72rem; color: var(--color-text-muted); }
+.user-info .email { display: block; font-size: 0.72rem; color: var(--color-text-muted); }
+.user-info .phone { display: block; font-size: 0.72rem; color: var(--color-text-muted); margin-top: 1px; }
+.badge-creator-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #0369A1;
+  background: #E0F2FE;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+}
 
 .car-title { font-weight: 700; color: var(--color-text-main); font-size: 0.88rem; display: inline-flex; align-items: center; gap: 6px; }
 .car-title i { color: var(--color-primary); }

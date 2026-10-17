@@ -24,7 +24,8 @@ class Booking extends Model
         'bill_image',
         'payment_confirmed_at',
         'payment_confirmed_by',
-        'payment_note'
+        'payment_note',
+        'created_by_admin_id',
     ];
 
     protected $casts = [
@@ -47,5 +48,10 @@ class Booking extends Model
     public function confirmedByAdmin()
     {
         return $this->belongsTo(Admin::class, 'payment_confirmed_by');
+    }
+
+    public function createdByAdmin()
+    {
+        return $this->belongsTo(Admin::class, 'created_by_admin_id');
     }
 }

@@ -49,13 +49,15 @@ Route::group(['middleware' => 'auth:sanctum,admin'], function () {
 
         Route::group(['prefix' => 'bookings'], function () {
             Route::get('/data', [AdminBookingController::class, 'getDataAdmin']);
+            Route::post('/create-for-customer', [AdminBookingController::class, 'createBookingForCustomer']);
             Route::post('/status', [AdminBookingController::class, 'statusBooking']);
             Route::post('/confirm-payment', [AdminBookingController::class, 'confirmPayment']);
             Route::post('/delete', [AdminBookingController::class, 'deleteBooking']);
         });
 
-
         Route::get('/users/data', [AuthController::class, 'getAllUsers']);
+        Route::get('/users/search', [AuthController::class, 'searchCustomers']);
+        Route::post('/users/quick-create', [AuthController::class, 'quickCreateCustomer']);
         Route::post('/users/status', [AuthController::class, 'statusUser']);
         Route::post('/users/promote', [AdminRoleController::class, 'promoteUser']);
 

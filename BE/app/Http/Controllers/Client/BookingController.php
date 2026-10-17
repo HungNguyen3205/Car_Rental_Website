@@ -42,11 +42,17 @@ class BookingController extends Controller
 
             $validated = $request->validated();
 
-            // Important: If an Admin is booking, we link it to a valid record in the 'users' table
+            // Xóa hoàn toàn fallback User::first() hoặc ID mặc định
             $targetUserId = $user->id;
             if (get_class($user) === 'App\Models\Admin') {
                 $linkedUser = \App\Models\User::where('email', $user->email)->first();
-                $targetUserId = $linkedUser ? $linkedUser->id : (\App\Models\User::first()?->id ?? 1);
+                if (!$linkedUser) {
+                    return response()->json([
+                        'status'  => 0,
+                        'message' => 'Tài khoản Quản trị viên chưa có hồ sơ khách hàng tương ứng. Vui lòng sử dụng chức năng Đặt xe hộ trong trang Quản trị!',
+                    ], 422);
+                }
+                $targetUserId = $linkedUser->id;
             }
 
             // Gọi BookingService với pessimistic locking, quy ước [nhận, trả) và snapshot giá từ server
@@ -98,10 +104,17 @@ class BookingController extends Controller
             ], 401);
         }
 
+        // Xóa hoàn toàn fallback User::first() hoặc ID mặc định
         $targetUserId = $user->id;
         if (get_class($user) === 'App\Models\Admin') {
             $linkedUser = \App\Models\User::where('email', $user->email)->first();
-            $targetUserId = $linkedUser ? $linkedUser->id : (\App\Models\User::first()?->id ?? 1);
+            if (!$linkedUser) {
+                return response()->json([
+                    'status' => 1,
+                    'data'   => []
+                ]);
+            }
+            $targetUserId = $linkedUser->id;
         }
 
         $data = Booking::join('cars', 'bookings.car_id', '=', 'cars.id')

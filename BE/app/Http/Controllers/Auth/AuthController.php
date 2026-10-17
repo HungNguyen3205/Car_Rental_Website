@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\AdminCustomerCreateRequest;
+use App\Http\Requests\Admin\AdminCustomerSearchRequest;
 use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Requests\Auth\UserActionIdRequest;
@@ -277,6 +279,91 @@ class AuthController extends Controller
             return response()->json([
                 'status'  => 0,
                 'message' => 'Có lỗi xảy ra khi đổi trạng thái người dùng!',
+            ], 500);
+        }
+    }
+
+    public function searchCustomers(AdminCustomerSearchRequest $request)
+    {
+        $admin = Auth::guard('admin')->user();
+        if (!$admin) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Bạn không có quyền truy cập dữ liệu khách hàng!'
+            ], 403);
+        }
+
+        $term = trim($request->get('query', $request->get('q', '')));
+        $perPage = (int) $request->get('per_page', 10);
+        if ($perPage < 1 || $perPage > 50) {
+            $perPage = 10;
+        }
+
+        $query = User::query()
+            ->select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'ngay_sinh', 'gioi_tinh', 'tinh_trang', 'created_at');
+
+        if ($term !== '') {
+            $query->where(function ($q) use ($term) {
+                $q->where('ho_ten', 'like', "%{$term}%")
+                  ->orWhere('so_dien_thoai', 'like', "%{$term}%")
+                  ->orWhere('email', 'like', "%{$term}%");
+            });
+        }
+
+        $paginated = $query->orderByDesc('id')->paginate($perPage);
+
+        return response()->json([
+            'status'     => 1,
+            'data'       => $paginated->items(),
+            'pagination' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page'    => $paginated->lastPage(),
+                'per_page'     => $paginated->perPage(),
+                'total'        => $paginated->total(),
+            ]
+        ]);
+    }
+
+    public function quickCreateCustomer(AdminCustomerCreateRequest $request)
+    {
+        $admin = Auth::guard('admin')->user();
+        if (!$admin) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Bạn không có quyền tạo hồ sơ khách hàng!'
+            ], 403);
+        }
+
+        try {
+            $validated = $request->validated();
+
+            // Tạo chuỗi ngẫu nhiên bảo mật cao nếu admin không nhập mật khẩu (không dùng mật khẩu mặc định công khai)
+            $password = !empty($validated['password'])
+                ? $validated['password']
+                : Str::random(32);
+
+            $user = User::create([
+                'ho_ten'        => $validated['ho_ten'],
+                'email'         => $validated['email'],
+                'password'      => Hash::make($password),
+                'so_dien_thoai' => $validated['so_dien_thoai'],
+                'dia_chi'       => $validated['dia_chi'] ?? null,
+                'ngay_sinh'     => $validated['ngay_sinh'] ?? null,
+                'gioi_tinh'     => $validated['gioi_tinh'] ?? 1,
+                'tinh_trang'    => 1, // Kích hoạt để có thể đặt xe
+                'hash_active'   => (string) Str::uuid(),
+            ]);
+
+            return response()->json([
+                'status'  => 1,
+                'message' => 'Tạo mới hồ sơ khách hàng thành công!',
+                'data'    => $user
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Quick create customer error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra khi tạo hồ sơ khách hàng. Vui lòng thử lại sau!'
             ], 500);
         }
     }

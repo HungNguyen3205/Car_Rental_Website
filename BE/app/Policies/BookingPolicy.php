@@ -76,4 +76,12 @@ class BookingPolicy
     {
         return ($user instanceof Admin) && (int) ($user->tinh_trang ?? 1) !== 0;
     }
+
+    /**
+     * Admin tạo đơn đặt xe hộ cho khách hàng: Chỉ dành cho Admin
+     */
+    public function createOnBehalf($user): bool
+    {
+        return ($user instanceof Admin) && (int) ($user->tinh_trang ?? 1) !== 0;
+    }
 }
