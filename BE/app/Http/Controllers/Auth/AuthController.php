@@ -3,26 +3,34 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Http\Requests\Auth\ChangePasswordRequest;
+use App\Http\Requests\Auth\UpdateProfileRequest;
+use App\Http\Requests\Auth\UserActionIdRequest;
+use App\Http\Requests\Auth\UserLoginRequest;
+use App\Http\Requests\Auth\UserRegisterRequest;
 use App\Models\Admin;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function login(UserLoginRequest $request)
     {
+        $credentials = $request->validated();
+
         // 1. Check in Admin table
-        $admin = Admin::where('email', $request->email)->first();
-        if ($admin && Hash::check($request->password, $admin->password)) {
+        $admin = Admin::where('email', $credentials['email'])->first();
+        if ($admin && Hash::check($credentials['password'], $admin->password)) {
             if ($admin->tinh_trang == 0) {
                 return response()->json([
                     'status'  => 0,
                     'message' => 'Tài khoản Admin đã bị bộ khóa!',
-                ]);
+                ], 403);
             }
 
             return response()->json([
@@ -34,20 +42,20 @@ class AuthController extends Controller
                     'ho_ten'        => $admin->ho_ten,
                     'role'          => 'admin',
                     'email'         => $admin->email,
-                    'so_dien_thoai'  => $admin->so_dien_thoai,
+                    'so_dien_thoai' => $admin->so_dien_thoai,
                     'dia_chi'       => $admin->dia_chi,
                 ],
             ]);
         }
 
         // 2. Check in User (Customer) table
-        $user = User::where('email', $request->email)->first();
-        if ($user && Hash::check($request->password, $user->password)) {
+        $user = User::where('email', $credentials['email'])->first();
+        if ($user && Hash::check($credentials['password'], $user->password)) {
             if ($user->tinh_trang == 0) {
                 return response()->json([
                     'status'  => 0,
                     'message' => 'Tài khoản chưa được kích hoạt hoặc đã bị khóa!',
-                ]);
+                ], 403);
             }
 
             return response()->json([
@@ -59,7 +67,7 @@ class AuthController extends Controller
                     'ho_ten'        => $user->ho_ten,
                     'role'          => 'customer',
                     'email'         => $user->email,
-                    'so_dien_thoai'  => $user->so_dien_thoai,
+                    'so_dien_thoai' => $user->so_dien_thoai,
                     'dia_chi'       => $user->dia_chi,
                     'ngay_sinh'     => $user->ngay_sinh,
                 ],
@@ -69,44 +77,44 @@ class AuthController extends Controller
         return response()->json([
             'status'  => 0,
             'message' => 'Tài khoản hoặc mật khẩu không đúng!',
-        ]);
+        ], 401);
     }
 
-    public function register(Request $request)
+    public function register(UserRegisterRequest $request)
     {
-        DB::beginTransaction();
         try {
-            $check_email = User::where('email', $request->email)->first();
-            if ($check_email) {
-                return response()->json([
-                    'status'  => 0,
-                    'message' => 'Email đã tồn tại!',
+            $validated = $request->validated();
+
+            // Safe atomic database transaction with no transaction leak on early return
+            $user = DB::transaction(function () use ($validated) {
+                return User::create([
+                    'ho_ten'        => $validated['ho_ten'],
+                    'email'         => $validated['email'],
+                    'password'      => Hash::make($validated['password']),
+                    'so_dien_thoai' => $validated['so_dien_thoai'],
+                    'ngay_sinh'     => $validated['ngay_sinh'] ?? null,
+                    'gioi_tinh'     => $validated['gioi_tinh'] ?? 1,
+                    'dia_chi'       => $validated['dia_chi'] ?? null,
+                    'tinh_trang'    => 1, // Auto-activate
+                    'hash_active'   => (string) Str::uuid(),
                 ]);
-            }
+            });
 
-            $user = User::create([
-                'ho_ten'          => $request->ho_ten,
-                'email'           => $request->email,
-                'password'        => Hash::make($request->password),
-                'so_dien_thoai'   => $request->so_dien_thoai,
-                'ngay_sinh'       => $request->ngay_sinh,
-                'gioi_tinh'       => $request->gioi_tinh ?? 1,
-                'dia_chi'         => $request->dia_chi,
-                'tinh_trang'      => 1, // Auto-activate for convenience
-                'hash_active'     => Str::uuid(),
-            ]);
-
-            DB::commit();
             return response()->json([
                 'status'  => 1,
                 'message' => 'Đăng ký thành công! Vui lòng kích hoạt tài khoản.',
+                'data'    => [
+                    'id'     => $user->id,
+                    'ho_ten' => $user->ho_ten,
+                    'email'  => $user->email,
+                ],
             ]);
         } catch (\Exception $e) {
-            DB::rollBack();
+            Log::error('User register error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json([
                 'status'  => 0,
-                'message' => 'Có lỗi xảy ra: ' . $e->getMessage(),
-            ]);
+                'message' => 'Có lỗi xảy ra trong quá trình đăng ký. Vui lòng thử lại sau!',
+            ], 500);
         }
     }
 
@@ -121,6 +129,11 @@ class AuthController extends Controller
                 'message' => 'Kích hoạt tài khoản thành công!',
             ]);
         }
+
+        return response()->json([
+            'status'  => 0,
+            'message' => 'Mã kích hoạt tài khoản không tồn tại hoặc đã hết hạn!',
+        ], 404);
     }
 
     public function checkLogin()
@@ -147,41 +160,89 @@ class AuthController extends Controller
     public function getProfile()
     {
         $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
+        if (!$user) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Bạn cần đăng nhập để xem thông tin hồ sơ!',
+            ], 401);
+        }
+
         return response()->json([
             'status' => 1,
             'data'   => $user,
         ]);
     }
 
-    public function updateProfile(Request $request)
+    public function updateProfile(UpdateProfileRequest $request)
     {
         $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
-        if ($user) {
-            $user->update($request->only(['ho_ten', 'so_dien_thoai', 'ngay_sinh', 'gioi_tinh', 'dia_chi']));
+        if (!$user) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Bạn cần đăng nhập để cập nhật hồ sơ!',
+            ], 401);
+        }
+
+        try {
+            $validated = $request->validated();
+            $user->update([
+                'ho_ten'        => $validated['ho_ten'],
+                'so_dien_thoai' => $validated['so_dien_thoai'],
+                'ngay_sinh'     => $validated['ngay_sinh'] ?? $user->ngay_sinh,
+                'gioi_tinh'     => $validated['gioi_tinh'] ?? $user->gioi_tinh,
+                'dia_chi'       => $validated['dia_chi'] ?? $user->dia_chi,
+            ]);
+
             return response()->json([
                 'status'  => 1,
                 'message' => 'Cập nhật thông tin thành công!',
+                'data'    => $user->fresh(),
             ]);
+        } catch (\Exception $e) {
+            Log::error('Update profile error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra khi cập nhật hồ sơ!',
+            ], 500);
         }
     }
 
-    public function doiMatKhau(Request $request)
+    public function doiMatKhau(ChangePasswordRequest $request)
     {
         $user = Auth::guard('sanctum')->user();
-        if ($user) {
-            $user->update(['password' => Hash::make($request->password)]);
+        if (!$user) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Bạn cần đăng nhập để đổi mật khẩu!',
+            ], 401);
+        }
+
+        try {
+            $validated = $request->validated();
+            $user->update(['password' => Hash::make($validated['password'])]);
+
             return response()->json([
                 'status'  => 1,
                 'message' => 'Đổi mật khẩu thành công!',
             ]);
+        } catch (\Exception $e) {
+            Log::error('Change password error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra khi đổi mật khẩu!',
+            ], 500);
         }
     }
 
     public function getAllUsers()
     {
-        $users = User::select('id', 'ho_ten', 'email', 'so_dien_thoai', 'tinh_trang as is_active', 'created_at', DB::raw("'user' as role"))->get();
-        // Since Admins might not have all fields, we handle them carefully
-        $admins = DB::table('admins')->select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_trang as is_active', 'created_at', DB::raw("'admin' as role"))->get();
+        $users = User::select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_trang as is_active', 'created_at', DB::raw("'user' as role"))
+            ->orderByDesc('id')
+            ->get();
+        $admins = DB::table('admins')
+            ->select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_trang as is_active', 'created_at', DB::raw("'admin' as role"))
+            ->orderByDesc('id')
+            ->get();
         
         return response()->json([
             'status' => 1,
@@ -189,16 +250,34 @@ class AuthController extends Controller
         ]);
     }
 
-    public function statusUser(Request $request)
+    public function statusUser(UserActionIdRequest $request)
     {
-        $user = User::find($request->id);
-        if ($user) {
-            $user->tinh_trang = !$user->tinh_trang;
+        try {
+            $user = User::find($request->id);
+            if (!$user) {
+                return response()->json([
+                    'status'  => 0,
+                    'message' => 'Người dùng không tồn tại trong hệ thống!',
+                ], 404);
+            }
+
+            $user->tinh_trang = $user->tinh_trang ? 0 : 1;
             $user->save();
+
             return response()->json([
                 'status'  => 1,
                 'message' => 'Đã đổi trạng thái người dùng thành công!',
+                'data'    => [
+                    'id'         => $user->id,
+                    'tinh_trang' => $user->tinh_trang,
+                ],
             ]);
+        } catch (\Exception $e) {
+            Log::error('Status user error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra khi đổi trạng thái người dùng!',
+            ], 500);
         }
     }
 }

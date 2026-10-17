@@ -21,7 +21,17 @@ class Booking extends Model
         'is_thanh_toan',
         'dia_chi_nhan_xe',
         'dia_chi_tra_xe',
-        'bill_image'
+        'bill_image',
+        'payment_confirmed_at',
+        'payment_confirmed_by',
+        'payment_note'
+    ];
+
+    protected $casts = [
+        'payment_confirmed_at' => 'datetime',
+        'is_thanh_toan'        => 'integer',
+        'tinh_trang'           => 'integer',
+        'tong_tien'            => 'float',
     ];
 
     public function car()
@@ -32,5 +42,10 @@ class Booking extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function confirmedByAdmin()
+    {
+        return $this->belongsTo(Admin::class, 'payment_confirmed_by');
     }
 }

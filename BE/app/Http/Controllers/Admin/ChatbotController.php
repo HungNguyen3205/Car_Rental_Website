@@ -2,16 +2,29 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\CarBookingConflictException;
+use App\Exceptions\CarBookingValidationException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Chatbot\AssistantBookingRequest;
+use App\Http\Requests\Chatbot\CheckPaymentRequest;
 use App\Models\Booking;
 use App\Models\Car;
 use App\Models\CarCategory;
+use App\Services\Booking\BookingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 class ChatbotController extends Controller
 {
+    protected BookingService $bookingService;
+
+    public function __construct(BookingService $bookingService)
+    {
+        $this->bookingService = $bookingService;
+    }
+
     /**
      * Get cars with optional filters for the chatbot.
      */
@@ -54,65 +67,96 @@ class ChatbotController extends Controller
 
     /**
      * Place a booking from the chatbot assistant.
+     * Sử dụng chung BookingService và cơ chế chống race condition như Website.
      */
-    public function assistantBooking(Request $request)
+    public function assistantBooking(AssistantBookingRequest $request)
     {
-        // Validation handled in Python or here
-        $car = Car::find($request->car_id);
-        if (!$car) {
-            return response()->json(['status' => 0, 'message' => 'Không tìm thấy xe phù hợp!'], 404);
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['status' => 0, 'message' => 'Vui lòng đăng nhập để đặt xe!'], 401);
         }
 
-        $start_date = Carbon::parse($request->start_date);
-        $end_date = Carbon::parse($request->end_date);
-        $days = ceil($start_date->diffInDays($end_date)) ?: 1;
-        $total = $days * $car->price_per_day;
+        $validated = $request->validated();
 
-        $booking = Booking::create([
-            'ma_dat_xe'     => 'BOT' . strtoupper(Str::random(8)),
-            'user_id'       => $request->user()->id, // Automatically use logged-in user
-            'car_id'        => $request->car_id,
-            'start_date'    => $request->start_date,
-            'end_date'      => $request->end_date,
-            'tong_tien'     => $total,
-            'tinh_trang'    => 0, // Chờ xác nhận
-            'is_thanh_toan' => 0,
-            'ly_do_thue'    => $request->notes ?? 'Đặt qua trợ lý ảo AI',
-        ]);
+        try {
+            $booking = $this->bookingService->createBooking(
+                $user->id,
+                (int) $validated['car_id'],
+                $validated['start_date'],
+                $validated['end_date'],
+                [
+                    'ma_dat_xe'  => 'BOT' . strtoupper(Str::random(8)),
+                    'ly_do_thue' => $validated['notes'] ?? 'Đặt qua trợ lý ảo AI',
+                ]
+            );
 
-        return response()->json([
-            'status'  => 1,
-            'message' => 'Đặt xe thành công qua trợ lý ảo!',
-            'data'    => $booking
-        ]);
+            return response()->json([
+                'status'  => 1,
+                'message' => 'Đặt xe thành công qua trợ lý ảo! Mã đơn: ' . $booking->ma_dat_xe,
+                'data'    => $booking
+            ]);
+        } catch (CarBookingConflictException $e) {
+            return response()->json([
+                'status'     => 0,
+                'message'    => $e->getMessage(),
+                'error_type' => 'SCHEDULE_CONFLICT'
+            ], 409);
+        } catch (CarBookingValidationException $e) {
+            return response()->json([
+                'status'  => 0,
+                'message' => $e->getMessage(),
+            ], $e->getCode() ?: 400);
+        } catch (\Exception $e) {
+            Log::error('Chatbot assistantBooking error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra trong quá trình đặt xe qua trợ lý. Vui lòng thử lại sau!',
+            ], 500);
+        }
     }
 
     /**
      * Check payment status for a booking.
+     * TUYỆT ĐỐI CHỈ ĐỌC: Không cập nhật trạng thái đã thanh toán từ lời xác nhận của khách.
+     * Kiểm tra quyền sở hữu đơn đặt xe hoặc quyền Admin trước khi trả về dữ liệu.
      */
-    public function checkPayment(Request $request)
+    public function checkPayment(CheckPaymentRequest $request)
     {
-        $ma = trim($request->ma_dat_xe);
+        $validated = $request->validated();
+        $ma = trim($validated['ma_dat_xe']);
         $booking = Booking::where('ma_dat_xe', $ma)->first();
+        $user = $request->user();
 
-        if (!$booking) {
-            return response()->json(['status' => 0, 'message' => 'Không tìm thấy mã đơn này.']);
+        // Trả HTTP 404 nhất quán, tránh tiết lộ đơn của người khác có tồn tại
+        if (!$booking || !$user || !$user->can('view', $booking)) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Không tìm thấy thông tin đơn đặt xe với mã: ' . $ma
+            ], 404);
         }
 
-        if ($booking->is_thanh_toan == 1) {
-            return response()->json(['status' => 1, 'message' => 'Đơn này đã được thanh toán trước đó.', 'data' => $booking]);
-        }
-
-        // Logic đối soát tự động (Simulated hoặc Bank API)
-        // Ở đây ta giả định nếu khách báo là đã chuyển thì ta cập nhật (Hoặc bạn có thể thêm bank API vào đây)
-        $booking->is_thanh_toan = 1;
-        $booking->tinh_trang = 1; // Chuyển sang trạng thái đã xác nhận/đang thực hiện
-        $booking->save();
+        // Chỉ đọc trạng thái thông qua Service, không thay đổi bất kỳ bản ghi nào trong database
+        $paymentService = new \App\Services\Payment\BookingPaymentService();
+        $statusInfo = $paymentService->getPaymentStatusInfo($booking);
 
         return response()->json([
-            'status'  => 1,
-            'message' => 'Xác nhận thanh toán thành công! Chuyến đi đã được kích hoạt.',
-            'data'    => $booking
+            'status'         => 1,
+            'payment_status' => $statusInfo['code'],
+            'is_thanh_toan'  => (int) $booking->is_thanh_toan,
+            'tinh_trang'     => (int) $booking->tinh_trang,
+            'message'        => $statusInfo['message'],
+            'info'           => $statusInfo,
+            'data'           => [
+                'id'                   => $booking->id,
+                'ma_dat_xe'            => $booking->ma_dat_xe,
+                'is_thanh_toan'        => (int) $booking->is_thanh_toan,
+                'tinh_trang'           => (int) $booking->tinh_trang,
+                'tong_tien'            => (float) $booking->tong_tien,
+                'has_bill'             => !empty($booking->bill_image),
+                'receipt_url'          => !empty($booking->bill_image) ? url('/api/bookings/' . $booking->id . '/receipt') : null,
+                'payment_confirmed_at' => $booking->payment_confirmed_at,
+                'payment_note'         => $booking->payment_note,
+            ]
         ]);
     }
 }

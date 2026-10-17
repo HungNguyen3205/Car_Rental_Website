@@ -1,61 +1,112 @@
 <template>
   <div class="auth-page">
-    <div class="auth-container glass">
-      <div class="auth-header">
+    <div class="auth-card card animate-in">
+      <!-- Header -->
+      <div class="auth-header text-center">
         <router-link to="/" class="logo">
           <div class="logo-box">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.4-.8l-4.2-3.15A2 2 0 0 0 16 8.35L14 8H9a2 2 0 0 0-2 2v3m-2-1H3M2 16h2m13-4v4m-5 4a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm-10 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"></path></svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.4-.8l-4.2-3.15A2 2 0 0 0 16 8.35L14 8H9a2 2 0 0 0-2 2v3m-2-1H3M2 16h2m13-4v4m-5 4a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm-10 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/>
+            </svg>
           </div>
           <span class="logo-text">Drive<span>Rent</span></span>
         </router-link>
-        <h1>{{ isLogin ? 'Chào mừng trở lại' : 'Tham gia cùng chúng tôi' }}</h1>
-        <p>{{ isLogin ? 'Đăng nhập để quản lý các chuyến đi của bạn' : 'Bắt đầu hành trình xanh cùng VinFast' }}</p>
+        <h1>{{ isLogin ? 'Chào Mừng Trở Lại' : 'Tạo Tài Khoản Mới' }}</h1>
+        <p>{{ isLogin ? 'Đăng nhập để tiếp tục hành trình và quản lý các chuyến đi' : 'Bắt đầu trải nghiệm thuê xe điện xanh cùng DriveRent' }}</p>
       </div>
 
+      <!-- Form -->
       <form @submit.prevent="handleSubmit" class="auth-form">
+        <!-- Full Name (Only in Register mode) -->
         <div class="form-group" v-if="!isLogin">
-          <label>Họ và tên</label>
-          <div class="input-wrapper">
+          <label for="register-name">Họ và tên</label>
+          <div class="input-wrap">
             <i class="fa-regular fa-user"></i>
-            <input type="text" v-model="registerForm.ho_ten" placeholder="Nguyễn Văn A" required />
+            <input 
+              id="register-name"
+              type="text" 
+              v-model="registerForm.ho_ten" 
+              placeholder="Nguyễn Văn A" 
+              autocomplete="name"
+              class="form-control"
+              required 
+            />
           </div>
         </div>
 
+        <!-- Email -->
         <div class="form-group">
-          <label>Email</label>
-          <div class="input-wrapper">
+          <label for="auth-email">Địa chỉ Email</label>
+          <div class="input-wrap">
             <i class="fa-regular fa-envelope"></i>
-            <input type="email" v-model="loginForm.email" placeholder="email@example.com" required v-if="isLogin" />
-            <input type="email" v-model="registerForm.email" placeholder="email@example.com" required v-else />
+            <input 
+              id="auth-email"
+              type="email" 
+              v-model="activeEmail" 
+              placeholder="email@example.com" 
+              autocomplete="email"
+              class="form-control"
+              required 
+            />
           </div>
         </div>
 
+        <!-- Password -->
         <div class="form-group">
-          <label>Mật khẩu</label>
-          <div class="input-wrapper">
+          <div class="label-row flex-between">
+            <label for="auth-password">Mật khẩu</label>
+          </div>
+          <div class="input-wrap">
             <i class="fa-solid fa-lock"></i>
-            <input :type="showPassword ? 'text' : 'password'" v-model="loginForm.password" placeholder="••••••••" required v-if="isLogin" />
-            <input :type="showPassword ? 'text' : 'password'" v-model="registerForm.password" placeholder="••••••••" required v-else />
-            <i :class="showPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'" @click="showPassword = !showPassword" class="toggle-pass"></i>
+            <input 
+              id="auth-password"
+              :type="showPassword ? 'text' : 'password'" 
+              v-model="activePassword" 
+              placeholder="••••••••" 
+              :autocomplete="isLogin ? 'current-password' : 'new-password'"
+              class="form-control"
+              required 
+            />
+            <button 
+              type="button" 
+              class="toggle-pass-btn" 
+              @click="showPassword = !showPassword"
+              :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+            >
+              <i :class="showPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
+            </button>
           </div>
         </div>
 
-        <button type="submit" class="btn-primary w-full" :disabled="loading">
-          {{ loading ? 'Đang xử lý...' : (isLogin ? 'Đăng nhập' : 'Tạo tài khoản') }}
+        <!-- Submit Button -->
+        <button type="submit" class="btn-primary w-full mt-2" :disabled="loading">
+          <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
+          <span v-else>{{ isLogin ? 'Đăng Nhập' : 'Tạo Tài Khoản' }}</span>
         </button>
       </form>
 
-      <div class="auth-footer">
-        <p>
+      <!-- Footer -->
+      <div class="auth-footer text-center">
+        <p class="toggle-mode-text">
           {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
-          <a @click="isLogin = !isLogin">{{ isLogin ? 'Đăng ký ngay' : 'Đăng nhập tại đây' }}</a>
+          <a role="button" class="toggle-link" @click="toggleMode">
+            {{ isLogin ? 'Đăng ký ngay' : 'Đăng nhập tại đây' }}
+          </a>
         </p>
         
-        <div class="divider"><span>Hoặc tiếp tục với</span></div>
+        <div class="social-divider">
+          <span>Hoặc tiếp tục với</span>
+        </div>
         
-        <div class="social-auth">
-          <button type="button" class="social-btn glass" @click="handleSocialLogin('google')"><i class="fa-brands fa-google"></i></button>
-          <button type="button" class="social-btn glass" @click="handleSocialLogin('facebook')"><i class="fa-brands fa-facebook-f"></i></button>
+        <div class="social-auth-grid">
+          <button type="button" class="btn-social google" @click="handleSocialLogin('google')">
+            <i class="fa-brands fa-google"></i>
+            <span>Google</span>
+          </button>
+          <button type="button" class="btn-social facebook" @click="handleSocialLogin('facebook')">
+            <i class="fa-brands fa-facebook-f"></i>
+            <span>Facebook</span>
+          </button>
         </div>
       </div>
     </div>
@@ -63,9 +114,9 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import baseRequest from '../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 
 const toaster = createToaster({ position: "top-right" });
@@ -87,36 +138,64 @@ const registerForm = reactive({
   dia_chi: ''
 });
 
+const activeEmail = computed({
+  get: () => isLogin.value ? loginForm.email : registerForm.email,
+  set: (val) => {
+    if (isLogin.value) loginForm.email = val;
+    else registerForm.email = val;
+  }
+});
+
+const activePassword = computed({
+  get: () => isLogin.value ? loginForm.password : registerForm.password,
+  set: (val) => {
+    if (isLogin.value) loginForm.password = val;
+    else registerForm.password = val;
+  }
+});
+
+const toggleMode = () => {
+  isLogin.value = !isLogin.value;
+};
+
 const handleSubmit = async () => {
   loading.value = true;
   try {
-    const url = isLogin.value ? 'http://127.0.0.1:8000/api/login' : 'http://127.0.0.1:8000/api/register';
+    const url = isLogin.value ? 'login' : 'register';
     const payload = isLogin.value ? loginForm : registerForm;
     
-    const res = await axios.post(url, payload);
+    const res = await baseRequest.post(url, payload);
     
     if (res.data.status) {
-      toaster.success(res.data.message);
+      toaster.success(res.data.message || (isLogin.value ? 'Đăng nhập thành công!' : 'Đăng ký thành công!'));
       if (isLogin.value) {
         localStorage.setItem('token_client', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
         localStorage.setItem('user_role', res.data.user.role);
-        router.push('/');
+        
+        if (res.data.user.role === 'admin') {
+          localStorage.setItem('token_admin', res.data.token);
+          router.push('/admin');
+        } else {
+          router.push('/');
+        }
       } else {
         isLogin.value = true;
       }
     } else {
-      toaster.error(res.data.message);
+      toaster.error(res.data.message || 'Thao tác không thành công!');
     }
   } catch (error) {
-    toaster.error('Có lỗi xảy ra, vui lòng thử lại!');
+    const err = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau!';
+    toaster.error(err);
   } finally {
     loading.value = false;
   }
 };
 
 const handleSocialLogin = (provider) => {
-  window.location.href = `http://127.0.0.1:8000/api/auth/${provider}/redirect`;
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+  window.location.href = `${apiUrl}/auth/${provider}/redirect`;
 };
 </script>
 
@@ -126,45 +205,45 @@ const handleSocialLogin = (provider) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent),
-              radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.05), transparent);
-  padding: 24px;
+  background: radial-gradient(circle at 80% 20%, rgba(5, 150, 105, 0.08), transparent 40%),
+              radial-gradient(circle at 20% 80%, rgba(2, 132, 199, 0.05), transparent 40%),
+              var(--bg-main);
+  padding: 100px 20px 40px;
 }
 
-.auth-container {
+.auth-card {
   width: 100%;
   max-width: 480px;
-  padding: 48px;
-  border-radius: var(--radius-lg);
+  padding: 44px 40px;
+  background: #ffffff;
+  border-radius: var(--radius-xl);
 }
 
 .auth-header {
-  text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
 }
 
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .logo-box {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   background: var(--grad-active);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: var(--shadow-glow);
 }
 
 .logo-text {
   font-family: var(--font-heading);
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 800;
   color: var(--color-text-main);
 }
@@ -173,122 +252,136 @@ const handleSocialLogin = (provider) => {
   color: var(--color-primary);
 }
 
-h1 {
+.auth-header h1 {
   font-size: 1.8rem;
   font-weight: 800;
-  color: var(--color-text-main);
-  letter-spacing: -1px;
+  margin-bottom: 6px;
 }
 
-p {
+.auth-header p {
+  font-size: 0.925rem;
   color: var(--color-text-muted);
-  margin-top: 8px;
+  line-height: 1.5;
 }
 
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.input-wrapper {
+.input-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.input-wrapper i:not(.toggle-pass) {
+.input-wrap i:first-child {
   position: absolute;
   left: 16px;
   color: var(--color-text-muted);
+  font-size: 1rem;
 }
 
-.input-wrapper input {
-  width: 100%;
-  padding: 14px 16px 14px 48px;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1.5px solid var(--color-border);
-  border-radius: 14px;
-  font-family: var(--font-body);
-  transition: all 0.3s;
+.input-wrap .form-control {
+  padding-left: 44px;
+  padding-right: 44px;
 }
 
-.input-wrapper input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  background: white;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.05);
-}
-
-.toggle-pass {
+.toggle-pass-btn {
   position: absolute;
-  right: 16px;
-  cursor: pointer;
+  right: 14px;
   color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.toggle-pass-btn:hover {
+  color: var(--color-text-main);
 }
 
 .auth-footer {
-  margin-top: 32px;
-  text-align: center;
+  margin-top: 28px;
 }
 
-.auth-footer p {
-  font-size: 0.95rem;
+.toggle-mode-text {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
 }
 
-.auth-footer a {
+.toggle-link {
   color: var(--color-primary);
   font-weight: 700;
   cursor: pointer;
+  margin-left: 4px;
 }
 
-.divider {
-  margin: 32px 0;
+.toggle-link:hover {
+  text-decoration: underline;
+}
+
+.social-divider {
   position: relative;
-  border-top: 1px solid var(--color-border);
+  text-align: center;
+  margin: 24px 0 20px;
 }
 
-.divider span {
+.social-divider::before {
+  content: '';
   position: absolute;
   top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--bg-main);
-  padding: 0 16px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.social-divider span {
+  position: relative;
+  background: #ffffff;
+  padding: 0 14px;
   font-size: 0.8rem;
   color: var(--color-text-muted);
+}
+
+.social-auth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.btn-social {
+  padding: 11px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-sub);
+  border: 1px solid var(--color-border);
   font-weight: 600;
-}
-
-.social-auth {
-  display: flex;
-  gap: 16px;
-}
-
-.social-btn {
-  flex: 1;
-  height: 52px;
-  border-radius: 14px;
+  font-size: 0.885rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  gap: 10px;
   color: var(--color-text-main);
-  transition: all 0.3s;
+  transition: all var(--duration-fast);
 }
 
-.social-btn:hover {
-  background: white;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-soft);
+.btn-social:hover {
+  background: #e2e8f0;
+}
+
+.btn-social.google i {
+  color: #ea4335;
+}
+
+.btn-social.facebook i {
+  color: #1877f2;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.text-center {
+  text-align: center;
 }
 </style>

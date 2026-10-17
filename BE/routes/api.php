@@ -25,11 +25,14 @@ Route::group(['prefix' => 'client'], function () {
 });
 
 // Protected Routes
-Route::group(['middleware' => 'auth:sanctum'], function () {
+Route::group(['middleware' => 'auth:sanctum,admin'], function () {
     
     // Auth Check & Logout
     Route::get('/check-login', [AuthController::class, 'checkLogin']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Secure Receipt Route
+    Route::get('/bookings/{id}/receipt', [ClientBookingController::class, 'getReceipt']);
 
     // Admin Group
     Route::group(['prefix' => 'admin', 'middleware' => 'auth:admin'], function () {
@@ -47,6 +50,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::group(['prefix' => 'bookings'], function () {
             Route::get('/data', [AdminBookingController::class, 'getDataAdmin']);
             Route::post('/status', [AdminBookingController::class, 'statusBooking']);
+            Route::post('/confirm-payment', [AdminBookingController::class, 'confirmPayment']);
             Route::post('/delete', [AdminBookingController::class, 'deleteBooking']);
         });
 

@@ -2,8 +2,9 @@
   <div class="contact-page">
     <section class="hero-header">
       <div class="app-container text-center">
-        <h1>Liên Hệ Với DriveRentals</h1>
-        <p>Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7</p>
+        <span class="badge mb-3">Trung tâm hỗ trợ</span>
+        <h1 class="page-title">Liên Hệ <span>DriveRentals</span></h1>
+        <p class="hero-desc">Chúng tôi luôn sẵn sàng hỗ trợ bạn qua hệ thống Trợ lý ảo AI 24/7 và đường dây nóng chăm sóc khách hàng.</p>
       </div>
     </section>
 
@@ -11,60 +12,78 @@
       <div class="contact-grid">
         <!-- Contact Info -->
         <div class="contact-info">
-          <h2>Thông Tin Liên Hệ</h2>
-          <p class="subtitle">Đừng ngần ngại liên hệ với chúng tôi nếu bạn có bất kỳ thắc mắc nào về dịch vụ.</p>
+          <h2>Kênh Hỗ Trợ Trực Tiếp</h2>
+          <p class="subtitle">Mọi thắc mắc về lịch trình thuê xe, kiểm tra tình trạng đơn và hỗ trợ kỹ thuật được tiếp nhận qua các kênh sau:</p>
           
           <div class="info-list">
-            <div class="info-item">
+            <a href="tel:1900123456" class="info-item card">
               <div class="icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <i class="fa-solid fa-phone"></i>
               </div>
               <div>
-                <h4>Hotline 24/7</h4>
-                <p>1900 1234 56</p>
+                <h4>Hotline Chăm Sóc Khách Hàng</h4>
+                <p class="highlight-contact">1900 1234 56</p>
+                <small class="time-note">Hoạt động từ 07:00 – 22:00 hàng ngày</small>
               </div>
-            </div>
+            </a>
             
-            <div class="info-item">
+            <a href="mailto:support@driverentals.com" class="info-item card">
               <div class="icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                <i class="fa-solid fa-envelope"></i>
               </div>
               <div>
-                <h4>Email Box</h4>
-                <p>support@driverentals.com</p>
+                <h4>Hộp Thư Điện Tử</h4>
+                <p class="highlight-contact">support@driverentals.com</p>
+                <small class="time-note">Phản hồi giải quyết khiếu nại trong 24h</small>
               </div>
-            </div>
+            </a>
             
-            <div class="info-item">
+            <div class="info-item card">
               <div class="icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                <i class="fa-solid fa-location-dot"></i>
               </div>
               <div>
-                <h4>Trụ sở chính</h4>
+                <h4>Văn Phòng Điều Hành</h4>
                 <p>Tòa nhà Bitexco, Số 2 Hải Triều, Q.1, TP. HCM</p>
+                <small class="time-note">Tiếp nhận thủ tục giao nhận xe tại chỗ</small>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Contact Form -->
-        <div class="contact-form card">
-          <h3>Gửi tin nhắn cho chúng tôi</h3>
-          <form @submit.prevent="submitForm">
-            <div class="form-group">
-              <label>Họ và tên</label>
-              <input type="text" placeholder="Nguyễn Văn A" required />
+        <!-- AI Assistant Direct Card (Replacing fake email form) -->
+        <div class="ai-support-card card">
+          <div class="ai-header">
+            <div class="ai-badge">
+              <span class="pulse-dot"></span> Trực tuyến 24/7
             </div>
-            <div class="form-group">
-              <label>Số điện thoại / Email</label>
-              <input type="text" placeholder="SĐT hoặc Email của bạn" required />
+            <h3>Hỗ Trợ Tức Thì Qua Trợ Lý AI</h3>
+            <p>Không cần chờ đợi phản hồi email. Bạn có thể tra cứu thông tin xe, hỏi đáp quy trình thuê và kiểm tra đơn hàng trực tiếp ngay bây giờ.</p>
+          </div>
+
+          <div class="ai-features">
+            <div class="ai-feature-row">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>Tra cứu thông số & giá thuê dòng xe VinFast mới nhất</span>
             </div>
-            <div class="form-group">
-              <label>Lời nhắn</label>
-              <textarea rows="4" placeholder="Nhập nội dung cần hỗ trợ..." required></textarea>
+            <div class="ai-feature-row">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>Kiểm tra trạng thái đơn đặt xe & hướng dẫn thanh toán QR</span>
             </div>
-            <button type="submit" class="btn-primary w-100 mt-2">Gửi Yêu Cầu</button>
-          </form>
+            <div class="ai-feature-row">
+              <i class="fa-solid fa-circle-check"></i>
+              <span>Giải đáp chính sách giao nhận xe tận nhà</span>
+            </div>
+          </div>
+
+          <div class="ai-action-box">
+            <button class="btn-primary btn-chat-now" @click="launchChatbot">
+              <i class="fa-solid fa-robot"></i> Mở Trợ Lý Ảo DriveBot Ngay
+            </button>
+            <p class="transparency-note">
+              <i class="fa-solid fa-shield-halved"></i> Hệ thống tiếp nhận xử lý tự động, đảm bảo bảo mật thông tin cá nhân.
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -72,8 +91,9 @@
 </template>
 
 <script setup>
-const submitForm = () => {
-  alert("Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi trong thời gian sớm nhất.");
+const launchChatbot = () => {
+  // Dispatches event to common ChatWidget
+  window.dispatchEvent(new CustomEvent('open-ai-chat'));
 };
 </script>
 
@@ -81,110 +101,229 @@ const submitForm = () => {
 .contact-page {
   padding-bottom: 80px;
 }
+
 .hero-header {
-  background: linear-gradient(to right, #f1f5f9, #e2e8f0);
-  color: #0f172a;
-  padding: 140px 20px 80px;
+  background: linear-gradient(180deg, var(--bg-surface-alt) 0%, var(--bg-main) 100%);
+  padding: 140px 20px 60px;
+  border-bottom: 1px solid var(--color-border);
 }
-.hero-header h1 {
-  font-size: 2.5rem;
+
+.badge {
+  display: inline-block;
+  padding: 6px 16px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--color-primary);
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: var(--font-heading);
+}
+
+.page-title {
+  font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 800;
-  margin-bottom: 12px;
-  color: #0f172a;
+  margin-bottom: 16px;
+  color: var(--color-text-main);
+  font-family: var(--font-heading);
+  letter-spacing: -0.5px;
 }
-.hero-header p {
-  font-size: 1.125rem;
-  color: #475569;
+
+.page-title span {
+  color: var(--color-primary);
 }
+
+.hero-desc {
+  font-size: 1.15rem;
+  color: var(--color-text-muted);
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
 .content-section {
   margin-top: 60px;
 }
+
 .contact-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 60px;
+  gap: 50px;
+  align-items: start;
 }
+
 .contact-info h2 {
-  font-size: 2rem;
-  color: #0f172a;
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  color: var(--color-text-main);
   margin-bottom: 12px;
+  font-family: var(--font-heading);
 }
+
 .subtitle {
-  color: #64748b;
-  margin-bottom: 40px;
+  color: var(--color-text-muted);
+  margin-bottom: 32px;
   line-height: 1.6;
+  font-size: 1rem;
 }
+
 .info-list {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
 }
+
 .info-item {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
+
+.info-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
+
 .icon-box {
-  width: 48px;
-  height: 48px;
-  background: #eff6ff;
+  width: 50px;
+  height: 50px;
+  background: rgba(37, 99, 235, 0.08);
   color: var(--color-primary);
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.info-item h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-.info-item p {
-  color: #475569;
-  font-size: 0.95rem;
-}
-.contact-form {
-  padding: 32px;
-  background: white;
-}
-.contact-form h3 {
-  font-size: 1.5rem;
-  margin-bottom: 24px;
-  color: #0f172a;
-}
-.form-group {
-  margin-bottom: 20px;
-}
-.form-group label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #334155;
-  margin-bottom: 8px;
-}
-.form-group input, .form-group textarea {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.form-group input:focus, .form-group textarea:focus {
-  border-color: var(--color-primary);
-}
-.w-100 {
-  width: 100%;
-  padding: 14px;
-  font-size: 1rem;
-}
-.mt-2 {
-  margin-top: 16px;
+  font-size: 1.3rem;
+  flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
-  .contact-grid { grid-template-columns: 1fr; }
+.info-item h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin-bottom: 4px;
+  font-family: var(--font-heading);
+}
+
+.highlight-contact {
+  color: var(--color-primary);
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-family: var(--font-heading);
+  margin-bottom: 2px;
+}
+
+.time-note {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  display: block;
+}
+
+/* AI Support Card */
+.ai-support-card {
+  padding: 36px;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 100px;
+  background: #DCFCE7;
+  color: #15803D;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22C55E;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ai-header h3 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-text-main);
+  font-family: var(--font-heading);
+  margin-bottom: 10px;
+}
+
+.ai-header p {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.ai-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: var(--bg-surface-alt);
+  border-radius: var(--radius-md);
+  margin-bottom: 28px;
+}
+
+.ai-feature-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: var(--color-text-main);
+}
+
+.ai-feature-row i {
+  color: #10B981;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.btn-chat-now {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.transparency-note {
+  margin-top: 14px;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+@media (max-width: 992px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
 }
 </style>

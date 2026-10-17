@@ -31,11 +31,11 @@ onMounted(() => {
       router.push('/');
     } catch (e) {
       toaster.error("Lỗi dữ liệu xác thực!");
-      router.push('/auth');
+      router.push('/login');
     }
   } else {
     toaster.error("Xác thực thất bại!");
-    router.push('/auth');
+    router.push('/login');
   }
 });
 </script>

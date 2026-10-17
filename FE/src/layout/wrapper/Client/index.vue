@@ -24,5 +24,13 @@ export default {
 </script>
 
 <style scoped>
-/* Removed app-container to allow edge-to-edge layouts */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.main-content {
+  flex: 1;
+}
 </style>

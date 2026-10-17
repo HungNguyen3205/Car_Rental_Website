@@ -2,107 +2,206 @@
   <div class="fleet-page">
     <!-- Cinematic Hero Section -->
     <section class="fleet-hero">
-      <div class="hero-bg"></div>
-      <div class="hero-overlay"></div>
-      <div class="app-container hero-content animate-up">
-        <div class="badge-premium">VinFast Premium Fleet</div>
-        <h1>TUYỆT TÁC <span>CÔNG NGHỆ</span></h1>
-        <p>Khám phá hệ sinh thái xe điện thông minh - Nơi thiết kế Ý hòa quyện cùng công nghệ tương lai.</p>
-        <div class="hero-stats">
-            <div class="stat-item">
-                <span class="stat-val">100%</span>
-                <span class="stat-label">Xe điện sạch</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-                <span class="stat-val">24/7</span>
-                <span class="stat-label">Hỗ trợ kỹ thuật</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-                <span class="stat-val">5★</span>
-                <span class="stat-label">Trải nghiệm an toàn</span>
-            </div>
-        </div>
+      <div class="hero-content app-container text-center animate-up">
+        <span class="badge-pill">Bộ Sưu Tập Xe Điện 100%</span>
+        <h1>Đội Ngũ Xe Điện <span>Hiện Đại</span></h1>
+        <p>Khám phá hệ sinh thái xe điện thông minh hàng đầu với công nghệ an toàn, tiện nghi và thân thiện với môi trường.</p>
       </div>
     </section>
 
-    <!-- Interactive Filters -->
+    <!-- Filters & Search Bar -->
     <section class="fleet-controls app-container">
-        <div class="controls-wrapper card glass">
-            <div class="filter-side">
-                <span class="label">Dòng xe:</span>
-                <div class="vibe-pills">
-                    <button 
-                        v-for="type in carTypes" 
-                        :key="type" 
-                        class="pill" 
-                        :class="{ 'active': selectedType === type }"
-                        @click="selectedType = type"
-                    >
-                        {{ type }}
-                    </button>
-                </div>
-            </div>
-            <div class="sort-side">
-                <div class="sort-box">
-                    <i class="fa-solid fa-sort-amount-down"></i>
-                    <select v-model="sortBy">
-                        <option value="default">Phổ biến nhất</option>
-                        <option value="price-asc">Giá thuê tăng dần</option>
-                        <option value="price-desc">Giá thuê giảm dần</option>
-                    </select>
-                </div>
-            </div>
+      <div class="controls-card card">
+        <div class="controls-top">
+          <!-- Search input -->
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Tìm theo tên xe (VF8, VF9, Camry...)"
+            />
+            <button v-if="searchQuery" class="clear-search" @click="searchQuery = ''" aria-label="Xóa tìm kiếm">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- Sort dropdown -->
+          <div class="sort-box">
+            <i class="fa-solid fa-arrow-down-short-wide"></i>
+            <select v-model="sortBy" class="sort-select">
+              <option value="default">Phổ biến nhất</option>
+              <option value="price-asc">Giá thuê: Thấp đến Cao</option>
+              <option value="price-desc">Giá thuê: Cao đến Thấp</option>
+            </select>
+          </div>
         </div>
+
+        <!-- Category Pills -->
+        <div class="category-pills">
+          <button 
+            v-for="cat in availableCategories" 
+            :key="cat" 
+            class="cat-pill" 
+            :class="{ 'active': selectedType === cat }"
+            @click="selectedType = cat"
+          >
+            {{ cat }}
+            <span class="pill-count">{{ getCategoryCount(cat) }}</span>
+          </button>
+        </div>
+      </div>
     </section>
 
     <!-- Product Showcase Grid -->
     <section class="fleet-showcase app-container">
       <div v-if="loading" class="showcase-loading">
-        <div class="pulse-loader"></div>
-        <p>Đang chuẩn bị dàn xe cho bạn...</p>
+        <div class="spinner"></div>
+        <p>Đang chuẩn bị danh sách phương tiện...</p>
       </div>
 
+      <!-- Empty State -->
+      <div v-else-if="filteredCars.length === 0" class="empty-fleet card text-center animate-in">
+        <div class="empty-icon">
+          <i class="fa-solid fa-car-tunnel"></i>
+        </div>
+        <h3>Không tìm thấy mẫu xe phù hợp</h3>
+        <p>Không có xe nào khớp với tiêu chí tìm kiếm hoặc bộ lọc hiện tại của bạn.</p>
+        <button class="btn-primary" @click="resetFilters">
+          <i class="fa-solid fa-rotate-left"></i> Xóa tất cả bộ lọc
+        </button>
+      </div>
+
+      <!-- Car Grid -->
       <div v-else class="showcase-grid">
-        <div class="product-card animate-in" v-for="(car, index) in filteredCars" :key="car.id" :style="{ 'animation-delay': (index * 0.1) + 's' }">
-          <div class="product-img-box">
-            <img :src="car.image" :alt="car.name" />
-            <div class="product-tag">{{ car.type }}</div>
+        <div 
+          class="fleet-car-card card card-interactive animate-in" 
+          v-for="car in filteredCars" 
+          :key="car.id"
+        >
+          <div class="car-img-box">
+            <img 
+              :src="car.image" 
+              :alt="car.name" 
+              loading="lazy" 
+              @error="handleImgError($event)"
+            />
+            <span class="type-tag">{{ car.type }}</span>
+            <span class="status-indicator" :class="car.status === 'available' ? 'available' : 'maintenance'">
+              {{ car.status === 'available' ? 'Sẵn sàng' : 'Bảo trì' }}
+            </span>
           </div>
           
-          <div class="product-details">
-            <div class="product-main">
-              <h3 class="product-name">{{ car.name }}</h3>
-              <div class="product-price">
-                <span class="price-val">{{ (car.price_per_day / 1000).toLocaleString() }}K</span>
-                <span class="price-unit">/ ngày</span>
+          <div class="car-content">
+            <div class="car-headline">
+              <h3 class="car-name">{{ car.name }}</h3>
+              <span class="city-label">
+                <i class="fa-solid fa-location-dot"></i> {{ car.cityDisplay }}
+              </span>
+            </div>
+            
+            <div class="car-specs-grid">
+              <div class="spec-col">
+                <i class="fa-solid fa-bolt"></i>
+                <div>
+                  <span class="label">Nhiên liệu</span>
+                  <strong>Điện 100%</strong>
+                </div>
+              </div>
+              <div class="spec-col">
+                <i class="fa-solid fa-users"></i>
+                <div>
+                  <span class="label">Sức chứa</span>
+                  <strong>{{ car.seats || 5 }} Chỗ ngồi</strong>
+                </div>
+              </div>
+              <div class="spec-col">
+                <i class="fa-solid fa-gauge"></i>
+                <div>
+                  <span class="label">Quãng đường</span>
+                  <strong>{{ car.range || 'Chuẩn EV' }}</strong>
+                </div>
+              </div>
+              <div class="spec-col">
+                <i class="fa-solid fa-shield-halved"></i>
+                <div>
+                  <span class="label">Bảo hiểm</span>
+                  <strong>Đã bao gồm</strong>
+                </div>
               </div>
             </div>
             
-            <div class="product-specs">
-              <div class="spec">
-                <i class="fa-solid fa-gauge-high"></i>
-                <span>{{ car.battery || 'Pin 75kWh' }}</span>
+            <div class="car-actions">
+              <div class="price-info">
+                <span class="price-val">{{ Number(car.price_per_day).toLocaleString('vi-VN') }}đ</span>
+                <span class="price-sub">/ ngày</span>
               </div>
-              <div class="spec">
-                <i class="fa-solid fa-shield-virus"></i>
-                <span>An toàn 5★</span>
+              
+              <div class="btn-group">
+                <button type="button" class="btn-secondary-sm" @click="openQuickView(car)">
+                  <i class="fa-solid fa-eye"></i> Chi tiết
+                </button>
+                <router-link 
+                  :to="{ path: '/', query: { car_id: car.id, city: car.city } }" 
+                  class="btn-primary-sm"
+                >
+                  <span>Thuê xe</span>
+                  <i class="fa-solid fa-arrow-right"></i>
+                </router-link>
               </div>
-              <div class="spec">
-                <i class="fa-solid fa-couch"></i>
-                <span>{{ car.seats || 5 }} Chỗ ngồi</span>
-              </div>
-            </div>
-            
-            <div class="product-actions">
-              <router-link :to="{ path: '/', query: { car_id: car.id, city: car.city } }" class="btn-primary-vibe">THUÊ NGAY</router-link>
-              <button class="btn-secondary-vibe"><i class="fa-solid fa-plus"></i></button>
             </div>
           </div>
         </div>
       </div>
     </section>
+
+    <!-- Quick View Modal -->
+    <div v-if="selectedQuickView" class="modal-overlay" @click.self="selectedQuickView = null">
+      <div class="modal-content card animate-in">
+        <div class="modal-header">
+          <h3>Thông Tin Phương Tiện</h3>
+          <button type="button" class="btn-close" @click="selectedQuickView = null">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-car-preview">
+            <img :src="selectedQuickView.image" :alt="selectedQuickView.name" />
+          </div>
+          <div class="modal-car-details">
+            <h2>{{ selectedQuickView.name }}</h2>
+            <p class="modal-type">{{ selectedQuickView.type }} • Khu vực: {{ selectedQuickView.cityDisplay }}</p>
+            
+            <div class="specs-summary">
+              <div class="spec-box">
+                <i class="fa-solid fa-users"></i>
+                <span>Số chỗ: {{ selectedQuickView.seats || 5 }} chỗ</span>
+              </div>
+              <div class="spec-box">
+                <i class="fa-solid fa-bolt"></i>
+                <span>Nhiên liệu: Điện 100%</span>
+              </div>
+              <div class="spec-box">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>Trạng thái: {{ selectedQuickView.status === 'available' ? 'Sẵn sàng giao' : 'Đang bảo dưỡng' }}</span>
+              </div>
+            </div>
+
+            <div class="modal-price-row flex-between">
+              <div>
+                <span class="label">Đơn giá thuê tiêu chuẩn</span>
+                <h3>{{ Number(selectedQuickView.price_per_day).toLocaleString('vi-VN') }} đ <small>/ ngày</small></h3>
+              </div>
+              <router-link 
+                :to="{ path: '/', query: { car_id: selectedQuickView.id, city: selectedQuickView.city } }"
+                class="btn-primary"
+                @click="selectedQuickView = null"
+              >
+                Đặt xe ngay
+              </router-link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -114,11 +213,16 @@ const loading = ref(true);
 const cars = ref([]);
 const selectedType = ref('Tất cả');
 const sortBy = ref('default');
-const carTypes = ['Tất cả', 'Sedan', 'SUV', 'Hatchback'];
+const searchQuery = ref('');
+const selectedQuickView = ref(null);
 
 const CAR_IMAGE_MAP = {
     'xpander': '/assets/images/cars/xpander.png',
     'camry': '/assets/images/cars/camry.png',
+    'audi a6': '/assets/images/cars/audi_a6.png',
+    'mercedes': '/assets/images/cars/mercedes_c200.png',
+    'santafe': '/assets/images/cars/santafe.png',
+    'mazda cx-5': '/assets/images/cars/cx5.png',
     'vf8': '/assets/images/cars/vf8.png',
     'vf7': '/assets/images/cars/vf7.png',
     'vf9': '/assets/images/vf9.png',
@@ -127,278 +231,564 @@ const CAR_IMAGE_MAP = {
     'vf 9': '/assets/images/vf9.png'
 };
 
+const handleImgError = (event) => {
+  event.target.src = '/assets/images/vf9.png';
+};
+
+const openQuickView = (car) => {
+  selectedQuickView.value = car;
+};
+
 const fetchAllCars = async () => {
-    loading.value = true;
-    try {
-        const response = await baseRequest.get('client/car/data');
-        if (response.data && response.data.status) {
-            cars.value = response.data.data.map(car => {
-                const modelName = (car.ten_xe || car.name || '').toLowerCase();
-                let premiumImage = car.hinh_anh;
-                for (const [key, path] of Object.entries(CAR_IMAGE_MAP)) {
-                    if (modelName.includes(key)) {
-                        premiumImage = path;
-                        break;
-                    }
-                }
-                return {
-                    ...car,
-                    name: car.ten_xe || car.name || 'VinFast Model',
-                    price_per_day: car.gia_thue || car.price_per_day || 1000000,
-                    image: premiumImage ? (premiumImage.startsWith('/') ? premiumImage : `/assets/images/${premiumImage}`) : '/assets/images/vf9.png',
-                    type: car.category_name || car.type || 'SUV'
-                };
-            });
+  loading.value = true;
+  try {
+    const response = await baseRequest.get('client/car/data');
+    if (response.data && response.data.status) {
+      cars.value = response.data.data.map(car => {
+        const modelName = (car.ten_xe || car.name || '').toLowerCase();
+        let premiumImage = car.hinh_anh;
+        
+        for (const [key, path] of Object.entries(CAR_IMAGE_MAP)) {
+          if (modelName.includes(key)) {
+            premiumImage = path;
+            break;
+          }
         }
-    } catch (error) {
-        console.error("Error fetching fleet:", error);
-    } finally {
-        loading.value = false;
+        
+        return {
+          ...car,
+          name: car.ten_xe || car.name || 'VinFast Model',
+          price_per_day: car.gia_thue || car.price_per_day || 1000000,
+          image: premiumImage ? (premiumImage.startsWith('/') ? premiumImage : `/assets/images/${premiumImage}`) : '/assets/images/vf9.png',
+          type: car.category_name || car.type || 'SUV',
+          cityDisplay: (() => {
+            const c = (car.city || '').toLowerCase();
+            if (c === 'sg') return 'TP. Hồ Chí Minh';
+            if (c === 'hn') return 'Hà Nội';
+            if (c === 'dn') return 'Đà Nẵng';
+            if (c === 'nt') return 'Nha Trang';
+            return car.city || 'Toàn quốc';
+          })()
+        };
+      });
     }
+  } catch (error) {
+    console.error("Lỗi khi tải danh sách xe:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const availableCategories = computed(() => {
+  const types = new Set();
+  cars.value.forEach(c => {
+    if (c.type) types.add(c.type);
+  });
+  return ['Tất cả', ...Array.from(types)];
+});
+
+const getCategoryCount = (cat) => {
+  if (cat === 'Tất cả') return cars.value.length;
+  return cars.value.filter(c => c.type === cat).length;
 };
 
 const filteredCars = computed(() => {
-    let result = [...cars.value];
-    if (selectedType.value !== 'Tất cả') {
-        result = result.filter(car => car.type === selectedType.value);
-    }
-    if (sortBy.value === 'price-asc') result.sort((a, b) => a.price_per_day - b.price_per_day);
-    else if (sortBy.value === 'price-desc') result.sort((a, b) => b.price_per_day - a.price_per_day);
-    return result;
+  let result = [...cars.value];
+
+  // Search filter
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim();
+    result = result.filter(c => c.name.toLowerCase().includes(q) || (c.cityDisplay && c.cityDisplay.toLowerCase().includes(q)));
+  }
+
+  // Type filter
+  if (selectedType.value !== 'Tất cả') {
+    result = result.filter(c => c.type === selectedType.value);
+  }
+
+  // Sorting
+  if (sortBy.value === 'price-asc') {
+    result.sort((a, b) => Number(a.price_per_day) - Number(b.price_per_day));
+  } else if (sortBy.value === 'price-desc') {
+    result.sort((a, b) => Number(b.price_per_day) - Number(a.price_per_day));
+  }
+
+  return result;
 });
 
-onMounted(fetchAllCars);
+const resetFilters = () => {
+  selectedType.value = 'Tất cả';
+  sortBy.value = 'default';
+  searchQuery.value = '';
+};
+
+onMounted(() => {
+  fetchAllCars();
+});
 </script>
 
 <style scoped>
 .fleet-page {
-    padding-top: 80px;
-    background: #fdfdfd;
-    min-height: 100vh;
+  padding-bottom: 80px;
+  min-height: 100vh;
 }
 
-/* Hero Section */
 .fleet-hero {
-    position: relative;
-    padding: 120px 0 100px;
-    background: #0f172a;
-    color: white;
-    text-align: center;
-    overflow: hidden;
+  padding: 140px 0 60px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--bg-main) 100%);
 }
 
-.hero-bg {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: url('/assets/images/cars/vf9.png') center/70% no-repeat;
-    opacity: 0.15;
-    filter: blur(10px);
+.badge-pill {
+  display: inline-block;
+  padding: 6px 16px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 16px;
 }
 
-.hero-overlay {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(circle at center, transparent 0%, #0f172a 80%);
+.fleet-hero h1 {
+  font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
 }
 
-.hero-content { position: relative; z-index: 1; }
-
-.badge-premium {
-    display: inline-block;
-    padding: 6px 20px;
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 100px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 24px;
-    background: rgba(255,255,255,0.05);
+.fleet-hero h1 span {
+  color: var(--color-primary);
 }
 
-.hero-content h1 {
-    font-size: 4.5rem;
-    font-weight: 900;
-    letter-spacing: -2px;
-    margin-bottom: 16px;
+.fleet-hero p {
+  max-width: 650px;
+  margin: 0 auto;
+  font-size: 1.1rem;
 }
-
-.hero-content h1 span { color: var(--color-primary); }
-
-.hero-content p {
-    font-size: 1.3rem;
-    opacity: 0.7;
-    max-width: 700px;
-    margin: 0 auto 48px;
-}
-
-.hero-stats {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 40px;
-}
-
-.stat-val { display: block; font-size: 1.8rem; font-weight: 900; color: var(--color-primary); }
-.stat-label { font-size: 0.8rem; opacity: 0.5; font-weight: 700; text-transform: uppercase; }
-.stat-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.1); }
 
 /* Controls */
 .fleet-controls {
-    margin-top: -40px;
-    position: relative;
-    z-index: 2;
+  margin-bottom: 40px;
 }
 
-.controls-wrapper {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px 40px;
-    background: white !important;
-    border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+.controls-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #ffffff;
 }
 
-.filter-side { display: flex; align-items: center; gap: 20px; }
-.filter-side .label { font-weight: 800; color: #64748b; font-size: 0.9rem; }
-
-.vibe-pills { display: flex; gap: 10px; }
-.pill {
-    padding: 8px 24px;
-    border: 1px solid #f1f5f9;
-    background: #f8fafc;
-    border-radius: 100px;
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: #475569;
-    cursor: pointer;
-    transition: 0.3s;
+.controls-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.pill.active { background: #0f172a; color: white; border-color: #0f172a; }
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-surface-sub);
+  border-radius: var(--radius-md);
+  flex: 1;
+  max-width: 480px;
+  border: 1px solid transparent;
+  transition: all var(--duration-fast);
+}
+
+.search-box:focus-within {
+  background: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+.search-box i {
+  color: var(--color-text-muted);
+}
+
+.search-box input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.925rem;
+}
+
+.clear-search {
+  color: var(--color-text-muted);
+}
 
 .sort-box {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: #f1f5f9;
-    padding: 8px 16px;
-    border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-surface-sub);
+  border-radius: var(--radius-md);
 }
 
-.sort-box select { background: transparent; border: none; outline: none; font-weight: 700; color: #1e293b; }
+.sort-box i {
+  color: var(--color-primary);
+}
+
+.sort-select {
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: 0.885rem;
+  color: var(--color-text-main);
+  outline: none;
+  cursor: pointer;
+}
+
+.category-pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cat-pill {
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface-sub);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all var(--duration-fast);
+}
+
+.pill-count {
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.cat-pill:hover {
+  background: #e2e8f0;
+  color: var(--color-text-main);
+}
+
+.cat-pill.active {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.cat-pill.active .pill-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
 
 /* Showcase Grid */
-.fleet-showcase { padding: 80px 0 120px; }
-
 .showcase-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 32px;
 }
 
-.product-card {
-    background: white;
-    border-radius: 32px;
-    overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    border: 1px solid #f1f5f9;
+.fleet-car-card {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.product-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 30px 60px rgba(0,0,0,0.08);
+.car-img-box {
+  position: relative;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f6 100%);
+  padding: 32px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
 }
 
-.product-img-box {
-    position: relative;
-    padding: 40px;
-    background: #f8fafc;
-    height: 240px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.car-img-box img {
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform var(--duration-slow) var(--ease-spring);
 }
 
-.product-img-box img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    filter: drop-shadow(0 15px 30px rgba(0,0,0,0.1));
+.fleet-car-card:hover .car-img-box img {
+  transform: scale(1.06);
 }
 
-.product-tag {
-    position: absolute;
-    top: 20px; left: 20px;
-    padding: 4px 12px;
-    background: white;
-    border-radius: 8px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: var(--color-primary);
-    text-transform: uppercase;
+.type-tag {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: #ffffff;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+  box-shadow: var(--shadow-xs);
 }
 
-.product-details { padding: 30px; }
-
-.product-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24px;
+.status-indicator {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
-.product-name { font-size: 1.6rem; font-weight: 800; color: #0f172a; }
-
-.product-price { display: flex; flex-direction: column; align-items: flex-end; }
-.price-val { font-size: 1.4rem; font-weight: 900; color: #0f172a; }
-.price-unit { font-size: 0.75rem; color: #94a3b8; font-weight: 700; }
-
-.product-specs {
-    display: flex;
-    justify-content: space-between;
-    padding: 16px 0;
-    border-top: 1px solid #f1f5f9;
-    border-bottom: 1px solid #f1f5f9;
-    margin-bottom: 24px;
+.status-indicator.available {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid var(--color-success-border);
 }
 
-.spec { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.spec i { font-size: 1.1rem; color: #94a3b8; }
-.spec span { font-size: 0.75rem; font-weight: 700; color: #64748b; }
-
-.product-actions { display: flex; gap: 12px; }
-
-.btn-primary-vibe {
-    flex: 1;
-    padding: 14px;
-    background: #0f172a;
-    color: white;
-    text-align: center;
-    border-radius: 16px;
-    font-weight: 800;
-    font-size: 0.9rem;
-    transition: 0.3s;
+.status-indicator.maintenance {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning-border);
 }
 
-.btn-primary-vibe:hover { background: var(--color-primary); transform: scale(1.02); }
-
-.btn-secondary-vibe {
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
-    border: 1px solid #e2e8f0;
-    background: white;
-    color: #0f172a;
-    cursor: pointer;
-    transition: 0.3s;
+.car-content {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
-.btn-secondary-vibe:hover { background: #f8fafc; border-color: #0f172a; }
+.car-headline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
 
-@media (max-width: 1024px) {
-    .hero-content h1 { font-size: 3rem; }
-    .controls-wrapper { flex-direction: column; gap: 20px; }
+.car-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.city-label {
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  background: var(--color-primary-light);
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.car-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.spec-col {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spec-col i {
+  color: var(--color-primary);
+  font-size: 1rem;
+}
+
+.spec-col .label {
+  display: block;
+  font-size: 0.725rem;
+  color: var(--color-text-muted);
+}
+
+.spec-col strong {
+  font-size: 0.85rem;
+  color: var(--color-text-main);
+}
+
+.car-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.price-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-family: var(--font-heading);
+  color: var(--color-text-main);
+}
+
+.price-sub {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-secondary-sm {
+  padding: 8px 14px;
+  background: var(--bg-surface-sub);
+  color: var(--color-text-main);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.btn-secondary-sm:hover {
+  background: #e2e8f0;
+}
+
+.btn-primary-sm {
+  padding: 8px 18px;
+  background: var(--grad-active);
+  color: #ffffff !important;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-primary-sm:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* Empty State */
+.empty-fleet {
+  padding: 60px 24px;
+  max-width: 580px;
+  margin: 40px auto;
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin: 0 auto 20px;
+}
+
+.empty-fleet h3 {
+  font-size: 1.4rem;
+  margin-bottom: 8px;
+}
+
+.empty-fleet p {
+  margin-bottom: 24px;
+}
+
+/* Modal Quick View */
+.modal-car-preview {
+  background: var(--bg-surface-sub);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.modal-car-preview img {
+  max-height: 200px;
+  margin: 0 auto;
+}
+
+.modal-car-details h2 {
+  font-size: 1.6rem;
+  margin-bottom: 4px;
+}
+
+.modal-type {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+.specs-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-surface-sub);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+}
+
+.spec-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.spec-box i {
+  color: var(--color-primary);
+  width: 20px;
+}
+
+.modal-price-row {
+  border-top: 1px solid var(--color-border);
+  padding-top: 20px;
+}
+
+.modal-price-row .label {
+  display: block;
+  font-size: 0.775rem;
+  color: var(--color-text-muted);
+}
+
+.modal-price-row h3 {
+  font-size: 1.4rem;
+  color: var(--color-primary);
+}
+
+.modal-price-row small {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.showcase-loading {
+  text-align: center;
+  padding: 60px 0;
+}
+
+.showcase-loading .spinner {
+  margin: 0 auto 16px;
+}
+
+@media (max-width: 768px) {
+  .showcase-grid {
+    grid-template-columns: 1fr;
+  }
+  .controls-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-box {
+    max-width: 100%;
+  }
 }
 </style>

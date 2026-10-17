@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+vendor/
+AI_Assistant/venv/
+AI_Assistant/__pycache__/
+*.pyc
+
+# Production & Build outputs
+dist/
+public/build/
+public/hot/
+
+# Environment files
+.env
+.env.backup
+.env.production
+
+# IDE & Editor caches
+.idea/
+.vscode/
+.fleet/
+.nova/
+.zed/
+Thumbs.db
+.DS_Store
+*.log
+
+# Caches
+.phpunit.cache/
+.phpunit.result.cache
+
+# Application storage & keys
+storage/*.key
+storage/pail
+Homestead.json
+Homestead.yaml

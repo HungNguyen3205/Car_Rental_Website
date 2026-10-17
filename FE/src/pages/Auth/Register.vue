@@ -1,122 +1,153 @@
 <template>
-  <div class="auth-page register-theme">
-    <!-- Animated Background -->
-    <div class="auth-bg">
-      <div class="glass-morph"></div>
-      <div class="circle circle-1"></div>
-      <div class="circle circle-2"></div>
-    </div>
+  <div class="auth-page register-page">
+    <div class="auth-card card animate-in">
+      <div class="auth-header text-center">
+        <router-link to="/" class="logo">
+          <div class="logo-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.4-.8l-4.2-3.15A2 2 0 0 0 16 8.35L14 8H9a2 2 0 0 0-2 2v3m-2-1H3M2 16h2m13-4v4m-5 4a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm-10 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/>
+            </svg>
+          </div>
+          <span class="logo-text">Drive<span>Rent</span></span>
+        </router-link>
+        <h1>Tạo Tài Khoản Mới</h1>
+        <p>Tham gia cộng đồng thuê xe điện thông minh cùng DriveRent</p>
+      </div>
 
-    <div class="auth-container">
-      <div class="auth-card glass animate-in">
-        <div class="auth-header">
-          <router-link to="/" class="auth-logo">
-            <i class="fa-solid fa-car-side"></i>
-            <span>DriveRent</span>
-          </router-link>
-          <h2>Tạo Tài Khoản Mới</h2>
-          <p>Tham gia cộng đồng thuê xe điện thông minh cùng DriveRent</p>
-        </div>
+      <form @submit.prevent="handleRegister" class="auth-form">
+        <div class="form-grid">
+          <!-- Full Name -->
+          <div class="form-group">
+            <label for="reg-name"><i class="fa-solid fa-user"></i> Họ và tên</label>
+            <input 
+              id="reg-name"
+              type="text" 
+              v-model="registerData.ho_ten" 
+              placeholder="Nguyễn Văn A" 
+              class="form-control"
+              autocomplete="name"
+              required
+            />
+          </div>
+          
+          <!-- Email -->
+          <div class="form-group">
+            <label for="reg-email"><i class="fa-solid fa-envelope"></i> Email</label>
+            <input 
+              id="reg-email"
+              type="email" 
+              v-model="registerData.email" 
+              placeholder="example@gmail.com" 
+              class="form-control"
+              autocomplete="email"
+              required
+            />
+          </div>
 
-        <form @submit.prevent="handleRegister" class="auth-form">
-          <div class="form-grid">
-            <div class="form-group">
-              <label><i class="fa-solid fa-user"></i> Họ và tên</label>
-              <input 
-                type="text" 
-                v-model="registerData.ho_ten" 
-                placeholder="Nguyễn Văn A" 
-                required
-              />
-            </div>
-            
-            <div class="form-group">
-              <label><i class="fa-solid fa-envelope"></i> Email</label>
-              <input 
-                type="email" 
-                v-model="registerData.email" 
-                placeholder="example@gmail.com" 
-                required
-              />
-            </div>
+          <!-- Phone -->
+          <div class="form-group">
+            <label for="reg-phone"><i class="fa-solid fa-phone"></i> Số điện thoại</label>
+            <input 
+              id="reg-phone"
+              type="tel" 
+              v-model="registerData.so_dien_thoai" 
+              placeholder="09xx xxx xxx" 
+              class="form-control"
+              autocomplete="tel"
+              required
+            />
+          </div>
 
-            <div class="form-group">
-              <label><i class="fa-solid fa-phone"></i> Số điện thoại</label>
+          <!-- Password -->
+          <div class="form-group">
+            <label for="reg-pass"><i class="fa-solid fa-lock"></i> Mật khẩu</label>
+            <div class="password-input-wrap">
               <input 
-                type="tel" 
-                v-model="registerData.so_dien_thoai" 
-                placeholder="09xx xxx xxx" 
-                required
-              />
-            </div>
-
-            <div class="form-group">
-              <label><i class="fa-solid fa-lock"></i> Mật khẩu</label>
-              <input 
-                type="password" 
+                id="reg-pass"
+                :type="showPassword ? 'text' : 'password'" 
                 v-model="registerData.password" 
                 placeholder="••••••••" 
+                class="form-control"
+                autocomplete="new-password"
+                minlength="6"
                 required
               />
-            </div>
-
-            <div class="form-group">
-              <label><i class="fa-solid fa-calendar-days"></i> Ngày sinh (tùy chọn)</label>
-              <input type="date" v-model="registerData.ngay_sinh" />
-            </div>
-
-            <div class="form-group">
-              <label><i class="fa-solid fa-venus-mars"></i> Giới tính</label>
-              <select v-model="registerData.gioi_tinh" class="auth-select">
-                <option value="1">Nam</option>
-                <option value="0">Nữ</option>
-                <option value="2">Khác</option>
-              </select>
-            </div>
-
-            <div class="form-group full-width">
-              <label><i class="fa-solid fa-location-dot"></i> Địa chỉ (tùy chọn)</label>
-              <input 
-                type="text" 
-                v-model="registerData.dia_chi" 
-                placeholder="Số nhà, tên đường, quận/huyện..." 
-              />
+              <button 
+                type="button" 
+                class="toggle-pass-btn" 
+                @click="showPassword = !showPassword"
+                :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+              >
+                <i :class="showPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
+              </button>
             </div>
           </div>
 
-          <div class="form-options">
-            <label class="checkbox-container">
-              <input type="checkbox" v-model="registerData.agreed">
-              <span class="checkmark"></span>
-              Tôi đồng ý với <a href="#">Điều khoản sử dụng</a>
-            </label>
+          <!-- Birth Date -->
+          <div class="form-group">
+            <label for="reg-bday"><i class="fa-solid fa-calendar-days"></i> Ngày sinh (tùy chọn)</label>
+            <input 
+              id="reg-bday"
+              type="date" 
+              v-model="registerData.ngay_sinh" 
+              class="form-control" 
+            />
           </div>
 
-          <button type="submit" class="btn-auth" :disabled="loading || !registerData.agreed">
-            <span v-if="!loading">ĐĂNG KÝ NGAY</span>
-            <i v-else class="fa-solid fa-spinner fa-spin"></i>
-          </button>
-        </form>
+          <!-- Gender -->
+          <div class="form-group">
+            <label for="reg-gender"><i class="fa-solid fa-venus-mars"></i> Giới tính</label>
+            <select id="reg-gender" v-model="registerData.gioi_tinh" class="form-select">
+              <option :value="1">Nam</option>
+              <option :value="0">Nữ</option>
+              <option :value="2">Khác</option>
+            </select>
+          </div>
 
-        <div class="auth-divider">
-          <span>Hoặc đăng ký nhanh qua</span>
+          <!-- Address -->
+          <div class="form-group full-width">
+            <label for="reg-addr"><i class="fa-solid fa-location-dot"></i> Địa chỉ (tùy chọn)</label>
+            <input 
+              id="reg-addr"
+              type="text" 
+              v-model="registerData.dia_chi" 
+              placeholder="Số nhà, tên đường, quận/huyện..." 
+              class="form-control"
+            />
+          </div>
         </div>
 
-        <div class="social-auth">
-          <button @click="loginSocial('google')" class="btn-social google">
-            <img src="https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png" alt="Google">
-            Google
-          </button>
-          <button @click="loginSocial('facebook')" class="btn-social facebook">
-            <i class="fa-brands fa-facebook"></i>
-            Facebook
-          </button>
+        <div class="form-terms">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="registerData.agreed" required />
+            <span>Tôi đồng ý với <router-link to="/about">Điều khoản sử dụng</router-link> và chính sách của DriveRent</span>
+          </label>
         </div>
 
-        <p class="auth-footer">
-          Đã có tài khoản? <router-link to="/login">Đăng nhập</router-link>
-        </p>
+        <button type="submit" class="btn-primary w-full mt-3" :disabled="loading || !registerData.agreed">
+          <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
+          <span v-else>Đăng Ký Tài Khoản</span>
+        </button>
+      </form>
+
+      <div class="auth-divider">
+        <span>Hoặc đăng ký nhanh qua</span>
       </div>
+
+      <div class="social-auth-grid">
+        <button type="button" @click="loginSocial('google')" class="btn-social google">
+          <i class="fa-brands fa-google"></i>
+          <span>Google</span>
+        </button>
+        <button type="button" @click="loginSocial('facebook')" class="btn-social facebook">
+          <i class="fa-brands fa-facebook-f"></i>
+          <span>Facebook</span>
+        </button>
+      </div>
+
+      <p class="auth-footer-text text-center">
+        Đã có tài khoản? <router-link to="/login">Đăng nhập tại đây</router-link>
+      </p>
     </div>
   </div>
 </template>
@@ -125,9 +156,12 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import baseRequest from '../../core/baseRequest';
+import { createToaster } from "@meforma/vue-toaster";
 
+const toaster = createToaster({ position: "top-right" });
 const router = useRouter();
 const loading = ref(false);
+const showPassword = ref(false);
 
 const registerData = reactive({
   ho_ten: '',
@@ -137,28 +171,35 @@ const registerData = reactive({
   ngay_sinh: '',
   gioi_tinh: 1,
   dia_chi: '',
-  agreed: false
+  agreed: true
 });
 
 const handleRegister = async () => {
+  if (registerData.password.length < 6) {
+    toaster.warning("Mật khẩu cần tối thiểu 6 ký tự!");
+    return;
+  }
+
   loading.value = true;
   try {
     const res = await baseRequest.post('register', registerData);
-    if (res.data.status) {
-      alert("Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản.");
+    if (res.data && res.data.status) {
+      toaster.success("Đăng ký thành công! Vui lòng kiểm tra email kích hoạt tài khoản.");
       router.push('/login');
     } else {
-      alert(res.data.message || "Đăng ký không thành công");
+      toaster.error(res.data?.message || "Đăng ký không thành công!");
     }
   } catch (error) {
-    alert(error.response?.data?.message || "Lỗi kết nối máy chủ");
+    const err = error.response?.data?.message || "Lỗi kết nối máy chủ khi đăng ký!";
+    toaster.error(err);
   } finally {
     loading.value = false;
   }
 };
 
 const loginSocial = (provider) => {
-  window.location.href = `http://localhost:8000/api/auth/${provider}/redirect`;
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+  window.location.href = `${apiUrl}/auth/${provider}/redirect`;
 };
 </script>
 
@@ -168,320 +209,210 @@ const loginSocial = (provider) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background: #0f172a;
-  font-family: 'Inter', sans-serif;
-  padding: 40px 20px;
-}
-
-.auth-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
-
-.glass-morph {
-  position: absolute;
-  inset: 0;
-  backdrop-filter: blur(100px);
-  background: rgba(15, 23, 42, 0.7);
-}
-
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-}
-
-.circle-1 {
-  width: 400px;
-  height: 400px;
-  background: rgba(37, 99, 235, 0.2);
-  top: -100px;
-  right: -100px;
-}
-
-.circle-2 {
-  width: 500px;
-  height: 500px;
-  background: rgba(139, 92, 246, 0.15);
-  bottom: -150px;
-  left: -150px;
-}
-
-.auth-container {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  max-width: 520px;
+  background: radial-gradient(circle at 80% 20%, rgba(5, 150, 105, 0.08), transparent 40%),
+              radial-gradient(circle at 20% 80%, rgba(2, 132, 199, 0.05), transparent 40%),
+              var(--bg-main);
+  padding: 120px 20px 60px;
 }
 
 .auth-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 32px;
-  padding: 48px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  text-align: center;
+  width: 100%;
+  max-width: 640px;
+  padding: 44px 40px;
+  background: #ffffff;
+  border-radius: var(--radius-xl);
 }
 
 .auth-header {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
-.auth-logo {
+.logo {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  color: white;
-  text-decoration: none;
-  font-weight: 800;
-  font-size: 1.5rem;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
-.auth-logo i { color: #3b82f6; }
-
-.auth-header h2 {
+.logo-box {
+  width: 38px;
+  height: 38px;
+  background: var(--grad-active);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: white;
+}
+
+.logo-text {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-text-main);
+}
+
+.logo-text span {
+  color: var(--color-primary);
+}
+
+.auth-header h1 {
   font-size: 1.8rem;
   font-weight: 800;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .auth-header p {
-  color: #94a3b8;
-  font-size: 0.95rem;
+  font-size: 0.925rem;
+  color: var(--color-text-muted);
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  text-align: left;
-  margin-bottom: 24px;
+  gap: 18px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  color: #cbd5e1;
-  font-size: 0.85rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.form-group label i { color: #3b82f6; font-size: 0.8rem; }
-
-.form-group input, .auth-select {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 12px 16px;
-  border-radius: 12px;
-  color: white;
-  outline: none;
-  transition: all 0.3s;
-}
-
-.auth-select {
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px;
-}
-
-.auth-select option {
-  background: #1e293b;
-  color: white;
-}
-
-.form-group.full-width {
+.full-width {
   grid-column: span 2;
 }
 
-.form-group input:focus, .auth-select:focus {
-  border-color: #3b82f6;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
-}
-
-.form-options {
-  margin-bottom: 24px;
-  text-align: left;
-}
-
-/* Custom Checkbox */
-.checkbox-container {
-  display: block;
-  position: relative;
-  padding-left: 28px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: #94a3b8;
-  user-select: none;
-}
-
-.checkbox-container input {
-  position: absolute;
-  opacity: 0;
-  cursor: pointer;
-  height: 0;
-  width: 0;
-}
-
-.checkmark {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 18px;
-  width: 18px;
-  background-color: rgba(255,255,255,0.1);
-  border-radius: 4px;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-
-.checkbox-container:hover input ~ .checkmark {
-  background-color: rgba(255,255,255,0.15);
-}
-
-.checkbox-container input:checked ~ .checkmark {
-  background-color: #3b82f6;
-  border-color: #3b82f6;
-}
-
-.checkmark:after {
-  content: "";
-  position: absolute;
-  display: none;
-}
-
-.checkbox-container input:checked ~ .checkmark:after {
-  display: block;
-}
-
-.checkbox-container .checkmark:after {
-  left: 6px;
-  top: 2px;
-  width: 5px;
-  height: 10px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.checkbox-container a { color: #3b82f6; text-decoration: none; font-weight: 600; }
-
-.btn-auth {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  border: none;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  font-weight: 800;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
-}
-
-.btn-auth:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 30px rgba(37, 99, 235, 0.3);
-}
-
-.btn-auth:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.auth-divider {
-  margin: 32px 0;
+.password-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+}
+
+.password-input-wrap input {
+  padding-right: 42px;
+}
+
+.toggle-pass-btn {
+  position: absolute;
+  right: 12px;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.form-terms {
+  margin: 12px 0 16px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.checkbox-label input {
+  margin-top: 3px;
+  accent-color: var(--color-primary);
+}
+
+.checkbox-label a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.auth-divider {
+  position: relative;
+  text-align: center;
+  margin: 24px 0 20px;
 }
 
 .auth-divider::before {
   content: '';
   position: absolute;
-  width: 100%;
+  top: 50%;
+  left: 0;
+  right: 0;
   height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-border);
 }
 
 .auth-divider span {
   position: relative;
-  background: #111a2e;
-  padding: 0 16px;
-  color: #64748b;
+  background: #ffffff;
+  padding: 0 14px;
   font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
-.social-auth {
+.social-auth-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 32px;
+  gap: 12px;
 }
 
 .btn-social {
+  padding: 11px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-sub);
+  border: 1px solid var(--color-border);
+  font-weight: 600;
+  font-size: 0.885rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s;
+  color: var(--color-text-main);
+  transition: all var(--duration-fast);
 }
 
 .btn-social:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: #e2e8f0;
 }
 
-.btn-social img { width: 18px; }
-.btn-social i { font-size: 1.1rem; }
-.btn-social.facebook i { color: #1877f2; }
-
-.auth-footer {
-  color: #94a3b8;
-  font-size: 0.95rem;
+.btn-social.google i {
+  color: #ea4335;
 }
 
-.auth-footer a {
-  color: #3b82f6;
-  text-decoration: none;
+.btn-social.facebook i {
+  color: #1877f2;
+}
+
+.auth-footer-text {
+  margin-top: 24px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.auth-footer-text a {
+  color: var(--color-primary);
   font-weight: 700;
-  margin-left: 4px;
+}
+
+.auth-footer-text a:hover {
+  text-decoration: underline;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.mt-3 {
+  margin-top: 12px;
+}
+
+.text-center {
+  text-align: center;
 }
 
 @media (max-width: 640px) {
-  .form-grid { grid-template-columns: 1fr; }
-  .auth-card { padding: 32px 24px; }
-}
-
-.animate-in {
-  animation: fadeInDown 0.6s ease-out;
-}
-
-@keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .full-width {
+    grid-column: span 1;
+  }
+  .auth-card {
+    padding: 28px 20px;
+  }
 }
 </style>

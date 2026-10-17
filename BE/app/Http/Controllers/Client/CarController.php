@@ -87,6 +87,8 @@ class CarController extends Controller
             $startDate = $request->start_date;
             $endDate = $request->end_date;
 
+            $query->where('cars.status', '!=', 'maintenance');
+
             $query->whereNotExists(function ($q) use ($startDate, $endDate) {
                 $q->select(\DB::raw(1))
                     ->from('bookings')

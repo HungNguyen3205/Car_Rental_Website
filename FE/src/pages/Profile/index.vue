@@ -1,139 +1,211 @@
 <template>
   <div class="profile-page">
+    <!-- Header -->
     <section class="profile-header">
       <div class="app-container">
+        <span class="eyebrow-pill">Tài khoản & Thiết lập</span>
         <h1>Hồ Sơ <span>Cá Nhân</span></h1>
-        <p>Quản lý thông tin tài khoản và bảo mật của bạn.</p>
+        <p>Quản lý thông tin tài khoản, cài đặt bảo mật và thông tin liên hệ của bạn.</p>
       </div>
     </section>
 
+    <!-- Main Content -->
     <section class="profile-content app-container">
       <div class="profile-grid">
-        <!-- Sidebar -->
+        <!-- Sidebar Profile Card -->
         <div class="profile-sidebar">
-          <div class="user-card card glass">
+          <div class="user-card card">
             <div class="avatar-large">
               {{ user.ho_ten?.charAt(0) || 'U' }}
             </div>
-            <h3>{{ user.ho_ten }}</h3>
-            <p>{{ user.email }}</p>
-            <div class="user-badge client">Khách hàng Thân thiết</div>
+            <h3 class="user-display-name">{{ user.ho_ten || 'Người dùng' }}</h3>
+            <p class="user-display-email">{{ user.email }}</p>
+            <span class="role-pill" :class="user.role === 'admin' ? 'admin' : 'client'">
+              {{ user.role === 'admin' ? 'Quản Trị Viên' : 'Khách Hàng Thân Thiết' }}
+            </span>
           </div>
           
-          <nav class="side-nav card glass">
-            <button class="nav-item" :class="{ 'active': activeTab === 'general' }" @click="activeTab = 'general'">
-                <i class="fa-solid fa-user-pen"></i> Thông tin chung
+          <nav class="side-nav card">
+            <button 
+              type="button"
+              class="nav-item" 
+              :class="{ 'active': activeTab === 'general' }" 
+              @click="activeTab = 'general'"
+            >
+              <i class="fa-solid fa-user-pen"></i>
+              <span>Thông tin chung</span>
             </button>
-            <button class="nav-item" :class="{ 'active': activeTab === 'security' }" @click="activeTab = 'security'">
-                <i class="fa-solid fa-shield-halved"></i> Bảo mật & Mật khẩu
-            </button>
-            <button class="nav-item" :class="{ 'active': activeTab === 'notifications' }" @click="activeTab = 'notifications'">
-                <i class="fa-solid fa-bell"></i> Thông báo
+            <button 
+              type="button"
+              class="nav-item" 
+              :class="{ 'active': activeTab === 'security' }" 
+              @click="activeTab = 'security'"
+            >
+              <i class="fa-solid fa-shield-halved"></i>
+              <span>Bảo mật & Mật khẩu</span>
             </button>
           </nav>
         </div>
 
-        <!-- Main Content Area -->
+        <!-- Main Form Area -->
         <div class="profile-main">
           <!-- General Info Tab -->
-          <div v-if="activeTab === 'general'" class="form-card card glass animate-in">
+          <div v-if="activeTab === 'general'" class="form-card card animate-in">
             <div class="card-header">
-              <h3>Cập nhật thông tin</h3>
+              <h3>Thông Tin Cá Nhân</h3>
+              <p>Cập nhật thông tin chi tiết để quá trình giao nhận xe diễn ra nhanh nhất.</p>
             </div>
-            <div class="form-grid">
-              <div class="form-group">
-                <label>Họ và tên</label>
-                <input type="text" v-model="user.ho_ten" placeholder="Nhập họ tên...">
+
+            <form @submit.prevent="saveProfile" class="form-body">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label><i class="fa-solid fa-user"></i> Họ và tên</label>
+                  <input 
+                    type="text" 
+                    v-model="user.ho_ten" 
+                    placeholder="Nguyễn Văn A" 
+                    class="form-control"
+                    required
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label><i class="fa-solid fa-envelope"></i> Email (Không thể thay đổi)</label>
+                  <input 
+                    type="email" 
+                    :value="user.email" 
+                    disabled 
+                    class="form-control disabled-input" 
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label><i class="fa-solid fa-phone"></i> Số điện thoại</label>
+                  <input 
+                    type="tel" 
+                    v-model="user.so_dien_thoai" 
+                    placeholder="09xx xxx xxx" 
+                    class="form-control"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label><i class="fa-solid fa-calendar-days"></i> Ngày sinh</label>
+                  <input 
+                    type="date" 
+                    v-model="user.ngay_sinh" 
+                    class="form-control" 
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label><i class="fa-solid fa-venus-mars"></i> Giới tính</label>
+                  <select v-model="user.gioi_tinh" class="form-select">
+                    <option :value="1">Nam</option>
+                    <option :value="0">Nữ</option>
+                    <option :value="2">Khác</option>
+                  </select>
+                </div>
+
+                <div class="form-group full-width">
+                  <label><i class="fa-solid fa-location-dot"></i> Địa chỉ thường trú</label>
+                  <input 
+                    type="text" 
+                    v-model="user.dia_chi" 
+                    placeholder="Số nhà, tên đường, quận/huyện, tỉnh/thành..." 
+                    class="form-control"
+                  />
+                </div>
               </div>
-              <div class="form-group">
-                <label>Email (Không thể thay đổi)</label>
-                <input type="email" v-model="user.email" disabled class="disabled-input">
+
+              <div class="form-actions">
+                <button type="submit" class="btn-primary" :disabled="savingProfile">
+                  <i v-if="savingProfile" class="fa-solid fa-spinner fa-spin"></i>
+                  <span v-else>Lưu thay đổi</span>
+                </button>
               </div>
-              <div class="form-group">
-                <label>Số điện thoại</label>
-                <input type="text" v-model="user.so_dien_thoai" placeholder="Nhập số điện thoại...">
-              </div>
-              <div class="form-group">
-                <label>Địa chỉ</label>
-                <input type="text" v-model="user.dia_chi" placeholder="Nhập địa chỉ của bạn...">
-              </div>
-            </div>
-            <div class="form-actions">
-                <button class="btn-primary" @click="saveProfile">Lưu thay đổi</button>
-            </div>
+            </form>
           </div>
 
           <!-- Security Tab -->
-          <div v-if="activeTab === 'security'" class="form-card card glass animate-in">
+          <div v-if="activeTab === 'security'" class="form-card card animate-in">
             <div class="card-header">
-              <h3>Bảo mật tài khoản</h3>
+              <h3>Đổi Mật Khẩu</h3>
+              <p>Khuyến nghị sử dụng mật khẩu mạnh với ít nhất 6 ký tự để bảo vệ tài khoản.</p>
             </div>
-            <div class="security-sections">
-                <div class="security-item">
-                    <div class="sec-info">
-                        <h4>Đổi mật khẩu</h4>
-                        <p>Thay đổi mật khẩu định kỳ để bảo vệ tài khoản của bạn.</p>
-                    </div>
-                    <button class="btn-outline-sm">Cập nhật</button>
-                </div>
-                <div class="dropdown-divider"></div>
-                <div class="security-item">
-                    <div class="sec-info">
-                        <h4>Xác thực 2 lớp (2FA)</h4>
-                        <p>Thêm một lớp bảo mật bằng cách yêu cầu mã xác nhận từ điện thoại.</p>
-                    </div>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="2fa">
-                        <label for="2fa"></label>
-                    </div>
-                </div>
-                <div class="dropdown-divider"></div>
-                <div class="security-item">
-                    <div class="sec-info">
-                        <h4>Thiết bị đang đăng nhập</h4>
-                        <p>Quản lý các trình duyệt và thiết bị đang truy cập tài khoản này.</p>
-                    </div>
-                    <button class="btn-outline-sm">Xem danh sách</button>
-                </div>
-            </div>
-          </div>
 
-          <!-- Notifications Tab -->
-          <div v-if="activeTab === 'notifications'" class="form-card card glass animate-in">
-            <div class="card-header">
-              <h3>Cài đặt thông báo</h3>
-            </div>
-            <div class="notif-settings">
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <h4>Thông báo đặt xe</h4>
-                        <p>Nhận tin nhắn khi đơn đặt xe của bạn được xác nhận.</p>
-                    </div>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="notif-booking" checked>
-                        <label for="notif-booking"></label>
-                    </div>
+            <form @submit.prevent="changePassword" class="form-body">
+              <div class="password-form-grid">
+                <div class="form-group">
+                  <label><i class="fa-solid fa-lock"></i> Mật khẩu mới</label>
+                  <div class="password-input-wrap">
+                    <input 
+                      :type="showNewPass ? 'text' : 'password'" 
+                      v-model="passForm.newPassword" 
+                      placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                      class="form-control"
+                      autocomplete="new-password"
+                      required
+                      minlength="6"
+                    />
+                    <button 
+                      type="button" 
+                      class="toggle-pass-btn" 
+                      @click="showNewPass = !showNewPass"
+                      :aria-label="showNewPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+                    >
+                      <i :class="showNewPass ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
+                    </button>
+                  </div>
                 </div>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <h4>Ưu đãi & Khuyến mãi</h4>
-                        <p>Cập nhật những chương trình giảm giá và xe mới nhất.</p>
-                    </div>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="notif-promo">
-                        <label for="notif-promo"></label>
-                    </div>
+
+                <div class="form-group">
+                  <label><i class="fa-solid fa-lock-open"></i> Nhập lại mật khẩu mới</label>
+                  <div class="password-input-wrap">
+                    <input 
+                      :type="showConfirmPass ? 'text' : 'password'" 
+                      v-model="passForm.confirmPassword" 
+                      placeholder="Xác nhận lại mật khẩu mới"
+                      class="form-control"
+                      autocomplete="new-password"
+                      required
+                    />
+                    <button 
+                      type="button" 
+                      class="toggle-pass-btn" 
+                      @click="showConfirmPass = !showConfirmPass"
+                      :aria-label="showConfirmPass ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+                    >
+                      <i :class="showConfirmPass ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
+                    </button>
+                  </div>
                 </div>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <h4>Email hệ thống</h4>
-                        <p>Nhận các thông tin quan trọng về bảo mật qua Email.</p>
-                    </div>
-                    <div class="toggle-switch">
-                        <input type="checkbox" id="notif-email" checked>
-                        <label for="notif-email"></label>
-                    </div>
+
+                <div v-if="passError" class="pass-error-banner">
+                  <i class="fa-solid fa-circle-exclamation"></i>
+                  <span>{{ passError }}</span>
                 </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-primary" :disabled="savingPassword">
+                  <i v-if="savingPassword" class="fa-solid fa-spinner fa-spin"></i>
+                  <span v-else>Cập nhật mật khẩu</span>
+                </button>
+              </div>
+            </form>
+
+            <div class="security-divider"></div>
+
+            <!-- Future roadmap section -->
+            <div class="security-info-box">
+              <div class="info-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <div>
+                <h4>Xác thực 2 yếu tố (2FA)</h4>
+                <p>Tính năng bảo mật nâng cao qua SMS và Authenticator đang trong lộ trình phát triển và sẽ sớm sẵn sàng.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -143,262 +215,390 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import baseRequest from '../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 
 const toaster = createToaster({ position: "top-right" });
 const activeTab = ref('general');
+
 const user = ref({
-    ho_ten: '',
-    email: '',
-    so_dien_thoai: '',
-    dia_chi: '',
-    role: ''
+  ho_ten: '',
+  email: '',
+  so_dien_thoai: '',
+  ngay_sinh: '',
+  gioi_tinh: 1,
+  dia_chi: '',
+  role: ''
 });
 
+const savingProfile = ref(false);
+const savingPassword = ref(false);
+
+const passForm = reactive({
+  newPassword: '',
+  confirmPassword: ''
+});
+
+const showNewPass = ref(false);
+const showConfirmPass = ref(false);
+const passError = ref('');
+
 const fetchProfile = async () => {
-    try {
-        const res = await baseRequest.get('user/profile/data');
-        if (res.data.status) {
-            // Merge with existing role from localStorage just in case API doesn't return it
-            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-            user.value = { ...res.data.data, role: res.data.data.role || storedUser.role };
-            localStorage.setItem('user', JSON.stringify(user.value));
-        }
-    } catch (err) {
-        // Fallback to localStorage if API fails
-        const userData = localStorage.getItem('user');
-        if (userData) {
-            user.value = JSON.parse(userData);
-        }
+  try {
+    const res = await baseRequest.get('user/profile/data');
+    if (res.data && res.data.status) {
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      user.value = {
+        ...res.data.data,
+        role: res.data.data.role || storedUser.role || 'client'
+      };
+      localStorage.setItem('user', JSON.stringify(user.value));
     }
+  } catch (err) {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        user.value = JSON.parse(userData);
+      } catch (e) {
+        console.error("Lỗi đọc cache hồ sơ:", e);
+      }
+    }
+  }
+};
+
+const saveProfile = async () => {
+  savingProfile.value = true;
+  try {
+    const res = await baseRequest.post('user/profile/update', {
+      ho_ten: user.value.ho_ten,
+      so_dien_thoai: user.value.so_dien_thoai,
+      ngay_sinh: user.value.ngay_sinh,
+      gioi_tinh: user.value.gioi_tinh,
+      dia_chi: user.value.dia_chi
+    });
+
+    if (res.data && res.data.status) {
+      localStorage.setItem('user', JSON.stringify(user.value));
+      toaster.success(res.data.message || "Cập nhật hồ sơ thành công!");
+    } else {
+      toaster.error(res.data?.message || "Cập nhật thất bại!");
+    }
+  } catch (err) {
+    toaster.error("Không thể kết nối đến máy chủ!");
+  } finally {
+    savingProfile.value = false;
+  }
+};
+
+const changePassword = async () => {
+  passError.value = '';
+
+  if (passForm.newPassword.length < 6) {
+    passError.value = 'Mật khẩu mới phải có tối thiểu 6 ký tự!';
+    return;
+  }
+
+  if (passForm.newPassword !== passForm.confirmPassword) {
+    passError.value = 'Mật khẩu xác nhận không trùng khớp!';
+    return;
+  }
+
+  savingPassword.value = true;
+  try {
+    const res = await baseRequest.post('user/profile/doi-mat-khau', {
+      password: passForm.newPassword
+    });
+
+    if (res.data && res.data.status) {
+      toaster.success(res.data.message || "Đổi mật khẩu thành công!");
+      passForm.newPassword = '';
+      passForm.confirmPassword = '';
+    } else {
+      toaster.error(res.data?.message || "Đổi mật khẩu thất bại!");
+    }
+  } catch (err) {
+    toaster.error("Lỗi máy chủ khi đổi mật khẩu!");
+  } finally {
+    savingPassword.value = false;
+  }
 };
 
 onMounted(fetchProfile);
-
-const saveProfile = async () => {
-    try {
-        const res = await baseRequest.post('user/profile/update', user.value);
-        if (res.data.status) {
-            localStorage.setItem('user', JSON.stringify(user.value));
-            toaster.success(res.data.message);
-        } else {
-            toaster.error(res.data.message);
-        }
-    } catch (err) {
-        toaster.error("Không thể kết nối đến máy chủ!");
-    }
-};
 </script>
 
 <style scoped>
 .profile-page {
-  padding-top: 100px;
-  background: #f1f5f9;
+  padding-bottom: 80px;
   min-height: 100vh;
 }
 
 .profile-header {
-  padding: 60px 0;
-  background: white;
+  padding: 130px 0 40px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--bg-main) 100%);
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 40px;
 }
 
+.eyebrow-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: var(--radius-full);
+  font-size: 0.775rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
 .profile-header h1 {
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin-bottom: 12px;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  margin-bottom: 8px;
 }
 
 .profile-header h1 span {
   color: var(--color-primary);
 }
 
+/* Grid Layout */
 .profile-grid {
   display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 30px;
-  padding-bottom: 100px;
+  grid-template-columns: 280px 1fr;
+  gap: 32px;
+  align-items: flex-start;
 }
 
+/* Sidebar */
 .user-card {
-  padding: 40px 20px;
+  padding: 32px 20px;
   text-align: center;
-  background: white !important;
   margin-bottom: 20px;
+  background: #ffffff;
 }
 
 .avatar-large {
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
   background: var(--grad-active);
-  color: white;
+  color: #ffffff;
   border-radius: 50%;
-  margin: 0 auto 20px;
+  margin: 0 auto 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 800;
   box-shadow: var(--shadow-glow);
 }
 
-.user-card h3 { font-size: 1.4rem; font-weight: 800; margin-bottom: 8px; }
-.user-card p { font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 16px; }
-
-.user-badge {
-  display: inline-block;
-  padding: 6px 16px;
-  background: #f0fdf4;
-  color: #22c55e;
-  border-radius: 100px;
-  font-size: 0.8rem;
-  font-weight: 700;
+.user-display-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 4px;
 }
 
-.side-nav {
-  background: white !important;
-  padding: 10px;
-}
-
-.nav-item {
-  width: 100%;
-  text-align: left;
-  padding: 14px 20px;
-  background: none;
-  border: none;
-  border-radius: 12px;
-  font-weight: 700;
+.user-display-email {
+  font-size: 0.85rem;
   color: var(--color-text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transition: all 0.3s;
+  margin-bottom: 14px;
+  word-break: break-all;
 }
 
-.nav-item.active {
-  background: #f1f5f9;
+.role-pill {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.role-pill.client {
+  background: var(--color-primary-light);
   color: var(--color-primary);
 }
 
+.role-pill.admin {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+/* Nav Menu */
+.side-nav {
+  padding: 10px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  transition: all var(--duration-fast);
+}
+
+.nav-item i {
+  font-size: 1rem;
+  width: 20px;
+}
+
+.nav-item:hover {
+  background: var(--bg-surface-sub);
+  color: var(--color-text-main);
+}
+
+.nav-item.active {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.nav-item.active i {
+  color: var(--color-primary);
+}
+
+/* Form Card */
 .form-card {
-  background: white !important;
-  padding: 40px;
+  padding: 36px;
+  background: #ffffff;
 }
 
 .card-header {
-    margin-bottom: 30px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card-header h3 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.card-header p {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 20px;
 }
 
-.form-group label {
-  display: block;
-  font-weight: 700;
-  font-size: 0.9rem;
-  margin-bottom: 8px;
-  color: #0f172a;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  outline: none;
-  transition: all 0.3s;
-}
-
-.form-group input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+.full-width {
+  grid-column: span 2;
 }
 
 .disabled-input {
   background: #f8fafc;
+  color: #94a3b8;
   cursor: not-allowed;
 }
 
 .form-actions {
-  margin-top: 40px;
+  margin-top: 28px;
   display: flex;
   justify-content: flex-end;
 }
 
-/* Security & Notifications */
-.security-item, .setting-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 0;
+/* Password Form */
+.password-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 480px;
 }
 
-.sec-info h4, .setting-info h4 {
-    font-size: 1rem;
-    font-weight: 700;
-    margin-bottom: 4px;
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.sec-info p, .setting-info p {
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
+.password-input-wrap input {
+  padding-right: 44px;
 }
 
-.btn-outline-sm {
-    padding: 8px 16px;
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 0.8rem;
-    cursor: pointer;
+.toggle-pass-btn {
+  position: absolute;
+  right: 12px;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
 }
 
-.toggle-switch {
-    position: relative;
-    width: 50px;
-    height: 26px;
+.pass-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
-.toggle-switch input { display: none; }
-
-.toggle-switch label {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: #e2e8f0;
-    border-radius: 34px;
-    cursor: pointer;
-    transition: 0.4s;
+.security-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 36px 0 24px;
 }
 
-.toggle-switch label::before {
-    content: "";
-    position: absolute;
-    height: 18px; width: 18px;
-    left: 4px; bottom: 4px;
-    background: white;
-    border-radius: 50%;
-    transition: 0.4s;
+.security-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: var(--bg-surface-sub);
+  border-radius: var(--radius-lg);
 }
 
-.toggle-switch input:checked + label {
-    background: var(--color-primary);
+.info-icon {
+  width: 44px;
+  height: 44px;
+  background: #ffffff;
+  color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: var(--shadow-xs);
+  flex-shrink: 0;
 }
 
-.toggle-switch input:checked + label::before {
-    transform: translateX(24px);
+.security-info-box h4 {
+  font-size: 0.95rem;
+  margin-bottom: 4px;
 }
 
-@media (max-width: 1024px) {
-  .profile-grid { grid-template-columns: 1fr; }
-  .form-grid { grid-template-columns: 1fr; }
+.security-info-box p {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .full-width {
+    grid-column: span 1;
+  }
+  .form-card {
+    padding: 24px;
+  }
 }
 </style>

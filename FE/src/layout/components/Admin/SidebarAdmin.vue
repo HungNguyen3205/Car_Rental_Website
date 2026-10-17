@@ -1,41 +1,53 @@
 <template>
-    <aside class="sidebar-container">
+    <aside class="sidebar-container" :class="{ 'mobile-open': isOpen }">
         <div class="sidebar glass-dark">
             <div class="sidebar-header">
                 <div class="logo">
                     <div class="logo-icon-wrapper">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.4-.8l-4.2-3.15A2 2 0 0 0 16 8.35L14 8H9a2 2 0 0 0-2 2v3m-2-1H3M2 16h2m13-4v4m-5 4a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm-10 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"></path></svg>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.4-.8l-4.2-3.15A2 2 0 0 0 16 8.35L14 8H9a2 2 0 0 0-2 2v3m-2-1H3M2 16h2m13-4v4m-5 4a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm-10 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"></path></svg>
                     </div>
                     <span class="logo-text">Drive<span>Admin</span></span>
                 </div>
+                <button 
+                    class="mobile-close-btn" 
+                    @click="$emit('close')" 
+                    aria-label="Đóng thanh điều hướng"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
 
             <nav class="sidebar-nav">
                 <div class="nav-group">
                     <span class="group-title">Menu Chính</span>
-                    <router-link to="/admin" class="nav-link" exact-active-class="active">
+                    <router-link to="/admin" class="nav-link" exact-active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-chart-pie"></i></div>
                         <span>Tổng quan</span>
                     </router-link>
-                    <router-link to="/admin/cars" class="nav-link" active-class="active">
+                    <router-link to="/admin/cars" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-car"></i></div>
                         <span>Quản lý xe</span>
                     </router-link>
-                    <router-link to="/admin/bookings" class="nav-link" active-class="active">
+                    <router-link to="/admin/bookings" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-calendar-check"></i></div>
-                        <span>Đơn đặt xe</span>
+                        <span class="nav-text-container">
+                            Đơn đặt xe
+                            <span v-if="pendingBookingsCount > 0" class="badge-notification">
+                                {{ pendingBookingsCount }}
+                            </span>
+                        </span>
                     </router-link>
                 </div>
 
                 <div class="nav-group">
                     <span class="group-title">Hệ Thống</span>
-                    <router-link to="/admin/users" class="nav-link" active-class="active">
+                    <router-link to="/admin/users" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-users-gear"></i></div>
-                        <span>Người dùng</span>
+                        <span>Khách hàng</span>
                     </router-link>
-                    <router-link to="/admin/permissions" class="nav-link" active-class="active">
+                    <router-link to="/admin/permissions" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-shield-halved"></i></div>
-                        <span>Phân quyền</span>
+                        <span>Tài khoản Admin</span>
                     </router-link>
                 </div>
             </nav>
@@ -52,12 +64,55 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted } from 'vue';
+import baseRequest from '../../../core/baseRequest';
 
+defineProps({
+    isOpen: {
+        type: Boolean,
+        default: false
+    }
+});
+
+const emit = defineEmits(['close']);
 const router = useRouter();
+const pendingBookingsCount = ref(0);
+let intervalId = null;
+
+const fetchPendingBookings = async () => {
+    try {
+        const res = await baseRequest.get('admin/bookings/data');
+        if (res.data && res.data.status === 1) {
+            const count = res.data.data.filter(b => Number(b.tinh_trang) === 0).length;
+            pendingBookingsCount.value = count;
+        }
+    } catch (e) {
+        // Silently catch polling error in background
+    }
+};
+
+const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+        emit('close');
+    }
+};
+
+onMounted(() => {
+    fetchPendingBookings();
+    intervalId = setInterval(fetchPendingBookings, 30000);
+    window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+    if (intervalId) clearInterval(intervalId);
+    window.removeEventListener('keydown', handleKeyDown);
+});
 
 const handleLogout = () => {
+    localStorage.removeItem('token_client');
     localStorage.removeItem('user_role');
-    router.push('/');
+    localStorage.removeItem('user');
+    router.push('/login');
 };
 </script>
 
@@ -67,42 +122,48 @@ const handleLogout = () => {
     height: 100vh;
     position: sticky;
     top: 0;
+    z-index: 999;
 }
 
 .sidebar {
     width: 260px;
     height: 100%;
-    border-radius: 24px;
+    border-radius: var(--radius-xl);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
     overflow: hidden;
+    background: #0B1220;
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-header {
-    padding: 40px 24px 32px;
+    padding: 32px 24px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
 }
 
 .logo-icon-wrapper {
-    width: 40px;
-    height: 40px;
-    background: var(--grad-active);
-    border-radius: 12px;
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, var(--color-primary), #00C853);
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    box-shadow: var(--shadow-glow);
+    box-shadow: 0 0 16px rgba(37, 99, 235, 0.35);
 }
 
 .logo-text {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     font-weight: 800;
     font-family: var(--font-heading);
     color: white;
@@ -110,7 +171,27 @@ const handleLogout = () => {
 }
 
 .logo-text span {
-    color: var(--color-primary-glow);
+    color: #38BDF8;
+}
+
+.mobile-close-btn {
+    display: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.mobile-close-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
 }
 
 .sidebar-nav {
@@ -118,21 +199,22 @@ const handleLogout = () => {
     padding: 0 16px;
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 28px;
+    overflow-y: auto;
 }
 
 .nav-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .group-title {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.35);
     padding-left: 12px;
     margin-bottom: 8px;
 }
@@ -140,13 +222,14 @@ const handleLogout = () => {
 .nav-link {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 12px 14px;
-    border-radius: 16px;
-    color: rgba(255, 255, 255, 0.5);
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.6);
     font-weight: 600;
+    font-size: 0.9rem;
     font-family: var(--font-heading);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
 }
 
 .icon-box {
@@ -157,7 +240,8 @@ const handleLogout = () => {
     justify-content: center;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
-    transition: all 0.3s;
+    transition: all 0.2s;
+    font-size: 0.9rem;
 }
 
 .nav-link:hover {
@@ -167,18 +251,44 @@ const handleLogout = () => {
 
 .nav-link.active {
     color: white;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(37, 99, 235, 0.18);
+    border: 1px solid rgba(37, 99, 235, 0.3);
 }
 
 .nav-link.active .icon-box {
     background: var(--color-primary);
     color: white;
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.5);
+}
+
+.nav-text-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.badge-notification {
+    background: #EF4444;
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
 }
 
 .sidebar-footer {
-    padding: 24px;
+    padding: 20px 16px;
     margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .logout-btn {
@@ -188,23 +298,48 @@ const handleLogout = () => {
     justify-content: center;
     gap: 10px;
     background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    padding: 14px;
-    border-radius: 16px;
+    color: #F87171;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 12px;
+    border-radius: 12px;
     font-weight: 700;
+    font-size: 0.9rem;
     font-family: var(--font-heading);
-    transition: all 0.3s;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
 .logout-btn:hover {
-    background: #ef4444;
+    background: #EF4444;
     color: white;
-    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+    border-color: #EF4444;
+    box-shadow: 0 8px 16px -4px rgba(239, 68, 68, 0.35);
 }
 
 @media (max-width: 1024px) {
     .sidebar-container {
-        display: none;
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        padding: 0;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+    }
+
+    .sidebar-container.mobile-open {
+        transform: translateX(0);
+    }
+
+    .sidebar {
+        width: 280px;
+        border-radius: 0;
+        height: 100dvh;
+    }
+
+    .mobile-close-btn {
+        display: flex;
     }
 }
 </style>

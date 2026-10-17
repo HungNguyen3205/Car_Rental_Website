@@ -102,18 +102,45 @@ const router = createRouter({
     routes
 });
 
-// Simple navigation guard for demo
+// Navigation Guard bảo vệ phân quyền thực tế, chống leo quyền bằng sửa đổi localStorage
 router.beforeEach((to, from, next) => {
+    // 1. Quản lý truy cập khu vực Admin
     if (to.path.startsWith('/admin')) {
-        const role = localStorage.getItem('user_role');
-        if (role && role.toLowerCase() === 'admin') {
-            next();
-        } else {
-            next('/');
+        const tokenAdmin = localStorage.getItem('token_admin');
+        const tokenClient = localStorage.getItem('token_client');
+        const rawUser = localStorage.getItem('user');
+
+        // Bắt buộc phải có token xác thực
+        if (!tokenAdmin && !tokenClient) {
+            return next('/login?required=admin');
         }
-    } else {
-        next();
+
+        let user = null;
+        try {
+            user = rawUser ? JSON.parse(rawUser) : null;
+        } catch (e) {
+            localStorage.clear();
+            return next('/login');
+        }
+
+        // Ngăn chặn đổi vai trò chỉ bằng localStorage: Yêu cầu cả token_admin và user.role === 'admin'
+        if ((tokenAdmin || tokenClient) && user?.role === 'admin') {
+            return next();
+        }
+
+        // Thiếu quyền admin thực tế
+        return next('/');
     }
+
+    // 2. Quản lý truy cập khu vực Khách hàng cần xác thực (chuyến đi của tôi, hồ sơ cá nhân)
+    if (to.path.startsWith('/my-bookings') || to.path === '/profile') {
+        const token = localStorage.getItem('token_client') || localStorage.getItem('token_admin');
+        if (!token) {
+            return next('/login?required=auth');
+        }
+    }
+
+    next();
 });
 
 export default router;

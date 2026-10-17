@@ -1,72 +1,210 @@
 <template>
   <div class="my-trips-page">
+    <!-- Header -->
     <section class="trips-header">
       <div class="app-container">
+        <span class="eyebrow-pill">Hành trình của bạn</span>
         <h1>Chuyến Đi <span>Của Tôi</span></h1>
-        <p>Quản lý các yêu cầu thuê xe và lịch sử hành trình của bạn.</p>
+        <p>Quản lý các yêu cầu đặt xe, thanh toán và lịch sử di chuyển của bạn.</p>
       </div>
     </section>
 
+    <!-- Main Content -->
     <section class="trips-content app-container">
+      <!-- Minimalist Filter Tabs -->
       <div class="tabs-minimal">
-        <button v-for="tab in tabs" :key="tab" class="tab-item" :class="{ 'active': activeTab === tab }" @click="activeTab = tab">
-          {{ tab }}
+        <button 
+          v-for="tab in tabs" 
+          :key="tab.key" 
+          class="tab-item" 
+          :class="{ 'active': activeTab === tab.key }" 
+          @click="activeTab = tab.key"
+        >
+          {{ tab.label }}
+          <span class="tab-badge">{{ getTabCount(tab.key) }}</span>
         </button>
       </div>
 
+      <!-- Loading State -->
       <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
         <p>Đang tải danh sách chuyến đi...</p>
       </div>
 
+      <!-- Booking List -->
       <div v-else-if="filteredBookings.length > 0" class="booking-list">
-        <div v-for="booking in filteredBookings" :key="booking.id" class="booking-card card glass animate-in">
+        <div 
+          v-for="booking in filteredBookings" 
+          :key="booking.id" 
+          class="booking-card card animate-in"
+        >
           <div class="booking-main">
+            <!-- Car Thumbnail -->
             <div class="car-thumb">
-                <img :src="getCarImage(booking.car_name)" alt="car">
+              <img 
+                :src="getCarImage(booking.car_name)" 
+                alt="car"
+                @error="handleImgError($event)"
+              />
             </div>
+
+            <!-- Booking Info -->
             <div class="booking-info">
-              <div class="status-badge" :class="getStatusClass(booking.tinh_trang)">
-                {{ getStatusText(booking.tinh_trang) }}
+              <div class="status-badges-row">
+                <!-- Rental Status -->
+                <span class="status-badge" :class="getRentalStatusClass(booking.tinh_trang)">
+                  <i class="fa-solid fa-circle-dot"></i>
+                  {{ getRentalStatusText(booking.tinh_trang) }}
+                </span>
+
+                <!-- 3 Payment States -->
+                <span class="status-badge" :class="getPaymentStatus(booking).class">
+                  <i class="fa-solid" :class="getPaymentStatus(booking).icon"></i>
+                  {{ getPaymentStatus(booking).text }}
+                </span>
               </div>
-              <h3>{{ booking.car_name }}</h3>
+
+              <h3 class="booking-car-title">{{ booking.car_name }}</h3>
+
               <div class="booking-meta">
-                <span class="meta-item"><i class="fa-solid fa-hashtag"></i> {{ booking.ma_dat_xe }}</span>
-                <span class="meta-item"><i class="fa-solid fa-calendar-days"></i> {{ formatDate(booking.start_date) }} - {{ formatDate(booking.end_date) }}</span>
-                <span class="meta-item"><i class="fa-solid fa-location-dot"></i> {{ booking.dia_chi_nhan_xe || 'Tại showroom' }}</span>
+                <span class="meta-item">
+                  <i class="fa-solid fa-hashtag"></i> 
+                  <strong>{{ booking.ma_dat_xe }}</strong>
+                </span>
+                <span class="meta-item">
+                  <i class="fa-solid fa-calendar-days"></i> 
+                  {{ formatDate(booking.start_date) }} → {{ formatDate(booking.end_date) }}
+                </span>
+                <span class="meta-item">
+                  <i class="fa-solid fa-location-dot"></i> 
+                  {{ booking.dia_chi_nhan_xe || 'Tại Showroom' }}
+                </span>
               </div>
             </div>
-            <div class="booking-price">
-              <span class="price-label">Tổng thanh toán</span>
-              <span class="total-amount">{{ Number(booking.tong_tien).toLocaleString() }}đ</span>
-              <button v-if="booking.is_thanh_toan === 0" class="btn-pay" @click="showPaymentInfo(booking)">
-                Thanh toán ngay
-              </button>
-              <router-link :to="'/my-bookings/' + booking.id" v-else class="btn-detail">Xem chi tiết</router-link>
+
+            <!-- Price & Actions -->
+            <div class="booking-price-area">
+              <span class="price-label">Tổng chi phí thuê</span>
+              <span class="total-amount">{{ Number(booking.tong_tien).toLocaleString('vi-VN') }}đ</span>
+              
+              <div class="action-btn-group">
+                <!-- View Detail Button: Always available -->
+                <router-link :to="'/my-bookings/' + booking.id" class="btn-detail">
+                  <i class="fa-solid fa-file-lines"></i>
+                  Chi tiết đơn
+                </router-link>
+
+                <!-- Pay / Upload Bill Button: When not yet paid -->
+                <button 
+                  v-if="booking.is_thanh_toan === 0 && booking.tinh_trang !== 2" 
+                  class="btn-pay" 
+                  @click="openPaymentModal(booking)"
+                >
+                  <i class="fa-solid fa-qrcode"></i>
+                  Thanh toán
+                </button>
+
+                <!-- Cancel Button: Only when pending approval -->
+                <button 
+                  v-if="booking.tinh_trang === 0" 
+                  class="btn-cancel" 
+                  @click="confirmCancelBooking(booking)"
+                >
+                  Hủy đơn
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-else class="empty-trips">
+      <!-- Empty State -->
+      <div v-else class="empty-trips card text-center animate-in">
         <div class="empty-icon"><i class="fa-solid fa-road"></i></div>
-        <h3>Chưa có chuyến đi nào</h3>
-        <p>Hành trình của bạn sẽ xuất hiện tại đây sau khi bạn thực hiện đặt xe.</p>
-        <router-link to="/fleet" class="btn-primary mt-4">Tìm xe ngay</router-link>
+        <h3>Không có chuyến đi nào trong mục này</h3>
+        <p>Hành trình của bạn sẽ xuất hiện tại đây sau khi bạn hoàn tất đặt xe trên website.</p>
+        <router-link to="/fleet" class="btn-primary mt-4">
+          <i class="fa-solid fa-car"></i> Tìm xe ngay
+        </router-link>
       </div>
     </section>
 
-    <!-- Payment Modal (Simplified) -->
-    <div v-if="selectedBooking" class="modal-overlay" @click="selectedBooking = null">
-        <div class="modal-content card glass" @click.stop>
-            <h3>Thông tin thanh toán</h3>
-            <p>Mã đơn hàng: <strong>{{ selectedBooking.ma_dat_xe }}</strong></p>
-            <div class="payment-qr">
-                <img :src="`https://api.vietqr.io/image/970436-123456789-V3N0a6.jpg?accountName=NAM%20HUNG%20RENTAL&amount=${selectedBooking.tong_tien}&addInfo=${selectedBooking.ma_dat_xe}`" alt="QR Payment">
-            </div>
-            <p class="instruction">Vui lòng quét mã QR để thanh toán. Sau khi chuyển khoản, hãy báo cho Chatbot để xác nhận tự động.</p>
-            <button class="btn-close" @click="selectedBooking = null">Đóng</button>
+    <!-- Payment & Receipt Upload Modal -->
+    <div v-if="selectedBooking" class="modal-overlay" @click.self="closePaymentModal">
+      <div class="modal-content card animate-in">
+        <div class="modal-header">
+          <div>
+            <h3>Thanh Toán & Gửi Biên Lai</h3>
+            <p class="modal-sub">Mã đơn: <strong>#{{ selectedBooking.ma_dat_xe }}</strong></p>
+          </div>
+          <button type="button" class="btn-close" @click="closePaymentModal">&times;</button>
         </div>
+
+        <div class="modal-body">
+          <!-- Step 1: QR Code -->
+          <div class="payment-card-body">
+            <div class="payment-qr-container">
+              <img 
+                :src="`https://api.vietqr.io/image/970436-123456789-V3N0a6.jpg?accountName=NAM%20HUNG%20RENTAL&amount=${selectedBooking.tong_tien}&addInfo=${selectedBooking.ma_dat_xe}`" 
+                alt="VietQR Chuyển Khoản"
+                class="qr-image"
+              />
+              <p class="qr-hint">Quét mã QR bằng ứng dụng ngân hàng bất kỳ để chuyển tiền nhanh</p>
+            </div>
+
+            <div class="payment-details-list">
+              <div class="pay-row">
+                <span>Số tiền cần thanh toán:</span>
+                <strong class="text-primary">{{ Number(selectedBooking.tong_tien).toLocaleString('vi-VN') }} đ</strong>
+              </div>
+              <div class="pay-row">
+                <span>Nội dung chuyển khoản:</span>
+                <strong class="highlight-text">{{ selectedBooking.ma_dat_xe }}</strong>
+              </div>
+              <div class="pay-row">
+                <span>Chủ tài khoản:</span>
+                <span>NAM HUNG RENTAL</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Upload Bill Section -->
+          <div class="upload-bill-section">
+            <h4><i class="fa-solid fa-cloud-arrow-up"></i> Tải lên biên lai chuyển khoản</h4>
+            <p class="upload-desc">Sau khi chuyển khoản thành công, quý khách vui lòng chụp màn hình biên lai và tải lên để hệ thống đối soát duyệt đơn.</p>
+            
+            <div class="file-picker-box" @click="$refs.receiptInput.click()">
+              <input 
+                type="file" 
+                ref="receiptInput" 
+                style="display: none" 
+                accept="image/jpeg,image/png,image/webp,image/jpg"
+                @change="handleReceiptSelected"
+              />
+              
+              <div v-if="!receiptPreview" class="empty-upload">
+                <i class="fa-regular fa-image upload-icon"></i>
+                <span>Nhấn để chọn ảnh biên lai (JPEG, PNG, WebP tối đa 5MB)</span>
+              </div>
+              
+              <div v-else class="preview-upload">
+                <img :src="receiptPreview" alt="Xem trước biên lai" class="preview-img" />
+                <span class="change-hint">Nhấn để thay đổi ảnh khác</span>
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              class="btn-primary w-full mt-3" 
+              :disabled="!receiptFile || uploadingBill"
+              @click="submitReceiptUpload"
+            >
+              <i v-if="uploadingBill" class="fa-solid fa-spinner fa-spin"></i>
+              <span v-else>Xác nhận gửi biên lai</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -74,25 +212,45 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import baseRequest from '../../../core/baseRequest';
+import { createToaster } from "@meforma/vue-toaster";
+
+const toaster = createToaster({ position: "top-right" });
 
 const loading = ref(true);
 const bookings = ref([]);
-const activeTab = ref('Tất cả');
-const tabs = ['Tất cả', 'Chưa thanh toán', 'Đã thanh toán', 'Hoàn thành'];
+const activeTab = ref('all');
 const selectedBooking = ref(null);
 
+const receiptFile = ref(null);
+const receiptPreview = ref('');
+const uploadingBill = ref(false);
+
+const tabs = [
+  { key: 'all', label: 'Tất cả' },
+  { key: 'unpaid', label: 'Chưa thanh toán' },
+  { key: 'paid', label: 'Đã thanh toán' },
+  { key: 'pending', label: 'Chờ duyệt' },
+  { key: 'cancelled', label: 'Đã hủy' }
+];
+
 const CAR_IMAGE_MAP = {
-    'vf9': '/assets/images/vf9.png',
-    'vf8': '/assets/images/cars/vf8.png',
-    'vf7': '/assets/images/cars/vf7.png',
+  'vf9': '/assets/images/vf9.png',
+  'vf8': '/assets/images/cars/vf8.png',
+  'vf7': '/assets/images/cars/vf7.png',
+  'camry': '/assets/images/cars/camry.png',
+  'xpander': '/assets/images/cars/xpander.png'
+};
+
+const handleImgError = (event) => {
+  event.target.src = '/assets/images/vf9.png';
 };
 
 const getCarImage = (name) => {
-    const n = (name || '').toLowerCase();
-    if (n.includes('vf9')) return CAR_IMAGE_MAP.vf9;
-    if (n.includes('vf8')) return CAR_IMAGE_MAP.vf8;
-    if (n.includes('vf7')) return CAR_IMAGE_MAP.vf7;
-    return '/assets/images/cars/camry.png';
+  const n = (name || '').toLowerCase();
+  for (const [key, path] of Object.entries(CAR_IMAGE_MAP)) {
+    if (n.includes(key)) return path;
+  }
+  return '/assets/images/vf9.png';
 };
 
 const fetchBookings = async () => {
@@ -103,37 +261,146 @@ const fetchBookings = async () => {
       bookings.value = response.data.data;
     }
   } catch (error) {
-    console.error("Error fetching bookings:", error);
+    console.error("Lỗi khi tải lịch sử chuyến đi:", error);
+    toaster.error("Không thể tải danh sách chuyến đi!");
   } finally {
     loading.value = false;
   }
 };
 
-const filteredBookings = computed(() => {
-    if (activeTab.value === 'Tất cả') return bookings.value;
-    if (activeTab.value === 'Chưa thanh toán') return bookings.value.filter(b => b.is_thanh_toan === 0);
-    if (activeTab.value === 'Đã thanh toán') return bookings.value.filter(b => b.is_thanh_toan === 1);
-    return bookings.value.filter(b => b.trang_thai === 'Hoàn thành');
-});
-
-const getStatusText = (status) => {
-    const texts = ['Chờ xác nhận', 'Đã xác nhận', 'Đã hủy'];
-    return texts[status] || 'Khác';
+const getTabCount = (key) => {
+  if (key === 'all') return bookings.value.length;
+  if (key === 'unpaid') return bookings.value.filter(b => b.is_thanh_toan === 0 && b.tinh_trang !== 2).length;
+  if (key === 'paid') return bookings.value.filter(b => b.is_thanh_toan === 1).length;
+  if (key === 'pending') return bookings.value.filter(b => b.tinh_trang === 0).length;
+  if (key === 'cancelled') return bookings.value.filter(b => b.tinh_trang === 2).length;
+  return 0;
 };
 
-const getStatusClass = (status) => {
-    if (status === 0) return 'pending';
-    if (status === 1) return 'paid';
-    return 'cancelled';
+const filteredBookings = computed(() => {
+  if (activeTab.value === 'all') return bookings.value;
+  if (activeTab.value === 'unpaid') return bookings.value.filter(b => b.is_thanh_toan === 0 && b.tinh_trang !== 2);
+  if (activeTab.value === 'paid') return bookings.value.filter(b => b.is_thanh_toan === 1);
+  if (activeTab.value === 'pending') return bookings.value.filter(b => b.tinh_trang === 0);
+  if (activeTab.value === 'cancelled') return bookings.value.filter(b => b.tinh_trang === 2);
+  return bookings.value;
+});
+
+const getRentalStatusText = (status) => {
+  const texts = ['Chờ duyệt', 'Đã xác nhận', 'Đã hủy'];
+  return texts[status] || 'Đang xử lý';
+};
+
+const getRentalStatusClass = (status) => {
+  if (status === 0) return 'pending';
+  if (status === 1) return 'paid';
+  return 'cancelled';
+};
+
+const getPaymentStatus = (booking) => {
+  if (!booking) return { class: 'unpaid', icon: 'fa-credit-card', text: 'Chưa thanh toán' };
+  
+  if (Number(booking.is_thanh_toan) === 1) {
+    return {
+      class: 'paid',
+      icon: 'fa-circle-check',
+      text: 'Đã xác nhận thanh toán'
+    };
+  }
+  
+  if (booking.bill_image) {
+    return {
+      class: 'verifying',
+      icon: 'fa-clock-rotate-left',
+      text: 'Chờ đối soát biên lai'
+    };
+  }
+  
+  return {
+    class: 'unpaid',
+    icon: 'fa-credit-card',
+    text: 'Chưa thanh toán'
+  };
 };
 
 const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('vi-VN');
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
 };
 
-const showPaymentInfo = (booking) => {
-    selectedBooking.value = booking;
+const openPaymentModal = (booking) => {
+  selectedBooking.value = booking;
+  receiptFile.value = null;
+  receiptPreview.value = '';
+};
+
+const closePaymentModal = () => {
+  selectedBooking.value = null;
+  receiptFile.value = null;
+  receiptPreview.value = '';
+};
+
+const handleReceiptSelected = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    toaster.warning("Kích thước ảnh vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn!");
+    return;
+  }
+
+  receiptFile.value = file;
+  receiptPreview.value = URL.createObjectURL(file);
+};
+
+const submitReceiptUpload = async () => {
+  if (!receiptFile.value || !selectedBooking.value) return;
+
+  uploadingBill.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('booking_id', selectedBooking.value.id);
+    formData.append('bill_image', receiptFile.value);
+
+    const res = await baseRequest.post('user/bookings/upload-bill', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (res.data.status) {
+      toaster.success(res.data.message || "Tải biên lai thành công!");
+      closePaymentModal();
+      await fetchBookings();
+    } else {
+      toaster.error(res.data.message || "Không thể tải biên lai!");
+    }
+  } catch (error) {
+    console.error("Lỗi khi tải biên lai:", error);
+    toaster.error("Có lỗi xảy ra khi tải ảnh lên!");
+  } finally {
+    uploadingBill.value = false;
+  }
+};
+
+const confirmCancelBooking = async (booking) => {
+  if (!confirm(`Bạn có chắc muốn hủy đơn đặt xe #${booking.ma_dat_xe}? Thao tác này không thể hoàn tác.`)) {
+    return;
+  }
+
+  try {
+    const res = await baseRequest.post('user/bookings/huy-lich', { id: booking.id });
+    if (res.data.status) {
+      toaster.success(res.data.message || "Hủy đơn thành công!");
+      fetchBookings();
+    } else {
+      toaster.error(res.data.message || "Không thể hủy đơn này!");
+    }
+  } catch (err) {
+    toaster.error("Lỗi kết nối máy chủ khi hủy đơn!");
+  }
 };
 
 onMounted(() => {
@@ -143,194 +410,402 @@ onMounted(() => {
 
 <style scoped>
 .my-trips-page {
-  padding-top: 100px;
-  background: #f1f5f9;
+  padding-bottom: 80px;
   min-height: 100vh;
 }
 
 .trips-header {
-  padding: 60px 0;
-  background: white;
-  margin-bottom: 40px;
+  padding: 130px 0 40px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--bg-main) 100%);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 32px;
+}
+
+.eyebrow-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: var(--radius-full);
+  font-size: 0.775rem;
+  font-weight: 700;
+  margin-bottom: 10px;
 }
 
 .trips-header h1 {
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin-bottom: 12px;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  margin-bottom: 8px;
 }
 
 .trips-header h1 span {
   color: var(--color-primary);
 }
 
+/* Tabs */
 .tabs-minimal {
   display: flex;
-  gap: 30px;
-  margin-bottom: 30px;
-  border-bottom: 1px solid #e2e8f0;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  margin-bottom: 24px;
 }
 
 .tab-item {
-  padding: 15px 5px;
-  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  font-size: 0.885rem;
+  font-weight: 600;
   color: var(--color-text-muted);
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: all var(--duration-fast);
+}
+
+.tab-badge {
+  font-size: 0.75rem;
+  background: var(--bg-surface-sub);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.tab-item:hover {
+  background: var(--bg-surface-sub);
+  color: var(--color-text-main);
 }
 
 .tab-item.active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+.tab-item.active .tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Booking List */
+.booking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .booking-card {
-  margin-bottom: 20px;
   padding: 24px;
-  border-radius: 20px;
-  background: white !important;
+  background: #ffffff;
 }
 
 .booking-main {
-  display: flex;
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
   gap: 24px;
   align-items: center;
 }
 
 .car-thumb {
-  width: 140px;
-  height: 90px;
-  background: #f8fafc;
-  border-radius: 12px;
-  overflow: hidden;
+  background: var(--bg-surface-sub);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 10;
 }
 
 .car-thumb img {
-  width: 100%;
-  height: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
 .booking-info {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 100px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  margin-bottom: 10px;
+.status-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
-.status-badge.pending { background: #fff7ed; color: #f97316; }
-.status-badge.paid { background: #f0fdf4; color: #22c55e; }
-
-.booking-info h3 {
-  font-size: 1.25rem;
+.booking-car-title {
+  font-size: 1.35rem;
   font-weight: 800;
-  margin-bottom: 8px;
+  color: var(--color-text-main);
 }
 
 .booking-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 16px;
+  font-size: 0.885rem;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
 }
 
-.meta-item i { margin-right: 6px; }
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
-.booking-price {
-  text-align: right;
+.meta-item i {
+  color: var(--color-primary);
+}
+
+/* Price & Buttons */
+.booking-price-area {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
+  min-width: 200px;
+}
+
+.price-label {
+  font-size: 0.775rem;
+  color: var(--color-text-muted);
 }
 
 .total-amount {
   font-size: 1.5rem;
   font-weight: 800;
-  color: #0f172a;
+  font-family: var(--font-heading);
+  color: var(--color-text-main);
 }
 
-.btn-pay {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  color: white;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-}
-
-.btn-pay:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+.action-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
 }
 
 .btn-detail {
-  background: white;
-  color: #64748b;
-  border: 1.5px solid #e2e8f0;
-  padding: 10px 24px;
-  border-radius: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-sub);
+  color: var(--color-text-main);
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--duration-fast);
 }
 
 .btn-detail:hover {
-  background: #f8fafc;
-  color: #0f172a;
-  border-color: #cbd5e1;
-  transform: translateY(-2px);
+  background: #e2e8f0;
 }
 
-/* Modal */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
+.btn-pay {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--grad-active);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
-.modal-content {
-    width: 100%;
-    max-width: 450px;
-    padding: 40px;
-    text-align: center;
-    background: white !important;
+.btn-pay:hover {
+  filter: brightness(1.08);
 }
 
-.payment-qr img {
-    width: 250px;
-    margin: 20px 0;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+.btn-cancel {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  font-size: 0.825rem;
+  font-weight: 600;
+  background: transparent;
+  text-align: center;
 }
 
-.instruction { font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 20px; }
-.btn-close { width: 100%; padding: 12px; background: #f1f5f9; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; }
+.btn-cancel:hover {
+  background: var(--color-danger-bg);
+}
 
-@media (max-width: 768px) {
-  .booking-main { flex-direction: column; text-align: center; }
-  .booking-price { text-align: center; margin-top: 20px; }
-  .car-thumb { margin: 0 auto; }
+/* Empty State */
+.empty-trips {
+  padding: 80px 24px;
+  background: #ffffff;
+  max-width: 600px;
+  margin: 40px auto;
+}
+
+.empty-icon {
+  width: 72px;
+  height: 72px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin: 0 auto 20px;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 80px 0;
+}
+
+.loading-state .spinner {
+  margin: 0 auto 16px;
+}
+
+/* Modal Payment */
+.modal-sub {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.payment-card-body {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  align-items: center;
+  background: var(--bg-surface-sub);
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+}
+
+.payment-qr-container {
+  text-align: center;
+}
+
+.qr-image {
+  width: 100%;
+  max-width: 180px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin: 0 auto 8px;
+}
+
+.qr-hint {
+  font-size: 0.725rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.payment-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.pay-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pay-row span {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.highlight-text {
+  color: var(--color-primary);
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+}
+
+/* Upload Bill */
+.upload-bill-section h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-desc {
+  font-size: 0.825rem;
+  color: var(--color-text-muted);
+  margin-bottom: 14px;
+}
+
+.file-picker-box {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  background: #ffffff;
+  transition: all var(--duration-fast);
+}
+
+.file-picker-box:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.upload-icon {
+  font-size: 2rem;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.empty-upload span {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.preview-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-img {
+  max-height: 160px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.change-hint {
+  font-size: 0.775rem;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .booking-main {
+    grid-template-columns: 1fr;
+  }
+  .car-thumb {
+    max-width: 240px;
+  }
+  .booking-price-area {
+    align-items: flex-start;
+  }
+  .action-btn-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .payment-card-body {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

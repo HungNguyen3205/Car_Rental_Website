@@ -12,6 +12,22 @@
       </div>
     </section>
 
+    <!-- Pending Bookings Alert -->
+    <div v-if="stats.summary?.pending_bookings > 0" class="pending-alert-banner">
+      <div class="alert-content">
+        <div class="alert-icon">
+          <i class="fa-solid fa-bell bell-shake"></i>
+        </div>
+        <div class="alert-text">
+          <h3>Chú ý: Có {{ stats.summary?.pending_bookings }} đơn đặt xe đang chờ xác nhận!</h3>
+          <p>Vui lòng kiểm tra mục Đơn đặt xe và phản hồi khách hàng sớm nhất có thể.</p>
+        </div>
+      </div>
+      <router-link to="/admin/bookings" class="btn-alert">
+        Xử lý ngay <i class="fa-solid fa-arrow-right"></i>
+      </router-link>
+    </div>
+
     <!-- Stats Cards -->
     <section class="stats-grid">
       <div class="stat-card card revenue">
@@ -19,9 +35,9 @@
           <i class="fa-solid fa-money-bill-trend-up"></i>
         </div>
         <div class="stat-info">
-          <span class="stat-label">Tổng doanh thu</span>
+          <span class="stat-label">Tổng doanh thu thực tế</span>
           <h2 class="stat-value">{{ formatCurrency(stats.summary?.total_revenue || 0) }}</h2>
-          <span class="stat-change growth"><i class="fa-solid fa-arrow-up"></i> 12% so với tháng trước</span>
+          <span class="stat-change"><i class="fa-solid fa-circle-check"></i> Đơn đã xác nhận & thanh toán</span>
         </div>
       </div>
 
@@ -32,7 +48,7 @@
         <div class="stat-info">
           <span class="stat-label">Tổng đơn đặt xe</span>
           <h2 class="stat-value">{{ stats.summary?.total_bookings || 0 }}</h2>
-          <span class="stat-change"><i class="fa-solid fa-clock"></i> {{ stats.summary?.pending_bookings || 0 }} đơn đang chờ</span>
+          <span class="stat-change"><i class="fa-solid fa-clock"></i> {{ stats.summary?.pending_bookings || 0 }} đơn đang chờ duyệt</span>
         </div>
       </div>
 
@@ -43,7 +59,7 @@
         <div class="stat-info">
           <span class="stat-label">Phương tiện sẵn có</span>
           <h2 class="stat-value">{{ stats.summary?.available_cars || 0 }}/{{ stats.summary?.total_cars || 0 }}</h2>
-          <span class="stat-change"><i class="fa-solid fa-wrench"></i> {{ (stats.summary?.total_cars - stats.summary?.available_cars) || 0 }} xe đang bảo trì</span>
+          <span class="stat-change"><i class="fa-solid fa-wrench"></i> {{ (Number(stats.summary?.total_cars || 0) - Number(stats.summary?.available_cars || 0)) }} xe đang bảo trì</span>
         </div>
       </div>
 
@@ -52,9 +68,9 @@
           <i class="fa-solid fa-users"></i>
         </div>
         <div class="stat-info">
-          <span class="stat-label">Khách hàng tin dùng</span>
+          <span class="stat-label">Khách hàng hệ thống</span>
           <h2 class="stat-value">{{ stats.summary?.total_users || 0 }}</h2>
-          <span class="stat-change growth"><i class="fa-solid fa-user-plus"></i> +5 thành viên mới tuần này</span>
+          <span class="stat-change"><i class="fa-solid fa-user-check"></i> Tài khoản khách hàng kích hoạt</span>
         </div>
       </div>
     </section>
@@ -64,16 +80,27 @@
       <!-- Revenue Chart Card -->
       <div class="chart-card card">
         <div class="chart-header">
-          <h3>Xu hướng doanh thu (6 tháng)</h3>
+          <div>
+            <h3>Xu hướng doanh thu (6 tháng gần nhất)</h3>
+            <p class="chart-sub">Dữ liệu từ các đơn hoàn tất thanh toán</p>
+          </div>
         </div>
         <div class="chart-container">
-          <div class="bar-chart">
+          <div v-if="stats.revenue_chart && stats.revenue_chart.length > 0" class="bar-chart">
             <div v-for="(item, index) in stats.revenue_chart" :key="index" class="bar-wrapper">
-              <div class="bar" :style="{ height: (item.total / maxRevenue * 100) + '%' }">
+              <div 
+                class="bar" 
+                :style="{ height: Math.max((item.total / maxRevenue * 100), 4) + '%' }"
+                :title="item.month + ': ' + formatCurrency(item.total)"
+              >
                 <span class="bar-tooltip">{{ formatCurrency(item.total) }}</span>
               </div>
               <span class="bar-label">{{ item.month }}</span>
             </div>
+          </div>
+          <div v-else class="empty-chart">
+            <i class="fa-solid fa-chart-column"></i>
+            <p>Chưa có dữ liệu doanh thu tháng này</p>
           </div>
         </div>
       </div>
@@ -83,7 +110,7 @@
         <div class="chart-header">
           <h3>Phân bổ trạng thái đơn</h3>
         </div>
-        <div class="status-list">
+        <div class="status-list" v-if="stats.status_distribution && stats.status_distribution.length > 0">
           <div class="status-item" v-for="s in stats.status_distribution" :key="s.tinh_trang">
             <div class="status-info">
               <span class="status-dot" :class="'status-' + s.tinh_trang"></span>
@@ -92,18 +119,26 @@
             <span class="status-count">{{ s.count }}</span>
           </div>
         </div>
+        <div v-else class="empty-chart">
+          <p>Chưa có dữ liệu phân bổ đơn</p>
+        </div>
       </div>
     </section>
 
     <!-- Recent Bookings Section -->
     <section class="recent-bookings-section">
         <div class="card glass">
-            <div class="card-header flex justify-between items-center mb-6 ">
-                <h3 >Đơn đặt xe gần đây</h3>
-                <router-link to="/admin/bookings" class="btn-text">Xem tất cả <i class="fa-solid fa-arrow-right"></i></router-link>
+            <div class="card-header flex justify-between items-center mb-6">
+                <div>
+                  <h3 style="font-size: 1.25rem; font-weight: 800; font-family: var(--font-heading);">Đơn đặt xe gần đây</h3>
+                  <p style="color: var(--color-text-muted); font-size: 0.85rem; margin-top: 2px;">5 giao dịch mới nhất nhận từ khách hàng</p>
+                </div>
+                <router-link to="/admin/bookings" class="btn-text">
+                  Xem tất cả đơn <i class="fa-solid fa-arrow-right"></i>
+                </router-link>
             </div>
             <div class="table-responsive">
-                <table class="premium-table">
+                <table class="premium-table" v-if="recentBookings.length > 0">
                     <thead>
                         <tr>
                             <th>Mã đơn</th>
@@ -111,7 +146,7 @@
                             <th>Xe</th>
                             <th>Ngày đặt</th>
                             <th>Tổng tiền</th>
-                            <th>Trạng thái</th>
+                            <th>Thanh toán</th>
                             <th>Thao tác</th>
                         </tr>
                     </thead>
@@ -120,24 +155,34 @@
                             <td><span class="code-badge">#{{ booking.ma_dat_xe }}</span></td>
                             <td>
                                 <div class="user-cell">
-                                    <div class="avatar-sm">{{ booking.ho_ten.charAt(0) }}</div>
+                                    <div class="avatar-sm">{{ booking.ho_ten ? booking.ho_ten.charAt(0) : 'U' }}</div>
                                     <span>{{ booking.ho_ten }}</span>
                                 </div>
                             </td>
                             <td>{{ booking.ten_xe }}</td>
                             <td>{{ formatDate(booking.created_at) }}</td>
-                            <td class="font-bold">{{ booking.tong_tien.toLocaleString() }}đ</td>
+                            <td class="font-bold">{{ formatCurrency(booking.tong_tien) }}</td>
                             <td>
-                                <span class="status-tag" :class="booking.is_thanh_toan ? 'paid' : 'pending'">
-                                    {{ booking.is_thanh_toan ? 'Đã thanh toán' : 'Chờ xử lý' }}
+                                <span class="status-tag" :class="Number(booking.is_thanh_toan) === 1 ? 'paid' : 'pending'">
+                                    {{ Number(booking.is_thanh_toan) === 1 ? 'Đã thanh toán' : 'Chờ thanh toán' }}
                                 </span>
                             </td>
                             <td>
-                                <button class="btn-action"><i class="fa-solid fa-eye"></i></button>
+                                <button class="btn-action" @click="viewBooking" title="Chi tiết đơn">
+                                  <i class="fa-solid fa-arrow-right"></i>
+                                </button>
                             </td>
                         </tr>
                     </tbody>
                 </table>
+                <div v-else-if="!loadingBookings" class="empty-state-box" style="padding: 40px; text-align: center; color: var(--color-text-muted);">
+                    <i class="fa-solid fa-calendar-xmark" style="font-size: 2rem; margin-bottom: 12px; opacity: 0.5;"></i>
+                    <p>Hiện chưa có đơn đặt xe nào trong hệ thống.</p>
+                </div>
+                <div v-else style="padding: 30px; text-align: center;">
+                    <div class="skeleton-shimmer" style="height: 48px; border-radius: 8px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-shimmer" style="height: 48px; border-radius: 8px;"></div>
+                </div>
             </div>
         </div>
     </section>
@@ -146,14 +191,26 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import baseRequest from '../../../core/baseRequest';
 
+const router = useRouter();
+
 const stats = ref({
-  summary: {},
+  summary: {
+    total_revenue: 0,
+    total_bookings: 0,
+    pending_bookings: 0,
+    available_cars: 0,
+    total_cars: 0,
+    total_users: 0
+  },
   revenue_chart: [],
   status_distribution: []
 });
 const recentBookings = ref([]);
+const loadingStats = ref(true);
+const loadingBookings = ref(true);
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -170,28 +227,42 @@ const todayDate = computed(() => {
 });
 
 const maxRevenue = computed(() => {
-  if (!stats.value.revenue_chart.length) return 1;
-  return Math.max(...stats.value.revenue_chart.map(i => i.total)) * 1.2;
+  if (!stats.value.revenue_chart || stats.value.revenue_chart.length === 0) return 1;
+  const max = Math.max(...stats.value.revenue_chart.map(i => Number(i.total) || 0));
+  return max > 0 ? max * 1.2 : 1;
 });
 
 const fetchStats = async () => {
+  loadingStats.value = true;
   try {
     const res = await baseRequest.get('admin/statistics');
-    if (res.data.status) {
+    if (res.data && res.data.status) {
       stats.value = res.data.data;
     }
-    // Fetch latest bookings
-    const resBookings = await baseRequest.get('admin/bookings');
-    if (resBookings.data && resBookings.data.status) {
+  } catch (err) {
+    console.error("Lỗi khi tải dữ liệu thống kê:", err);
+  } finally {
+    loadingStats.value = false;
+  }
+};
+
+const fetchRecentBookings = async () => {
+  loadingBookings.value = true;
+  try {
+    // Correct endpoint matching BE/routes/api.php
+    const resBookings = await baseRequest.get('admin/bookings/data');
+    if (resBookings.data && resBookings.data.status && Array.isArray(resBookings.data.data)) {
         recentBookings.value = resBookings.data.data.slice(0, 5);
     }
   } catch (err) {
-    console.error("Error fetching stats:", err);
+    console.error("Lỗi khi tải đơn đặt gần đây:", err);
+  } finally {
+    loadingBookings.value = false;
   }
 };
 
 const formatCurrency = (val) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 };
 
 const getStatusLabel = (status) => {
@@ -199,8 +270,13 @@ const getStatusLabel = (status) => {
   return labels[status] || 'Khác';
 };
 
+const viewBooking = () => {
+  router.push('/admin/bookings');
+};
+
 onMounted(() => {
   fetchStats();
+  fetchRecentBookings();
 });
 </script>
 
@@ -258,6 +334,82 @@ onMounted(() => {
   font-weight: 700;
   color: var(--color-primary);
   font-family: var(--font-heading);
+}
+
+/* Pending Alert Banner */
+.pending-alert-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border-left: 4px solid #ef4444;
+  border-radius: var(--radius-md);
+  margin-top: -8px;
+}
+
+.alert-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.alert-icon {
+  width: 48px;
+  height: 48px;
+  background: #ef4444;
+  color: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.bell-shake {
+  animation: shake 2s infinite ease-in-out;
+}
+
+@keyframes shake {
+  0% { transform: rotate(0); }
+  10% { transform: rotate(15deg); }
+  20% { transform: rotate(-15deg); }
+  30% { transform: rotate(10deg); }
+  40% { transform: rotate(-10deg); }
+  50% { transform: rotate(5deg); }
+  60% { transform: rotate(0); }
+  100% { transform: rotate(0); }
+}
+
+.alert-text h3 {
+  color: #b91c1c;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.alert-text p {
+  color: #991b1b;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.btn-alert {
+  background: #ef4444;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
+}
+
+.btn-alert:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 /* Stats Grid */
