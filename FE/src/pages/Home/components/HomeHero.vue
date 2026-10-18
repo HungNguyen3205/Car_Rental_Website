@@ -80,9 +80,9 @@
             <div class="badge-pointer"></div>
           </div>
 
-          <!-- Car Stage with Vue Transition -->
+          <!-- Car Stage with Vue Transition (Right-to-Left Slide) -->
           <div class="car-stage-wrapper">
-            <Transition name="car-slide" mode="out-in">
+            <Transition name="car-slide">
               <div :key="activeCar.id" class="car-stage-item">
                 <img
                   :src="activeCar.image"
@@ -115,7 +115,7 @@ const categories = [
     id: 'suv',
     name: 'SUV',
     title: 'VinFast VF9 & SUV Hạng Sang',
-    image: '/assets/images/cars/hero_suv.jpg',
+    image: '/assets/images/cars/hero_suv_transparent.png',
     spec1Label: 'Động cơ',
     spec1Value: 'Điện 402 hp',
     spec2Label: 'Số chỗ ngồi',
@@ -126,7 +126,7 @@ const categories = [
     id: 'sport',
     name: 'Sport',
     title: 'Coupe Thể Thao Cao Cấp',
-    image: '/assets/images/cars/hero_sport.jpg',
+    image: '/assets/images/cars/hero_sport_transparent.png',
     spec1Label: 'Tăng tốc 0-100',
     spec1Value: '3.6 giây',
     spec2Label: 'Công suất',
@@ -137,7 +137,7 @@ const categories = [
     id: 'sedan',
     name: 'Sedan',
     title: 'Executive Luxury Sedan',
-    image: '/assets/images/cars/hero_sedan.jpg',
+    image: '/assets/images/cars/hero_sedan_transparent.png',
     spec1Label: 'Tăng tốc 0-100',
     spec1Value: '4.8 giây',
     spec2Label: 'Cấu hình',
@@ -148,7 +148,7 @@ const categories = [
     id: 'electric',
     name: 'Electric',
     title: 'VinFast VF8 Thuần Điện',
-    image: '/assets/images/cars/hero_electric.jpg',
+    image: '/assets/images/cars/hero_electric_transparent.png',
     spec1Label: 'Quãng đường',
     spec1Value: '420 km / sạc',
     spec2Label: 'Pin sạc nhanh',
@@ -508,41 +508,45 @@ onMounted(() => {
 .car-stage-wrapper {
   position: relative;
   width: 100%;
-  max-width: 720px;
-  min-height: 420px;
+  max-width: 760px;
+  min-height: 440px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .car-stage-item {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
 }
 
 .hero-car-img {
   width: 100%;
-  max-height: 440px;
+  max-height: 430px;
   object-fit: contain;
-  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.7));
-  transform: perspective(1000px) rotateY(-2deg);
-  transition: transform 400ms ease;
+  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.65));
+  transition: transform 300ms ease;
   user-select: none;
 }
 
 .car-stage-item:hover .hero-car-img {
-  transform: perspective(1000px) rotateY(0deg) scale(1.02);
+  transform: scale(1.02);
 }
 
 .car-ground-shadow {
-  width: 82%;
-  height: 28px;
-  margin-top: -16px;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.3) 50%, transparent 75%);
-  filter: blur(6px);
+  width: 78%;
+  height: 24px;
+  margin-top: -20px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
+  filter: blur(8px);
   pointer-events: none;
 }
 
@@ -562,20 +566,34 @@ onMounted(() => {
   transform: translateY(-8px);
 }
 
+/* Right-to-Left Car Slide Animation */
 .car-slide-enter-active,
 .car-slide-leave-active {
-  transition: opacity 450ms cubic-bezier(0.3, 0, 0.2, 1),
-              transform 450ms cubic-bezier(0.3, 0, 0.2, 1);
+  transition: transform 550ms cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 450ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
 }
 
+/* Xe mới lướt từ bên phải vào trung tâm */
 .car-slide-enter-from {
   opacity: 0;
-  transform: translateX(70px) scale(0.98);
+  transform: translate(calc(-50% + 220px), -50%) scale(0.96);
 }
 
+.car-slide-enter-to {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.car-slide-leave-from {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Xe cũ lướt về bên trái và mờ dần */
 .car-slide-leave-to {
   opacity: 0;
-  transform: translateX(-40px) scale(0.98);
+  transform: translate(calc(-50% - 220px), -50%) scale(0.96);
 }
 
 /* Responsive */
