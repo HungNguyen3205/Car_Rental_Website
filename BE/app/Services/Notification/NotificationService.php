@@ -3,6 +3,7 @@
 namespace App\Services\Notification;
 
 use App\Mail\BookingNotificationMail;
+use App\Models\AdminNotification;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\User;
@@ -79,6 +80,46 @@ class NotificationService
             Log::error('Lỗi khi lưu thông báo in-app: ' . $e->getMessage(), [
                 'user_id' => $userId,
                 'type'    => $type,
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Tạo thông báo nội bộ cho nhân viên quản trị (Admin In-app Notification) an toàn, chống duplicate bằng dedup_key.
+     */
+    public function createAdminNotification(
+        int $adminId,
+        string $type,
+        string $title,
+        string $content,
+        ?string $actionUrl = null,
+        ?array $data = null,
+        ?string $dedupKey = null
+    ): ?AdminNotification {
+        try {
+            if ($dedupKey) {
+                $exists = AdminNotification::where('dedup_key', $dedupKey)->exists();
+                if ($exists) {
+                    Log::info("Bỏ qua thông báo nội bộ trùng lặp với dedup_key: {$dedupKey}");
+                    return null;
+                }
+            }
+
+            return AdminNotification::create([
+                'admin_id'   => $adminId,
+                'type'       => $type,
+                'title'      => $title,
+                'content'    => $content,
+                'action_url' => $actionUrl,
+                'data'       => $data,
+                'is_read'    => false,
+                'dedup_key'  => $dedupKey,
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Lỗi khi lưu thông báo nội bộ admin: ' . $e->getMessage(), [
+                'admin_id' => $adminId,
+                'type'     => $type,
             ]);
             return null;
         }

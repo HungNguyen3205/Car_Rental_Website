@@ -412,6 +412,10 @@
                 <i class="fa-solid fa-lock"></i> [Bảo mật]
               </span>
             </div>
+            <div class="stat-mini-card">
+              <span class="stat-label">Lịch hẹn tư vấn</span>
+              <span class="stat-value text-info">{{ customerStats.total_appointments || customerAppointments.length || 0 }}</span>
+            </div>
           </div>
 
           <!-- Section: Customer Preferences & Contact Info Form -->
@@ -542,6 +546,15 @@
             >
               <i class="fa-solid fa-timeline"></i>
               <span>Nhật ký chăm sóc ({{ customerNotes.length }})</span>
+            </button>
+
+            <button 
+              class="profile-tab-btn" 
+              :class="{ 'active': activeHistoryTab === 'appointments' }" 
+              @click="activeHistoryTab = 'appointments'"
+            >
+              <i class="fa-solid fa-calendar-check"></i>
+              <span>Lịch hẹn tư vấn ({{ customerAppointments.length }})</span>
             </button>
           </div>
 
@@ -714,6 +727,81 @@
               <p>Chưa có ghi chú chăm sóc nào được ghi nhận cho khách hàng này.</p>
             </div>
           </div>
+
+          <!-- Tab Content 4: Appointments History -->
+          <div v-show="activeHistoryTab === 'appointments'" class="history-tab-pane">
+            <div class="appointment-header-bar">
+              <div class="appt-count-text">
+                Tổng cộng <strong>{{ customerAppointments.length }}</strong> lịch hẹn đã ghi nhận
+              </div>
+              <button class="btn-primary-sm" @click="createAppointmentForCustomer(selectedCustomer)">
+                <i class="fa-solid fa-calendar-plus"></i>
+                <span>Đặt lịch hẹn mới</span>
+              </button>
+            </div>
+
+            <div class="history-table-wrap" v-if="customerAppointments.length > 0">
+              <table class="sub-table">
+                <thead>
+                  <tr>
+                    <th width="100">Mã hẹn</th>
+                    <th width="140">Hình thức</th>
+                    <th>Thời gian</th>
+                    <th width="160">Xe quan tâm</th>
+                    <th width="140">Chuyên viên</th>
+                    <th width="130">Trạng thái</th>
+                    <th width="110" class="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="apt in customerAppointments" :key="apt.id">
+                    <td>
+                      <span class="sub-id-tag">#APT-{{ apt.id }}</span>
+                    </td>
+                    <td>
+                      <span class="badge-appt-type">{{ getAppointmentTypeText(apt.meeting_type) }}</span>
+                    </td>
+                    <td>
+                      <div class="sub-date-cell">
+                        <strong>{{ formatDateTime(apt.start_time) }}</strong>
+                        <small class="text-muted">Đến: {{ formatDateTime(apt.end_time) }}</small>
+                      </div>
+                    </td>
+                    <td>
+                      <span v-if="apt.car" class="sub-car-name">
+                        <i class="fa-solid fa-car-side"></i> {{ apt.car.name }}
+                      </span>
+                      <span v-else class="text-muted-dash">-</span>
+                    </td>
+                    <td>
+                      <span v-if="apt.assignee" class="sub-staff-name">
+                        <i class="fa-solid fa-user-check"></i> {{ apt.assignee.ho_ten }}
+                      </span>
+                      <span v-else class="text-muted-dash">Chưa gán</span>
+                    </td>
+                    <td>
+                      <span class="badge-appt-status" :class="getAppointmentStatusClass(apt.status)">
+                        {{ getAppointmentStatusText(apt.status) }}
+                      </span>
+                    </td>
+                    <td class="text-center">
+                      <router-link :to="`/admin/appointments?search=${apt.id}`" class="btn-link-action" title="Xem trên lịch">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Xem
+                      </router-link>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-else class="empty-sub-state">
+              <i class="fa-regular fa-calendar-xmark"></i>
+              <p>Khách hàng chưa có lịch hẹn tư vấn hoặc xem xe nào.</p>
+              <button class="btn-primary-sm mt-2" @click="createAppointmentForCustomer(selectedCustomer)">
+                <i class="fa-solid fa-calendar-plus"></i> Đặt lịch hẹn đầu tiên
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Profile Modal Footer -->
@@ -767,9 +855,11 @@
 
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import baseRequest from '../../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 
+const router = useRouter();
 const toaster = createToaster({ position: "top-right" });
 
 // State
@@ -805,7 +895,8 @@ const customerStats = ref({});
 const customerBookings = ref([]);
 const customerContacts = ref([]);
 const customerNotes = ref([]);
-const activeHistoryTab = ref('bookings'); // 'bookings' | 'contacts' | 'notes'
+const customerAppointments = ref([]);
+const activeHistoryTab = ref('bookings'); // 'bookings' | 'contacts' | 'notes' | 'appointments'
 const newCareNote = ref('');
 
 const profileForm = ref({
@@ -962,6 +1053,7 @@ const openCustomerProfile = async (customer) => {
       customerBookings.value = detail.bookings || [];
       customerContacts.value = detail.contacts || [];
       customerNotes.value = detail.user?.notes || [];
+      customerAppointments.value = detail.appointments || [];
 
       profileForm.value = {
         ho_ten: detail.user.ho_ten || '',
@@ -981,6 +1073,43 @@ const openCustomerProfile = async (customer) => {
 
 const closeCustomerProfile = () => {
   selectedCustomer.value = null;
+};
+
+// Create appointment shortcut for this customer
+const createAppointmentForCustomer = (customer) => {
+  if (!customer) return;
+  router.push({
+    path: '/admin/appointments',
+    query: {
+      create: '1',
+      user_id: customer.id,
+      customer_name: customer.ho_ten || '',
+      customer_phone: customer.so_dien_thoai || '',
+      customer_email: customer.email || '',
+      car_id: customer.car_id || '',
+      notes: `Hẹn tư vấn/xem xe cho khách hàng #${customer.id} - ${customer.ho_ten}`
+    }
+  });
+};
+
+const getAppointmentStatusClass = (st) => {
+  if (st === 'completed') return 'status-completed';
+  if (st === 'cancelled') return 'status-cancelled';
+  if (st === 'no_show') return 'status-no-show';
+  return 'status-scheduled';
+};
+
+const getAppointmentStatusText = (st) => {
+  if (st === 'completed') return 'Đã hoàn tất';
+  if (st === 'cancelled') return 'Đã hủy';
+  if (st === 'no_show') return 'Khách không đến';
+  return 'Đã lên lịch';
+};
+
+const getAppointmentTypeText = (type) => {
+  if (type === 'viewing') return 'Xem xe thực tế';
+  if (type === 'consultation') return 'Tư vấn trực tiếp';
+  return 'Tư vấn Online';
 };
 
 // Save Profile Updates via dedicated API
@@ -2323,11 +2452,53 @@ onUnmounted(() => {
   padding: 3px 8px;
   border-radius: 4px;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .btn-link-action:hover {
   background: #dbeafe;
 }
+
+/* Customer Appointments Tab */
+.appointment-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.appt-count-text {
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.badge-appt-type {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #4338ca;
+  background: #e0e7ff;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.badge-appt-status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.badge-appt-status.status-scheduled { background: #eff6ff; color: #1d4ed8; }
+.badge-appt-status.status-completed { background: #ecfdf5; color: #047857; }
+.badge-appt-status.status-cancelled { background: #fef2f2; color: #b91c1c; }
+.badge-appt-status.status-no-show { background: #fef3c7; color: #b45309; }
 
 /* Care Notes Timeline */
 .add-care-note-box {

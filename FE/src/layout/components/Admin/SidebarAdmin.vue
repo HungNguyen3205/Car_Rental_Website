@@ -61,6 +61,10 @@
                         <div class="icon-box"><i class="fa-solid fa-headset"></i></div>
                         <span>Hỗ trợ & Liên hệ</span>
                     </router-link>
+                    <router-link v-if="canAny('admins.manage', 'bookings.view')" to="/admin/appointments" class="nav-link" active-class="active" @click="$emit('close')">
+                        <div class="icon-box"><i class="fa-solid fa-calendar-check"></i></div>
+                        <span>Lịch hẹn tư vấn</span>
+                    </router-link>
                     <router-link v-if="canAny('admins.manage', 'audit_logs.view')" to="/admin/permissions" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-shield-halved"></i></div>
                         <span>Tài khoản Admin</span>

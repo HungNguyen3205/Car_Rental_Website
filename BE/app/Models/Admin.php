@@ -119,4 +119,12 @@ class Admin extends Authenticatable
     {
         return $this->admin_role === PermissionMatrix::ROLE_OWNER;
     }
+
+    /**
+     * Danh sách lịch hẹn tư vấn được giao phụ trách
+     */
+    public function assignedAppointments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Appointment::class, 'assigned_to')->orderByDesc('start_time');
+    }
 }

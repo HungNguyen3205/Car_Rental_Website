@@ -96,6 +96,11 @@ class Contact extends Model
         return $this->hasMany(ContactActivity::class, 'contact_id')->orderByDesc('created_at');
     }
 
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class, 'contact_id')->orderByDesc('start_time');
+    }
+
     // Accessors
     public function getStatusLabelAttribute(): string
     {

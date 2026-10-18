@@ -126,6 +126,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Lịch hẹn tư vấn & xem xe của khách hàng này
+     */
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class, 'user_id')->orderByDesc('start_time');
+    }
+
+    /**
      * Scope tìm kiếm và lọc danh sách khách hàng
      */
     public function scopeFilter(Builder $query, array $filters): Builder

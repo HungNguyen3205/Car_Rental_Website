@@ -153,6 +153,24 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             Route::post('/{id}/notes', [\App\Http\Controllers\Admin\ContactController::class, 'addNote']);
         });
 
+        // Quản lý lịch hẹn tư vấn & xem xe (Appointments)
+        Route::group(['prefix' => 'appointments', 'middleware' => 'permission:bookings.view,admins.manage'], function () {
+            Route::get('/', [\App\Http\Controllers\Admin\AppointmentController::class, 'index']);
+            Route::get('/calendar', [\App\Http\Controllers\Admin\AppointmentController::class, 'calendarView']);
+            Route::get('/staff-list', [\App\Http\Controllers\Admin\AppointmentController::class, 'getAvailableStaff']);
+            Route::get('/{id}', [\App\Http\Controllers\Admin\AppointmentController::class, 'show']);
+            Route::post('/', [\App\Http\Controllers\Admin\AppointmentController::class, 'store'])
+                ->middleware('permission:bookings.manage,admins.manage');
+            Route::put('/{id}', [\App\Http\Controllers\Admin\AppointmentController::class, 'update'])
+                ->middleware('permission:bookings.manage,admins.manage');
+            Route::post('/{id}/cancel', [\App\Http\Controllers\Admin\AppointmentController::class, 'cancel'])
+                ->middleware('permission:bookings.manage,admins.manage');
+            Route::post('/{id}/complete', [\App\Http\Controllers\Admin\AppointmentController::class, 'complete'])
+                ->middleware('permission:bookings.manage,admins.manage');
+            Route::post('/{id}/remind', [\App\Http\Controllers\Admin\AppointmentController::class, 'triggerReminder'])
+                ->middleware('permission:bookings.manage,admins.manage');
+        });
+
         // Nhật ký kiểm toán thao tác (Audit Logs - Chỉ đọc)
         Route::get('/audit-logs', [AuditLogController::class, 'index'])
             ->middleware('permission:audit_logs.view');

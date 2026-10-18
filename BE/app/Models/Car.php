@@ -64,6 +64,11 @@ class Car extends Model
         return $this->hasMany(Booking::class, 'car_id');
     }
 
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class, 'car_id');
+    }
+
     /**
      * Kiểm tra xem xe có đơn đặt xe đang hoạt động (chờ duyệt hoặc đã duyệt chưa kết thúc) hay không.
      */

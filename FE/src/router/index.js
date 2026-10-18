@@ -135,6 +135,11 @@ const routes = [
                 component: () => import('../pages/Admin/Contacts/index.vue'),
             },
             {
+                path: 'appointments',
+                name: 'AdminAppointments',
+                component: () => import('../pages/Admin/Appointments/index.vue'),
+            },
+            {
                 path: 'settings',
                 name: 'AdminSettings',
                 component: () => import('../pages/Admin/Settings/index.vue'),

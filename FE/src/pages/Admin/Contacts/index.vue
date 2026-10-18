@@ -335,10 +335,15 @@
 
               <!-- Actions -->
               <td class="text-center">
-                <button class="btn-action-view" @click="openDetail(c)" title="Xem chi tiết & Xử lý">
-                  <i class="fa-solid fa-pen-to-square"></i>
-                  <span>Xử lý</span>
-                </button>
+                <div class="action-btn-group">
+                  <button class="btn-action-view" @click="openDetail(c)" title="Xem chi tiết & Xử lý">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>Xử lý</span>
+                  </button>
+                  <button class="btn-action-appt" @click.stop="createAppointmentFromContact(c)" title="Đặt lịch hẹn tư vấn/xem xe">
+                    <i class="fa-solid fa-calendar-plus"></i>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -732,7 +737,15 @@
 
         <!-- Modal Footer -->
         <div class="modal-footer">
-          <button class="btn-outline" @click="closeDetail" :disabled="saving || assigning">Đóng</button>
+          <div class="footer-left">
+            <button class="btn-schedule-appt-modal" @click="createAppointmentFromContact(selectedContact)">
+              <i class="fa-solid fa-calendar-plus"></i>
+              <span>Đặt lịch hẹn tư vấn / xem xe</span>
+            </button>
+          </div>
+          <div class="footer-right">
+            <button class="btn-outline" @click="closeDetail" :disabled="saving || assigning">Đóng</button>
+          </div>
         </div>
       </div>
     </div>
@@ -741,10 +754,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import baseRequest from '../../../core/baseRequest';
 import { getStoredUser } from '../../../core/authStorage';
 import { createToaster } from "@meforma/vue-toaster";
 
+const router = useRouter();
 const toaster = createToaster({ position: "top-right" });
 
 // State
@@ -983,6 +998,23 @@ const openDetail = async (contact) => {
 
 const closeDetail = () => {
   selectedContact.value = null;
+};
+
+// Navigate to Appointments Calendar with contact prefilled
+const createAppointmentFromContact = (contact) => {
+  if (!contact) return;
+  router.push({
+    path: '/admin/appointments',
+    query: {
+      create: '1',
+      contact_id: contact.id,
+      customer_name: contact.ho_ten || '',
+      customer_phone: contact.so_dien_thoai || '',
+      customer_email: contact.email || '',
+      car_id: contact.car_id || (contact.car ? contact.car.id : ''),
+      notes: `Hẹn tư vấn từ yêu cầu #${contact.id}: ${contact.tieu_de || ''}`
+    }
+  });
 };
 
 // Quick Claim from Table Row
@@ -1876,6 +1908,13 @@ onMounted(() => {
 
 .text-success { color: #10b981; }
 
+.action-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+
 .btn-action-view {
   display: inline-flex;
   align-items: center;
@@ -1894,6 +1933,28 @@ onMounted(() => {
 .btn-action-view:hover {
   background: #eff6ff;
   border-color: #bfdbfe;
+}
+
+.btn-action-appt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-action-appt:hover {
+  background: #4f46e5;
+  color: white;
+  border-color: #4f46e5;
+  transform: translateY(-1px);
 }
 
 /* Pagination Footer */
@@ -2689,10 +2750,45 @@ onMounted(() => {
 /* Modal Footer */
 .modal-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   padding: 14px 24px;
   border-top: 1px solid #e2e8f0;
   background: #f8fafc;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-schedule-appt-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  transition: all 0.2s;
+}
+
+.btn-schedule-appt-modal:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
 }
 
 .btn-outline {

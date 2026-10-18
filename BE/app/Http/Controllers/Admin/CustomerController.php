@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Models\Appointment;
 use App\Models\Booking;
 use App\Models\Car;
 use App\Models\Contact;
@@ -146,7 +147,13 @@ class CustomerController extends Controller
             ];
         });
 
-        // 3. Tính toán số liệu thống kê khách hàng
+        // 3. Lấy lịch hẹn tư vấn & xem xe của khách hàng này
+        $appointments = Appointment::where('user_id', $user->id)
+            ->with(['car:id,name,license_plate,image,type', 'assignee:id,ho_ten,email,role'])
+            ->orderByDesc('start_time')
+            ->get();
+
+        // 4. Tính toán số liệu thống kê khách hàng
         $totalBookings = $bookings->count();
         $completedBookings = $bookings->where('tinh_trang', Booking::STATUS_COMPLETED)->count();
         $activeBookings = $bookings->whereIn('tinh_trang', [
@@ -190,11 +197,13 @@ class CustomerController extends Controller
                     'completed_bookings'  => $completedBookings,
                     'active_bookings'     => $activeBookings,
                     'total_contacts'      => $contacts->count(),
+                    'total_appointments'  => $appointments->count(),
                     'total_spent'         => $totalSpent,
                     'can_view_financial'  => $canViewFinancial,
                 ],
-                'bookings' => $bookingsData,
-                'contacts' => $contactsData,
+                'bookings'     => $bookingsData,
+                'contacts'     => $contactsData,
+                'appointments' => $appointments,
                 'permissions' => [
                     'can_edit_profile'   => $this->canManageCustomerProfile($admin),
                     'can_manage_status'  => $admin->isOwner() || $admin->hasPermission(PermissionMatrix::PERM_ADMINS_MANAGE),
