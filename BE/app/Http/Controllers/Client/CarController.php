@@ -11,7 +11,7 @@ class CarController extends Controller
 {
     public function getCategories()
     {
-        $categories = CarCategory::all();
+        $categories = CarCategory::active()->get();
         return response()->json([
             'status' => 1,
             'data'   => $categories
@@ -21,62 +21,27 @@ class CarController extends Controller
     public function getDataClient(Request $request)
     {
         $query = Car::publiclyAvailable()
-            ->join('car_categories', 'cars.category_id', '=', 'car_categories.id')
+            ->leftJoin('car_categories', 'cars.category_id', '=', 'car_categories.id')
             ->select('cars.*', 'car_categories.name as category_name');
 
-        if ($request->has('city') && $request->city != '') {
-            $city = strtolower($request->city);
-            
-            // Helper function to normalize Vietnamese accents
-            $normalize = function($str) {
-                $str = mb_strtolower($str, 'UTF-8');
-                $str = preg_replace('/(à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ)/', 'a', $str);
-                $str = preg_replace('/(è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ)/', 'e', $str);
-                $str = preg_replace('/(ì|í|ị|ỉ|ĩ)/', 'i', $str);
-                $str = preg_replace('/(ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ)/', 'o', $str);
-                $str = preg_replace('/(ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ)/', 'u', $str);
-                $str = preg_replace('/(ỳ|ý|ỵ|ỷ|ỹ)/', 'y', $str);
-                $str = preg_replace('/(đ)/', 'd', $str);
-                return $str;
-            };
+        // Lọc địa điểm chuẩn hóa, an toàn không mất xe
+        if ($request->filled('city') && $request->city !== 'all') {
+            \App\Services\Location\LocationService::applyCityFilter($query, $request->city, 'cars.city');
+        }
 
-            $cityNormalized = $normalize($city);
-            
-            // Comprehensive mappings for Vietnamese Regions
-            $mappings = [
-                'ha noi' => 'hn',
-                'ho chi minh' => 'sg',
-                'hcm' => 'sg',
-                'da nang' => 'dn',
-                'nha trang' => 'nt',
-                'khanh hoa' => 'nt',
-                'can tho' => 'ct',
-                'hai phong' => 'hp',
-                'da lat' => 'dl',
-                'lam dong' => 'dl',
-                'vung tau' => 'vt',
-                'binh duong' => 'bd',
-                'dong nai' => 'dnai'
-            ];
-            
-            $query->where(function($q) use ($city, $cityNormalized, $mappings) {
-                // 1. Search by exact keyword sequence
-                $q->where('cars.city', 'like', '%' . $city . '%');
-                
-                // 2. Search by normalized name
-                if ($city != $cityNormalized) {
-                    $q->orWhere('cars.city', 'like', '%' . $cityNormalized . '%');
-                }
+        // Lọc theo danh mục phân khúc
+        if ($request->filled('category_id') && $request->category_id !== 'all') {
+            $query->where('cars.category_id', $request->category_id);
+        }
 
-                // 3. Search by mapped abbreviation/ID
-                foreach ($mappings as $key => $val) {
-                    if (str_contains($cityNormalized, $key)) {
-                        $q->orWhere('cars.city', 'like', '%' . $val . '%');
-                        // Also handle reverse (if DB has full name but user typed ID)
-                        $q->orWhere('cars.city', 'like', '%' . $key . '%');
-                    }
-                }
-            });
+        // Lọc theo loại thân xe (SUV, Sedan, Hatchback...)
+        if ($request->filled('type') && $request->type !== 'all' && $request->type !== 'Tất cả') {
+            $query->where('cars.type', $request->type);
+        }
+
+        // Lọc theo loại nhiên liệu (electric, gasoline, diesel, hybrid)
+        if ($request->filled('fuel_type') && $request->fuel_type !== 'all') {
+            $query->where('cars.fuel_type', $request->fuel_type);
         }
         
         if ($request->has('search') && $request->search != '') {

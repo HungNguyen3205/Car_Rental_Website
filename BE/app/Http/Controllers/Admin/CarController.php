@@ -80,9 +80,9 @@ class CarController extends Controller
             $query->where('cars.category_id', $request->category_id);
         }
 
-        // 8. Lọc theo thành phố
+        // 8. Lọc theo thành phố chuẩn hóa (không mất xe khi nhập slug hoặc tên đầy đủ)
         if ($request->filled('city') && $request->city !== 'all') {
-            $query->where('cars.city', $request->city);
+            \App\Services\Location\LocationService::applyCityFilter($query, $request->city, 'cars.city');
         }
 
         // Sắp xếp
@@ -208,7 +208,7 @@ class CarController extends Controller
                 'price_per_day'       => $validated['price_per_day'],
                 'current_km'          => $validated['current_km'] ?? 0,
                 'type'                => $validated['type'] ?? 'Sedan',
-                'city'                => $validated['city'] ?? 'sg',
+                'city'                => isset($validated['city']) ? (\App\Services\Location\LocationService::resolveSlug($validated['city']) ?? $validated['city']) : 'sg',
                 'status'              => $validated['status'] ?? 'available',
                 'publication_status'  => $pubStatus,
                 'image'               => $validated['image'] ?? '/assets/images/cars/vf9.png',
@@ -324,6 +324,10 @@ class CarController extends Controller
                 if (array_key_exists($field, $validated)) {
                     $updateData[$field] = $validated[$field];
                 }
+            }
+
+            if (isset($updateData['city'])) {
+                $updateData['city'] = \App\Services\Location\LocationService::resolveSlug($updateData['city']) ?? $updateData['city'];
             }
 
             if (isset($updateData['publication_status']) && !isset($updateData['is_active'])) {

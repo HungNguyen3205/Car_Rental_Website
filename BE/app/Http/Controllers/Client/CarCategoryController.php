@@ -13,9 +13,10 @@ class CarCategoryController extends Controller
      */
     public function index(): JsonResponse
     {
-        $categories = CarCategory::withCount(['cars' => function ($query) {
-            $query->where('is_active', true);
-        }])->orderBy('name')->get();
+        $categories = CarCategory::active()
+            ->withCount(['cars' => function ($query) {
+                $query->where('is_active', true);
+            }])->orderBy('name')->get();
 
         return response()->json([
             'status' => 1,

@@ -104,6 +104,9 @@
             <option value="sg">TP. Hồ Chí Minh</option>
             <option value="hn">Hà Nội</option>
             <option value="dn">Đà Nẵng</option>
+            <option value="nt">Nha Trang / Khánh Hòa</option>
+            <option value="hp">Hải Phòng</option>
+            <option value="ct">Cần Thơ</option>
             <option value="all">Toàn quốc</option>
           </select>
 
@@ -929,9 +932,12 @@ const adminBookingError = ref('');
 const getCityLabel = (code) => {
   if (!code) return 'Toàn quốc';
   const c = code.toLowerCase();
-  if (c === 'sg' || c.includes('hồ chí minh')) return 'TP. HCM';
-  if (c === 'hn' || c.includes('hà nội')) return 'Hà Nội';
-  if (c === 'dn' || c.includes('đà nẵng')) return 'Đà Nẵng';
+  if (c === 'sg' || c.includes('hồ chí minh') || c === '79') return 'TP. HCM';
+  if (c === 'hn' || c.includes('hà nội') || c === '1') return 'Hà Nội';
+  if (c === 'dn' || c.includes('đà nẵng') || c === '48') return 'Đà Nẵng';
+  if (c === 'nt' || c.includes('nha trang') || c.includes('khánh hòa') || c === '56') return 'Nha Trang';
+  if (c === 'hp' || c.includes('hải phòng') || c === '31') return 'Hải Phòng';
+  if (c === 'ct' || c.includes('cần thơ') || c === '92') return 'Cần Thơ';
   return code.toUpperCase();
 };
 

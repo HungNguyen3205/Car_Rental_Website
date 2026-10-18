@@ -105,6 +105,11 @@ const routes = [
                 component: () => import('../pages/Admin/Cars/CarEditor.vue'),
             },
             {
+                path: 'categories',
+                name: 'AdminCategories',
+                component: () => import('../pages/Admin/Categories/index.vue'),
+            },
+            {
                 path: 'calendar',
                 name: 'AdminCalendar',
                 component: () => import('../pages/Admin/Calendar/index.vue'),

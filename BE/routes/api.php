@@ -151,6 +151,8 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             Route::get('/', [\App\Http\Controllers\Admin\CarCategoryController::class, 'index']);
             Route::post('/', [\App\Http\Controllers\Admin\CarCategoryController::class, 'store']);
             Route::put('/{id}', [\App\Http\Controllers\Admin\CarCategoryController::class, 'update']);
+            Route::patch('/{id}/status', [\App\Http\Controllers\Admin\CarCategoryController::class, 'toggleStatus']);
+            Route::post('/{id}/status', [\App\Http\Controllers\Admin\CarCategoryController::class, 'toggleStatus']);
             Route::delete('/{id}', [\App\Http\Controllers\Admin\CarCategoryController::class, 'destroy']);
         });
 

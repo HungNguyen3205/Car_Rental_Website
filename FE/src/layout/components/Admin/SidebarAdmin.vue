@@ -28,6 +28,10 @@
                         <div class="icon-box"><i class="fa-solid fa-car"></i></div>
                         <span>Quản lý xe</span>
                     </router-link>
+                    <router-link v-if="canAny('cars.manage', 'settings.manage')" to="/admin/categories" class="nav-link" active-class="active" @click="$emit('close')">
+                        <div class="icon-box"><i class="fa-solid fa-tags"></i></div>
+                        <span>Danh mục xe</span>
+                    </router-link>
                     <router-link v-if="canAny('cars.manage', 'bookings.view')" to="/admin/calendar" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-calendar-days"></i></div>
                         <span>Lịch xe</span>

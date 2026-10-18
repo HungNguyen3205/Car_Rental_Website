@@ -148,15 +148,25 @@
               <span v-if="formErrors.category_id" class="field-error">{{ formErrors.category_id }}</span>
             </div>
 
-            <!-- Kiểu dáng / Dòng xe -->
+            <!-- Kiểu dáng thân xe (Body Type) -->
             <div class="form-group">
-              <label>Kiểu dáng / Dòng xe</label>
+              <label>Kiểu dáng thân xe (Body Type)</label>
               <input 
                 type="text" 
                 v-model="form.type" 
-                placeholder="VD: SUV 7 chỗ, Sedan C, Crossover" 
+                list="body-type-list"
+                placeholder="Chọn hoặc nhập kiểu dáng (SUV, Sedan...)" 
                 @input="markDirty"
               />
+              <datalist id="body-type-list">
+                <option value="SUV">SUV / Crossover gầm cao</option>
+                <option value="Sedan">Sedan 4 cửa thanh lịch</option>
+                <option value="MPV">MPV 7 chỗ đa dụng</option>
+                <option value="Hatchback">Hatchback đô thị</option>
+                <option value="Bán tải">Bán tải / Pickup</option>
+                <option value="Coupe">Coupe thể thao</option>
+              </datalist>
+              <small class="helper-text">Kiểu dáng kết cấu xe (ví dụ: SUV điện thì thân xe là SUV, nhiên liệu là Điện).</small>
             </div>
 
             <!-- Số km hiện tại -->
@@ -218,12 +228,17 @@
             <div class="form-group" :class="{ 'has-error': formErrors.city }">
               <label>Khu vực / Địa bàn phục vụ <span class="required">*</span></label>
               <select v-model="form.city" @change="markDirty">
-                <option value="sg">TP. Hồ Chí Minh (sg)</option>
-                <option value="hn">Hà Nội (hn)</option>
-                <option value="dn">Đà Nẵng (dn)</option>
+                <option value="sg">TP. Hồ Chí Minh (sg / 79)</option>
+                <option value="hn">Hà Nội (hn / 01)</option>
+                <option value="dn">Đà Nẵng (dn / 48)</option>
+                <option value="nt">Nha Trang / Khánh Hòa (nt / 56)</option>
+                <option value="hp">Hải Phòng (hp / 31)</option>
+                <option value="ct">Cần Thơ (ct / 92)</option>
+                <option value="dl">Đà Lạt / Lâm Đồng (dl / 68)</option>
+                <option value="vt">Vũng Tàu (vt / 77)</option>
                 <option value="all">Toàn quốc (all)</option>
               </select>
-              <small class="helper-text">Khách hàng lọc theo thành phố này sẽ tìm thấy xe tương ứng.</small>
+              <small class="helper-text">Hệ thống tự động ánh xạ giữa mã tỉnh mở rộng và khu vực hoạt động.</small>
               <span v-if="formErrors.city" class="field-error">{{ formErrors.city }}</span>
             </div>
           </div>
@@ -871,9 +886,14 @@ const formatDateTime = (dateStr) => {
 const getCityLabel = (code) => {
   if (!code) return 'Toàn quốc';
   const c = code.toLowerCase();
-  if (c === 'sg' || c.includes('hồ chí minh')) return 'TP. HCM';
-  if (c === 'hn' || c.includes('hà nội')) return 'Hà Nội';
-  if (c === 'dn' || c.includes('đà nẵng')) return 'Đà Nẵng';
+  if (c === 'sg' || c.includes('hồ chí minh') || c === '79') return 'TP. HCM';
+  if (c === 'hn' || c.includes('hà nội') || c === '1') return 'Hà Nội';
+  if (c === 'dn' || c.includes('đà nẵng') || c === '48') return 'Đà Nẵng';
+  if (c === 'nt' || c.includes('nha trang') || c.includes('khánh hòa') || c === '56') return 'Nha Trang';
+  if (c === 'hp' || c.includes('hải phòng') || c === '31') return 'Hải Phòng';
+  if (c === 'ct' || c.includes('cần thơ') || c === '92') return 'Cần Thơ';
+  if (c === 'dl' || c.includes('đà lạt') || c === '68') return 'Đà Lạt';
+  if (c === 'vt' || c.includes('vũng tàu') || c === '77') return 'Vũng Tàu';
   return code.toUpperCase();
 };
 
@@ -1034,12 +1054,19 @@ const onUploadGalleryImages = async (e) => {
 // Fetch initial data
 const fetchCategories = async () => {
   try {
-    const res = await baseRequest.get('client/categories');
+    const res = await baseRequest.get('admin/car-categories');
     if (res.data && res.data.status) {
       categories.value = res.data.data;
     }
   } catch (err) {
-    // Silently continue
+    try {
+      const fallbackRes = await baseRequest.get('client/categories');
+      if (fallbackRes.data && fallbackRes.data.status) {
+        categories.value = fallbackRes.data.data;
+      }
+    } catch {
+      // Silently continue
+    }
   }
 };
 

@@ -251,7 +251,10 @@
             <h3><i class="fa-solid fa-tags"></i> Quản Lý Danh Mục Phương Tiện</h3>
             <p class="subtitle">Phân loại dòng xe theo phân khúc. Danh mục có xe liên kết sẽ được hệ thống bảo vệ, không thể xóa.</p>
           </div>
-          <div class="tools-right">
+          <div class="tools-right" style="display: flex; gap: 10px; align-items: center;">
+            <router-link to="/admin/categories" class="btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-up-right-from-square"></i> Mở trang quản lý chuyên biệt
+            </router-link>
             <button class="btn-primary" @click="openCategoryModal(null)">
               <i class="fa-solid fa-plus"></i> Thêm Danh Mục Mới
             </button>
@@ -266,18 +269,24 @@
                 <th>Tên danh mục</th>
                 <th>Mô tả chi tiết</th>
                 <th width="150" class="text-center">Số xe đang gán</th>
+                <th width="130" class="text-center">Trạng thái</th>
                 <th width="140">Ngày tạo</th>
                 <th width="120" class="text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="cat in categories" :key="cat.id">
+              <tr v-for="cat in categories" :key="cat.id" :class="{ 'row-inactive': !cat.is_active }">
                 <td><span class="id-tag">#CAT-{{ cat.id }}</span></td>
                 <td><strong class="cat-name">{{ cat.name }}</strong></td>
                 <td><span class="cat-desc">{{ cat.description || 'Chưa có mô tả' }}</span></td>
                 <td class="text-center">
                   <span class="count-badge" :class="{ 'has-cars': cat.cars_count > 0 }">
                     <i class="fa-solid fa-car"></i> {{ cat.cars_count }} xe
+                  </span>
+                </td>
+                <td class="text-center">
+                  <span class="status-badge" :style="cat.is_active ? 'color: #16A34A; background: #DCFCE7; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;' : 'color: #D97706; background: #FEF3C7; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;'">
+                    {{ cat.is_active ? 'Đang dùng' : 'Ngừng dùng' }}
                   </span>
                 </td>
                 <td>{{ formatDate(cat.created_at) }}</td>
@@ -342,6 +351,13 @@
               v-model="catForm.description" 
               placeholder="Mô tả phong cách, đối tượng phục vụ hoặc phân khúc..."
             ></textarea>
+          </div>
+
+          <div class="form-group mt-3">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+              <input type="checkbox" v-model="catForm.is_active" />
+              <span>Kích hoạt sử dụng danh mục</span>
+            </label>
           </div>
 
           <div class="modal-footer mt-4">
@@ -412,6 +428,7 @@ const savingCategory = ref(false);
 const catForm = reactive({
   name: '',
   description: '',
+  is_active: true,
 });
 
 const fetchAllSettings = async () => {
@@ -500,9 +517,11 @@ const openCategoryModal = (cat) => {
   if (cat) {
     catForm.name = cat.name;
     catForm.description = cat.description || '';
+    catForm.is_active = cat.is_active !== undefined ? Boolean(cat.is_active) : true;
   } else {
     catForm.name = '';
     catForm.description = '';
+    catForm.is_active = true;
   }
   showCatModal.value = true;
 };

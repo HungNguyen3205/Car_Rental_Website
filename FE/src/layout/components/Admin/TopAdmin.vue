@@ -149,6 +149,7 @@ const pageTitle = computed(() => {
     switch (route.name) {
         case 'AdminDashboard': return 'Tổng quan';
         case 'AdminCars': return 'Quản lý kho xe';
+        case 'AdminCategories': return 'Danh mục phương tiện';
         case 'AdminCalendar': return 'Lịch xe & Trạng thái';
         case 'AdminBookings': return 'Quản lý đơn đặt xe';
         case 'AdminUsers': return 'Quản lý khách hàng';

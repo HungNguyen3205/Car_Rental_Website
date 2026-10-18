@@ -420,10 +420,12 @@ const fetchCars = async (params = {}) => {
         price_per_day: car.price_per_day || car.gia_thue || 1200000,
         cityDisplay: (() => {
           const c = (car.city || '').toLowerCase();
-          if (c === 'sg') return 'TP. Hồ Chí Minh';
-          if (c === 'hn') return 'Hà Nội';
-          if (c === 'dn') return 'Đà Nẵng';
-          if (c === 'nt') return 'Nha Trang';
+          if (c === 'sg' || c === '79' || c.includes('hồ chí minh')) return 'TP. Hồ Chí Minh';
+          if (c === 'hn' || c === '1' || c.includes('hà nội')) return 'Hà Nội';
+          if (c === 'dn' || c === '48' || c.includes('đà nẵng')) return 'Đà Nẵng';
+          if (c === 'nt' || c === '56' || c.includes('nha trang') || c.includes('khánh hòa')) return 'Nha Trang';
+          if (c === 'hp' || c === '31' || c.includes('hải phòng')) return 'Hải Phòng';
+          if (c === 'ct' || c === '92' || c.includes('cần thơ')) return 'Cần Thơ';
           return car.city || 'Toàn quốc';
         })()
       }));
