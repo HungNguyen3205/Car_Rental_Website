@@ -119,7 +119,7 @@
 /* Bento Grid */
 .bento-grid {
   display: grid;
-  grid-template-columns: 58% 42%;
+  grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
   gap: 28px;
   align-items: stretch;
 }

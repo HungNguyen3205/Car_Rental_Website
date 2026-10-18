@@ -163,7 +163,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 
@@ -191,6 +191,11 @@ const driverMode = ref('self_drive');
 const isDoorToDoor = ref(true);
 
 const selectedCity = ref('sg');
+// Province IDs can change from fallback slugs to API codes after loading.
+watch(() => props.provinces, list => {
+  if (!list.length || list.some(city => city.id === selectedCity.value)) return;
+  selectedCity.value = (list.find(city => /Hồ Chí Minh/.test(city.name)) || list[0]).id;
+}, { immediate: true });
 const detailedAddress = ref('');
 const citySearchQuery = ref('');
 const showCityDropdown = ref(false);

@@ -1,101 +1,45 @@
 <template>
-  <section class="hero-section" aria-label="Giới thiệu đội xe">
-    <div class="hero-ambient-glow" aria-hidden="true"></div>
-
+  <section class="hero-section" aria-label="Khám phá phân khúc xe">
     <div class="hero-container app-container">
       <div class="hero-grid">
-        <!-- Left Column: Title, Segmented Tabs, Specs -->
-        <div class="hero-info" :class="{ 'hero-entered': isLoaded }">
-          <div class="hero-eyebrow">
-            <span class="pulse-indicator"></span>
-            <span>Hệ Thống Thuê Xe Trực Tuyến Hàng Đầu</span>
-          </div>
-
-          <h1 class="hero-title">
-            XE SANG CHO<br />
-            <span class="hero-highlight">MỌI HÀNH TRÌNH.</span>
-          </h1>
-
-          <!-- Segmented Category Control -->
+        <div class="hero-info">
+          <p class="hero-eyebrow"><span></span> DRIVERENT / CHỌN HÀNH TRÌNH CỦA BẠN</p>
+          <h1 class="hero-title">XE SANG CHO<br />MỌI HÀNH TRÌNH<span>.</span></h1>
+          <p class="hero-description">Một lựa chọn phù hợp. Một hành trình đáng nhớ.</p>
           <div class="class-selector-group">
-            <span class="selector-label">CHỌN PHÂN KHÚC</span>
-            <div class="segmented-pill-container" role="tablist" aria-label="Phân khúc xe">
-              <button
-                v-for="(cat, index) in categories"
-                :key="cat.id"
-                type="button"
-                role="tab"
-                :aria-selected="activeCategoryIndex === index"
-                class="segment-btn"
-                :class="{ 'is-active': activeCategoryIndex === index }"
-                @click="selectCategory(index)"
-              >
-                {{ cat.name }}
-              </button>
+            <span class="selector-label">KHÁM PHÁ PHÂN KHÚC</span>
+            <div ref="tabList" class="segmented-pill-container" role="group" aria-label="Chọn phân khúc xe">
+              <span class="segment-indicator" :style="indicatorStyle" aria-hidden="true"></span>
+              <button v-for="(category, index) in categories" :key="category.id"
+                :ref="el => tabButtons[index] = el" type="button" class="segment-btn"
+                :aria-pressed="requestedIndex === index" :class="{ 'is-active': requestedIndex === index }"
+                @click="selectCategory(index)">{{ category.name }}</button>
             </div>
           </div>
-
-          <!-- Quick Vehicle Specs -->
-          <Transition name="specs-fade" mode="out-in">
-            <div :key="activeCar.id" class="hero-specs-row">
-              <div class="spec-col">
-                <span class="spec-label">{{ activeCar.spec1Label }}</span>
-                <strong class="spec-value">{{ activeCar.spec1Value }}</strong>
-              </div>
-              <div class="spec-divider"></div>
-              <div class="spec-col">
-                <span class="spec-label">{{ activeCar.spec2Label }}</span>
-                <strong class="spec-value">{{ activeCar.spec2Value }}</strong>
-              </div>
-              <div class="spec-divider"></div>
-              <div class="spec-col">
-                <span class="spec-label">Đơn giá từ</span>
-                <strong class="spec-value price-text">{{ formatPrice(activeCar.price) }}</strong>
-              </div>
-            </div>
-          </Transition>
-
-          <!-- Quick Action Link -->
+          <div class="hero-specs-row" aria-live="polite" aria-atomic="true">
+            <div><span class="spec-label">Phân khúc</span><strong>{{ displayedCategory.label }}</strong></div>
+            <div><span class="spec-label">{{ matchingCars.length ? 'Xe trong danh sách' : 'Bộ sưu tập' }}</span>
+              <strong>{{ matchingCars.length ? matchingCars.length + ' lựa chọn' : 'Khám phá đội xe' }}</strong></div>
+            <div v-if="startingPrice"><span class="spec-label">Giá tham khảo từ</span><strong class="price-text">{{ formatPrice(startingPrice) }}<small>/ngày</small></strong></div>
+          </div>
           <div class="hero-quick-actions">
-            <button type="button" class="btn-hero-explore" @click="$emit('scroll-to-search')">
-              <span>Đặt xe ngay</span>
-              <i class="fa-solid fa-arrow-down"></i>
-            </button>
-            <router-link to="/fleet" class="btn-hero-fleet">
-              <span>Xem toàn bộ xe</span>
-              <i class="fa-solid fa-arrow-right"></i>
-            </router-link>
+            <button type="button" class="btn-hero-explore" @click="emit('scroll-to-search')">Tìm xe cho chuyến đi <span aria-hidden="true">↗</span></button>
+            <router-link to="/fleet" class="btn-hero-fleet">Xem đội xe <span aria-hidden="true">→</span></router-link>
           </div>
         </div>
-
-        <!-- Right Column: Vehicle Visual Stage -->
-        <div class="hero-visual" :class="{ 'hero-entered': isLoaded }">
-          <!-- Floating Status Badge (Similar to video frame 3) -->
-          <div class="floating-badge" aria-hidden="true">
-            <div class="badge-dot"></div>
-            <div class="badge-text">
-              <strong>Sẵn sàng bàn giao</strong>
-              <span>Giao xe tận nơi trong 15 phút</span>
+        <div class="hero-visual">
+          <div class="visual-note"><span></span> Khám phá xe. Chọn hành trình.</div>
+          <div class="car-stage-wrapper" :class="{ 'is-moving': phase !== 'idle' }" :aria-busy="preparing">
+            <div class="stage-halo" aria-hidden="true"></div>
+            <div class="stage-road" aria-hidden="true"></div>
+            <div v-for="layer in layers" :key="layer.key" class="car-layer" :class="'car-' + layer.state">
+              <div class="car-ground-shadow" aria-hidden="true"></div>
+              <div class="car-suspension"><img :src="categories[layer.index].image" :alt="layer.state === 'out' ? '' : categories[layer.index].alt"
+                class="hero-car-img" :aria-hidden="layer.state === 'out'" draggable="false" decoding="async" fetchpriority="high" /></div>
             </div>
-            <div class="badge-pointer"></div>
           </div>
-
-          <!-- Car Stage with Vue Transition (Right-to-Left Slide) -->
-          <div class="car-stage-wrapper">
-            <Transition name="car-slide">
-              <div :key="activeCar.id" class="car-stage-item">
-                <img
-                  :src="activeCar.image"
-                  :alt="activeCar.title"
-                  class="hero-car-img"
-                  loading="eager"
-                  decoding="async"
-                />
-                <!-- Subtle ground shadow -->
-                <div class="car-ground-shadow"></div>
-              </div>
-            </Transition>
-          </div>
+          <div class="stage-caption"><span>{{ String(displayedIndex + 1).padStart(2, '0') }} / 04</span><span>{{ displayedCategory.label }} · Hình ảnh minh họa</span><span class="caption-line" aria-hidden="true"></span></div>
+          <p v-if="assetError" class="asset-error" role="status">Chưa tải được hình xe. <button type="button" @click="selectCategory(requestedIndex, true)">Thử lại</button></p>
         </div>
       </div>
     </div>
@@ -103,583 +47,151 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+const props = defineProps({ cars: { type: Array, default: () => [] } });
 const emit = defineEmits(['scroll-to-search', 'category-change']);
-
-const isLoaded = ref(false);
-const activeCategoryIndex = ref(0);
-
 const categories = [
-  {
-    id: 'suv',
-    name: 'SUV',
-    title: 'VinFast VF9 & SUV Hạng Sang',
-    image: '/assets/images/cars/hero_suv_transparent.png',
-    spec1Label: 'Động cơ',
-    spec1Value: 'Điện 402 hp',
-    spec2Label: 'Số chỗ ngồi',
-    spec2Value: '7 chỗ Full-Size',
-    price: 1300000
-  },
-  {
-    id: 'sport',
-    name: 'Sport',
-    title: 'Coupe Thể Thao Cao Cấp',
-    image: '/assets/images/cars/hero_sport_transparent.png',
-    spec1Label: 'Tăng tốc 0-100',
-    spec1Value: '3.6 giây',
-    spec2Label: 'Công suất',
-    spec2Value: '585 hp',
-    price: 2500000
-  },
-  {
-    id: 'sedan',
-    name: 'Sedan',
-    title: 'Executive Luxury Sedan',
-    image: '/assets/images/cars/hero_sedan_transparent.png',
-    spec1Label: 'Tăng tốc 0-100',
-    spec1Value: '4.8 giây',
-    spec2Label: 'Cấu hình',
-    spec2Value: '5 chỗ hạng sang',
-    price: 1500000
-  },
-  {
-    id: 'electric',
-    name: 'Electric',
-    title: 'VinFast VF8 Thuần Điện',
-    image: '/assets/images/cars/hero_electric_transparent.png',
-    spec1Label: 'Quãng đường',
-    spec1Value: '420 km / sạc',
-    spec2Label: 'Pin sạc nhanh',
-    spec2Value: '87.7 kWh',
-    price: 1200000
-  }
+  { id: 'suv', name: 'SUV', label: 'SUV', image: '/assets/images/cars/hero_suv_transparent.png', alt: 'Xe SUV góc nhìn ba phần tư' },
+  { id: 'sport', name: 'Sport', label: 'Thể thao', image: '/assets/images/cars/hero_sport_transparent.png', alt: 'Xe thể thao góc nhìn ba phần tư' },
+  { id: 'sedan', name: 'Sedan', label: 'Sedan', image: '/assets/images/cars/hero_sedan_transparent.png', alt: 'Xe sedan góc nhìn ba phần tư' },
+  { id: 'electric', name: 'Electric', label: 'Xe điện', image: '/assets/images/cars/hero_electric_transparent.png', alt: 'Xe điện góc nhìn ba phần tư' }
 ];
-
-const activeCar = computed(() => categories[activeCategoryIndex.value]);
-
-let switchTimeout = null;
-const selectCategory = (index) => {
-  if (activeCategoryIndex.value === index) return;
-  if (switchTimeout) clearTimeout(switchTimeout);
-  switchTimeout = setTimeout(() => {
-    activeCategoryIndex.value = index;
-    emit('category-change', categories[index].id);
-  }, 30);
+const requestedIndex = ref(0);
+const displayedIndex = ref(0);
+const displayedCategory = computed(() => categories[displayedIndex.value]);
+const phase = ref('idle');
+const preparing = ref(false);
+const assetError = ref(false);
+const layers = ref([{ index: 0, key: 0, state: 'still' }]);
+const tabList = ref(null);
+const tabButtons = [];
+const indicatorStyle = ref({ opacity: 0 });
+let generation = 0, serial = 0, finishTimer, resizeObserver, motionQuery, disposed = false;
+const decoded = new Map();
+const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
+const matchingCars = computed(() => props.cars.filter(car => {
+  const type = normalize(car.category_name || car.type);
+  const id = displayedCategory.value.id;
+  return id === 'electric' ? /electric|xe dien/.test(type) : id === 'sport' ? /sport|the thao/.test(type) : type.includes(id);
+}));
+const startingPrice = computed(() => {
+  const prices = matchingCars.value.map(car => Number(car.price_per_day ?? car.gia_thue)).filter(price => Number.isFinite(price) && price > 0);
+  return prices.length ? Math.min(...prices) : null;
+});
+const formatPrice = price => new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+const updateIndicator = () => {
+  const button = tabButtons[requestedIndex.value];
+  if (!button || !tabList.value) return;
+  indicatorStyle.value = { width: button.offsetWidth + 'px', transform: `translateX(${button.offsetLeft}px)`, opacity: 1 };
 };
-
-const formatPrice = (val) => {
-  return Number(val).toLocaleString('vi-VN') + 'đ/ngày';
-};
-
-// Preload all 4 hero images for flicker-free transitions
-onMounted(() => {
-  categories.forEach((cat) => {
+const loadImage = index => {
+  if (decoded.has(index)) return decoded.get(index);
+  const promise = new Promise((resolve, reject) => {
     const img = new Image();
-    img.src = cat.image;
+    img.onload = async () => { try { await img.decode(); } catch {} resolve(); };
+    img.onerror = () => reject(new Error('Vehicle asset unavailable'));
+    img.src = categories[index].image;
   });
-  // Trigger intro animation
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      isLoaded.value = true;
-    }, 60);
-  });
+  decoded.set(index, promise);
+  promise.catch(() => decoded.delete(index));
+  return promise;
+};
+const selectCategory = async (index, retry = false) => {
+  if (!retry && requestedIndex.value === index && !assetError.value) return;
+  const ticket = ++generation;
+  requestedIndex.value = index;
+  nextTick(updateIndicator);
+  preparing.value = true;
+  assetError.value = false;
+  try { await loadImage(index); }
+  catch { if (ticket === generation && !disposed) { preparing.value = false; assetError.value = true; } return; }
+  if (disposed || ticket !== generation) return;
+  preparing.value = false;
+  clearTimeout(finishTimer);
+  const previous = displayedIndex.value;
+  displayedIndex.value = index;
+  emit('category-change', categories[index].id);
+  if (motionQuery?.matches || previous === index) {
+    layers.value = [{ index, key: ++serial, state: 'still' }];
+    phase.value = 'idle';
+    return;
+  }
+  layers.value = [{ index: previous, key: ++serial, state: 'out' }, { index, key: ++serial, state: 'in' }];
+  phase.value = 'moving';
+  finishTimer = setTimeout(() => {
+    if (disposed || displayedIndex.value !== index) return;
+    layers.value = [{ index, key: ++serial, state: 'still' }];
+    phase.value = 'idle';
+  }, 940);
+};
+const handleMotionChange = () => {
+  if (!motionQuery.matches) return;
+  clearTimeout(finishTimer);
+  layers.value = [{ index: displayedIndex.value, key: ++serial, state: 'still' }];
+  phase.value = 'idle';
+};
+onMounted(() => {
+  motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  motionQuery.addEventListener('change', handleMotionChange);
+  resizeObserver = new ResizeObserver(updateIndicator);
+  if (tabList.value) resizeObserver.observe(tabList.value);
+  nextTick(updateIndicator);
+  document.fonts?.ready.then(() => { if (!disposed) updateIndicator(); });
+  categories.forEach((_, index) => loadImage(index).catch(() => { if (index === displayedIndex.value && !disposed) assetError.value = true; }));
+});
+onUnmounted(() => {
+  disposed = true; ++generation; clearTimeout(finishTimer);
+  resizeObserver?.disconnect(); motionQuery?.removeEventListener('change', handleMotionChange);
 });
 </script>
 
 <style scoped>
-.hero-section {
-  position: relative;
-  background-color: var(--bg-dark, #0b1220);
-  background-image: 
-    radial-gradient(ellipse 65% 55% at 65% 35%, rgba(5, 150, 105, 0.12) 0%, rgba(11, 18, 32, 0) 70%),
-    radial-gradient(circle at 20% 80%, rgba(2, 132, 199, 0.06) 0%, rgba(11, 18, 32, 0) 50%);
-  padding: 130px 0 50px 0;
-  overflow: hidden;
-  color: #ffffff;
-}
-
-.hero-ambient-glow {
-  position: absolute;
-  top: 15%;
-  right: 10%;
-  width: 520px;
-  height: 380px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, rgba(5, 150, 105, 0.03) 60%, transparent 80%);
-  filter: blur(80px);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.hero-container {
-  position: relative;
-  z-index: 2;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-.hero-grid {
-  display: grid;
-  grid-template-columns: 44% 56%;
-  align-items: center;
-  gap: 32px;
-  min-height: 520px;
-}
-
-/* Left Column Styling */
-.hero-info {
-  opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 700ms cubic-bezier(0.2, 0.8, 0.2, 1),
-              transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.hero-info.hero-entered {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #d1fae5;
-  letter-spacing: 0.02em;
-  margin-bottom: 20px;
-  backdrop-filter: blur(8px);
-}
-
-.pulse-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--color-primary-glow, #10b981);
-  box-shadow: 0 0 10px var(--color-primary-glow, #10b981);
-  animation: pulse 2s infinite ease-in-out;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.8; }
-}
-
-.hero-title {
-  font-family: var(--font-heading);
-  font-size: clamp(2.5rem, 4.4vw, 4rem);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  color: #ffffff;
-  margin-bottom: 28px;
-  text-transform: uppercase;
-}
-
-.hero-highlight {
-  color: #f8fafc;
-  display: inline-block;
-  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* Segmented Control */
-.class-selector-group {
-  margin-bottom: 28px;
-}
-
-.selector-label {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #94a3b8;
-  margin-bottom: 10px;
-  text-transform: uppercase;
-}
-
-.segmented-pill-container {
-  display: inline-flex;
-  align-items: center;
-  background: rgba(18, 26, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 9999px;
-  padding: 4px;
-  gap: 4px;
-  backdrop-filter: blur(12px);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-.segment-btn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  padding: 8px 18px;
-  border-radius: 9999px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 220ms cubic-bezier(0.4, 0, 0.2, 1);
-  user-select: none;
-  font-family: var(--font-heading);
-}
-
-.segment-btn:hover:not(.is-active) {
-  color: #f1f5f9;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.segment-btn.is-active {
-  background: var(--color-primary, #059669);
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
-}
-
-/* Specs Row */
-.hero-specs-row {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 32px;
-  padding: 16px 20px;
-  background: rgba(17, 26, 46, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  backdrop-filter: blur(10px);
-  max-width: 480px;
-}
-
-.spec-col {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.spec-label {
-  font-size: 0.78rem;
-  color: #94a3b8;
-  font-weight: 500;
-}
-
-.spec-value {
-  font-family: var(--font-heading);
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.01em;
-}
-
-.spec-value.price-text {
-  color: #34d399;
-}
-
-.spec-divider {
-  width: 1px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* Actions */
-.hero-quick-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.btn-hero-explore {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 26px;
-  background: linear-gradient(135deg, var(--color-primary, #059669) 0%, #047857 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 9999px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  font-family: var(--font-heading);
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.35);
-  transition: all 240ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-hero-explore:hover {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
-}
-
-.btn-hero-fleet {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #e2e8f0;
-  border-radius: 9999px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  transition: all 220ms ease;
-}
-
-.btn-hero-fleet:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-}
-
-/* Right Column (Visual) */
-.hero-visual {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  transform: translateX(60px);
-  transition: opacity 850ms cubic-bezier(0.2, 0.8, 0.2, 1),
-              transform 850ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.hero-visual.hero-entered {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* Floating Status Badge */
-.floating-badge {
-  position: absolute;
-  top: 12px;
-  right: 24px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
-  backdrop-filter: blur(14px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  z-index: 10;
-  animation: floatBadge 4s ease-in-out infinite;
-}
-
-@keyframes floatBadge {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
-.badge-dot {
-  width: 9px;
-  height: 9px;
-  background: #34d399;
-  border-radius: 50%;
-  box-shadow: 0 0 10px #34d399;
-}
-
-.badge-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.badge-text strong {
-  font-size: 0.8rem;
-  color: #ffffff;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.badge-text span {
-  font-size: 0.7rem;
-  color: #94a3b8;
-}
-
-/* Car Stage & Transition */
-.car-stage-wrapper {
-  position: relative;
-  width: 100%;
-  max-width: 760px;
-  min-height: 440px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.car-stage-item {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.hero-car-img {
-  width: 100%;
-  max-height: 430px;
-  object-fit: contain;
-  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.65));
-  transition: transform 300ms ease;
-  user-select: none;
-}
-
-.car-stage-item:hover .hero-car-img {
-  transform: scale(1.02);
-}
-
-.car-ground-shadow {
-  width: 78%;
-  height: 24px;
-  margin-top: -20px;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.35) 45%, transparent 75%);
-  filter: blur(8px);
-  pointer-events: none;
-}
-
-/* Animations */
-.specs-fade-enter-active,
-.specs-fade-leave-active {
-  transition: opacity 220ms ease, transform 220ms ease;
-}
-
-.specs-fade-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.specs-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-/* Right-to-Left Car Slide Animation */
-.car-slide-enter-active,
-.car-slide-leave-active {
-  transition: transform 550ms cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 450ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, opacity;
-}
-
-/* Xe mới lướt từ bên phải vào trung tâm */
-.car-slide-enter-from {
-  opacity: 0;
-  transform: translate(calc(-50% + 220px), -50%) scale(0.96);
-}
-
-.car-slide-enter-to {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
-
-.car-slide-leave-from {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
-
-/* Xe cũ lướt về bên trái và mờ dần */
-.car-slide-leave-to {
-  opacity: 0;
-  transform: translate(calc(-50% - 220px), -50%) scale(0.96);
-}
-
-/* Responsive */
-@media (max-width: 1080px) {
-  .hero-grid {
-    grid-template-columns: 1fr;
-    gap: 40px;
-    text-align: center;
-  }
-
-  .hero-eyebrow,
-  .class-selector-group,
-  .hero-specs-row,
-  .hero-quick-actions {
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .hero-specs-row {
-    justify-content: center;
-  }
-
-  .floating-badge {
-    right: 50%;
-    transform: translateX(50%);
-    animation: floatBadgeMobile 4s ease-in-out infinite;
-  }
-
-  @keyframes floatBadgeMobile {
-    0%, 100% { transform: translate(50%, 0); }
-    50% { transform: translate(50%, -6px); }
-  }
-
-  .car-stage-wrapper {
-    min-height: 340px;
-  }
-}
-
-@media (max-width: 640px) {
-  .hero-section {
-    padding: 100px 0 30px 0;
-  }
-
-  .segmented-pill-container {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .segment-btn {
-    padding: 6px 12px;
-    font-size: 0.8rem;
-  }
-
-  .hero-specs-row {
-    gap: 12px;
-    padding: 12px 14px;
-  }
-
-  .spec-value {
-    font-size: 0.95rem;
-  }
-
-  .spec-divider {
-    height: 24px;
-  }
-
-  .car-stage-wrapper {
-    min-height: 240px;
-  }
-
-  .floating-badge {
-    top: -24px;
-    padding: 6px 14px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-info,
-  .hero-visual,
-  .car-slide-enter-active,
-  .car-slide-leave-active,
-  .specs-fade-enter-active,
-  .specs-fade-leave-active {
-    transition: none !important;
-    animation: none !important;
-    transform: none !important;
-  }
-}
+.hero-section{position:relative;background:var(--bg-dark);color:#f8fafc;padding:138px 0 68px;isolation:isolate}
+.hero-section::before{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse at 72% 60%,rgba(5,150,105,.1),transparent 52%);pointer-events:none}
+.hero-container{max-width:1380px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.3fr);gap:22px;align-items:center;min-height:440px}
+.hero-info{position:relative;z-index:2;min-width:0;animation:info-reveal .7s both}
+.hero-eyebrow{display:flex;align-items:center;gap:9px;font-size:.64rem;letter-spacing:.14em;color:#a6bbb7;margin-bottom:25px}
+.hero-eyebrow span,.visual-note span{width:6px;height:6px;border-radius:50%;background:var(--color-primary-glow);flex-shrink:0}
+.hero-title{font-family:var(--font-heading);font-size:clamp(2.6rem,4.4vw,4.6rem);line-height:1.04;font-weight:800;letter-spacing:-.055em;color:#f8fafc;margin:0 0 18px}
+.hero-title>span{color:var(--color-primary-glow)}
+.hero-description{font-size:.85rem;color:#93a5ae;max-width:350px;margin-bottom:27px}
+.selector-label{display:block;font-size:.61rem;letter-spacing:.13em;color:#95a4af;margin-bottom:9px}
+.segmented-pill-container{position:relative;display:inline-flex;padding:4px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:40px;max-width:100%}
+.segment-indicator{position:absolute;top:4px;bottom:4px;left:0;border-radius:40px;background:var(--color-primary);transition:transform .32s cubic-bezier(.22,1,.36,1),width .32s,opacity .2s;pointer-events:none}
+.segment-btn{position:relative;background:transparent;border:0;color:#9babb5;font-size:.79rem;font-weight:600;padding:9px 19px;border-radius:40px;transition:color .2s}
+.segment-btn.is-active{color:white}.segment-btn:hover{color:white}
+.hero-specs-row{display:flex;gap:25px;margin-top:25px;min-height:56px;flex-wrap:wrap}
+.hero-specs-row>div{display:flex;flex-direction:column;gap:5px}
+.spec-label{color:#8fa0aa;font-size:.64rem}.hero-specs-row strong{font-family:var(--font-heading);font-size:1rem;font-weight:600;color:#e9f0f1}
+.hero-specs-row .price-text{color:#6ee7b7}.price-text small{font-size:.63rem;font-weight:400;margin-left:3px}
+.hero-quick-actions{display:flex;align-items:center;gap:22px;margin-top:24px;flex-wrap:wrap}
+.btn-hero-explore{display:flex;align-items:center;gap:22px;border-radius:40px;background:var(--color-primary);color:#fff;font-size:.8rem;font-weight:600;padding:12px 19px;transition:background .2s,transform .2s}
+.btn-hero-explore:hover{background:var(--color-primary-hover);transform:translateY(-2px)}
+.btn-hero-explore>span{font-size:1.1rem}.btn-hero-fleet{font-size:.77rem;color:#bdcbc9}.btn-hero-fleet span{margin-left:10px}
+.hero-visual{position:relative;min-width:0;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.visual-note{display:flex;align-items:center;gap:9px;align-self:flex-end;font-size:.65rem;color:#a3b3b7;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 13px;margin-bottom:8px}
+.car-stage-wrapper{position:relative;width:100%;aspect-ratio:1.7;isolation:isolate;overflow:clip;overflow-clip-margin:18px}
+.stage-halo{position:absolute;inset:17% 5% 2%;background:radial-gradient(ellipse,rgba(16,185,129,.07),transparent 65%);pointer-events:none}
+.stage-road{position:absolute;left:7%;right:2%;bottom:11%;height:1px;background:linear-gradient(90deg,transparent,rgba(167,243,208,.15),transparent)}
+.car-layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-origin:55% 78%}
+.car-suspension{width:100%;position:relative;z-index:1;transform-origin:60% 78%}
+.hero-car-img{width:100%;height:auto;max-height:390px;object-fit:contain;user-select:none;filter:drop-shadow(0 18px 12px rgba(0,0,0,.22))}
+.car-ground-shadow{position:absolute;bottom:12%;left:12%;width:79%;height:9%;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.8),transparent 70%);filter:blur(7px);transform-origin:center}
+.car-in{animation:vehicle-arrive .94s cubic-bezier(.16,1,.3,1) both;z-index:2}
+.car-out{animation:vehicle-depart .46s cubic-bezier(.55,0,.85,.36) both;z-index:1}
+.car-in .car-suspension{animation:body-settle .94s ease-out both}
+.car-in .car-ground-shadow{animation:shadow-settle .94s ease-out both}
+.stage-caption{display:flex;gap:16px;align-items:center;font-size:.58rem;letter-spacing:.07em;color:#849790;margin:0 5% 0 12%;min-height:20px}
+.stage-caption>span:first-child{color:#b5c5c0;white-space:nowrap}.caption-line{height:1px;background:rgba(255,255,255,.1);flex:1}
+.asset-error{font-size:.75rem;color:#fcd34d;text-align:center}.asset-error button{color:inherit;text-decoration:underline}
+@keyframes vehicle-arrive{0%{transform:translate3d(105%,8%,0);opacity:0}9%{opacity:1}65%{transform:translate3d(-1.6%,0,0)}82%{transform:translate3d(.5%,0,0)}100%{transform:translate3d(0,0,0);opacity:1}}
+@keyframes vehicle-depart{0%{transform:translate3d(0,0,0);opacity:1}35%{opacity:1}100%{transform:translate3d(-110%,2%,0);opacity:0}}
+@keyframes body-settle{0%,45%{transform:translateY(-3px) rotate(-.45deg)}68%{transform:translateY(2px) rotate(.22deg)}84%{transform:translateY(-1px) rotate(-.1deg)}100%{transform:none}}
+@keyframes shadow-settle{0%{opacity:.35;transform:scaleX(.88)}70%{opacity:.9;transform:scaleX(1.02)}100%{opacity:1;transform:scaleX(1)}}
+@keyframes info-reveal{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media(min-width:1600px){.hero-grid{min-height:480px}}
+@media(max-width:1000px){.hero-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:14px}.hero-title{font-size:clamp(2.4rem,4.5vw,3.5rem)}.hero-eyebrow{font-size:.55rem}.segment-btn{padding:9px 14px}.hero-specs-row{gap:17px}.visual-note{font-size:.58rem}.hero-section{padding-top:120px}}
+@media(max-width:700px){.hero-section{padding:108px 0 46px}.hero-grid{grid-template-columns:minmax(0,1fr);gap:15px}.hero-title{font-size:clamp(2.4rem,8.8vw,3.6rem)}.hero-description{margin-bottom:22px}.hero-eyebrow{margin-bottom:18px}.hero-visual{margin-top:4px}.visual-note{display:none}.car-stage-wrapper{aspect-ratio:1.9}.hero-specs-row{margin-top:21px;min-height:50px}.hero-quick-actions{margin-top:17px}.stage-caption{margin-top:0}.hero-car-img{max-height:280px}.segment-btn{padding:9px 18px}.hero-specs-row strong{font-size:.9rem}}
+@media(prefers-reduced-motion:reduce){.hero-info,.car-in,.car-out,.car-suspension,.car-ground-shadow{animation:none!important}.car-out{display:none}.segment-indicator{transition:none}}
 </style>

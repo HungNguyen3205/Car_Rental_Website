@@ -293,7 +293,7 @@ const formatPrice = (val) => {
 /* Cards Grid */
 .fleet-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 28px;
   margin-bottom: 50px;
 }

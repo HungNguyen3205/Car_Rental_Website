@@ -2,6 +2,7 @@
   <div class="home-page">
     <!-- A + B: Reference Hero Section -->
     <HomeHero
+      :cars="cars"
       @scroll-to-search="scrollToSearch"
       @category-change="onHeroCategoryChange"
     />
@@ -360,13 +361,8 @@ const scrollToSearch = () => {
   });
 };
 
-const onHeroCategoryChange = (cat) => {
-  // Can scroll down to fleet showcase
-  nextTick(() => {
-    const el = document.getElementById('fleet-showcase-section');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  });
-};
+// Category changes stay in the hero so the vehicle transition remains visible.
+const onHeroCategoryChange = () => {};
 
 // Data Fetching
 const fetchProvinces = async () => {
