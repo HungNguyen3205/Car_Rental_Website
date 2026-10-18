@@ -130,11 +130,14 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             Route::post('/status', [AdminRoleController::class, 'statusData']);
         });
 
-        // Quản lý yêu cầu liên hệ / hỗ trợ
+        // Quản lý yêu cầu liên hệ / hỗ trợ & tư vấn
         Route::group(['prefix' => 'contacts', 'middleware' => 'permission:bookings.view,admins.manage'], function () {
             Route::get('/', [\App\Http\Controllers\Admin\ContactController::class, 'index']);
+            Route::get('/staff-list', [\App\Http\Controllers\Admin\ContactController::class, 'getStaffList']);
             Route::get('/{id}', [\App\Http\Controllers\Admin\ContactController::class, 'show']);
             Route::put('/{id}/status', [\App\Http\Controllers\Admin\ContactController::class, 'updateStatus']);
+            Route::post('/{id}/assign', [\App\Http\Controllers\Admin\ContactController::class, 'assign']);
+            Route::post('/{id}/notes', [\App\Http\Controllers\Admin\ContactController::class, 'addNote']);
         });
 
         // Nhật ký kiểm toán thao tác (Audit Logs - Chỉ đọc)

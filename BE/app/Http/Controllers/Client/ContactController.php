@@ -36,9 +36,28 @@ class ContactController extends Controller
         try {
             $validated = $request->validated();
             $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
+            $userId = $user?->id;
+
+            // Nếu chưa đăng nhập, tự động liên kết với User trong hệ thống nếu khớp email hoặc SĐT
+            if (!$userId) {
+                $clientEmail = strtolower(trim($validated['email']));
+                $clientPhone = !empty($validated['so_dien_thoai']) ? trim($validated['so_dien_thoai']) : null;
+
+                $matchedUser = \App\Models\User::where('email', $clientEmail)
+                    ->when($clientPhone, function ($q) use ($clientPhone) {
+                        $q->orWhere('so_dien_thoai', $clientPhone);
+                    })->first();
+
+                if ($matchedUser) {
+                    $userId = $matchedUser->id;
+                }
+            }
+
+            $carId = $validated['car_id'] ?? null;
 
             $contact = Contact::create([
-                'user_id'       => $user?->id,
+                'user_id'       => $userId,
+                'car_id'        => $carId,
                 'ho_ten'        => trim($validated['ho_ten']),
                 'email'         => strtolower(trim($validated['email'])),
                 'so_dien_thoai' => isset($validated['so_dien_thoai']) ? trim($validated['so_dien_thoai']) : null,

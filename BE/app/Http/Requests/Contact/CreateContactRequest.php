@@ -14,6 +14,7 @@ class CreateContactRequest extends BaseApiRequest
             'so_dien_thoai' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\s\-().]{8,20}$/'],
             'tieu_de'       => ['required', 'string', 'min:3', 'max:200'],
             'noi_dung'      => ['required', 'string', 'min:5', 'max:3000'],
+            'car_id'        => ['nullable', 'integer', 'exists:cars,id'],
         ];
     }
 
