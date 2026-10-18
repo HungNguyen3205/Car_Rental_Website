@@ -50,9 +50,9 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
     // Admin Group
     Route::group(['prefix' => 'admin', 'middleware' => 'auth:admin'], function () {
         
-        // Báo cáo & Thống kê
+        // Báo cáo & Thống kê Dashboard
         Route::get('/statistics', [AdminDashboardController::class, 'getStatistics'])
-            ->middleware('permission:reports.view');
+            ->middleware('permission:reports.view,bookings.view,cars.manage,handovers.manage,payments.manage');
         Route::get('/calendar/schedule', [AdminCarCalendarController::class, 'getSchedule'])
             ->middleware('permission:bookings.view,cars.manage');
 

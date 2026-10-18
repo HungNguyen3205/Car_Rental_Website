@@ -1747,10 +1747,12 @@
 
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import baseRequest from '../../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 
 const toaster = createToaster({ position: "top-right" });
+const route = useRoute();
 
 const bookings = ref([]);
 const loading = ref(true);
@@ -1772,36 +1774,15 @@ const handleExportCsv = async () => {
       }
     }
 
-    const token = localStorage.getItem('token_admin') || localStorage.getItem('token_client');
-    const response = await fetch(`/api/admin/bookings/export?${params.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'text/csv',
-      }
-    });
-
-    if (!response.ok) {
-      if (response.status === 403) {
-        toaster.error("Bạn không có quyền xuất dữ liệu đơn đặt xe!");
-      } else {
-        toaster.error("Có lỗi xảy ra khi xuất file CSV!");
-      }
-      return;
-    }
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `danh_sach_don_dat_xe_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
+    const filename = `danh_sach_don_dat_xe_${new Date().toISOString().slice(0, 10)}.csv`;
+    await baseRequest.downloadFile(`admin/bookings/export?${params.toString()}`, filename);
     toaster.success("Xuất file CSV thành công!");
   } catch (err) {
-    toaster.error("Không thể kết nối đến máy chủ để tải file!");
+    if (err.response?.status === 403) {
+      toaster.error("Bạn không có quyền xuất dữ liệu đơn đặt xe!");
+    } else {
+      toaster.error("Không thể kết nối đến máy chủ để tải file!");
+    }
   } finally {
     exporting.value = false;
   }
@@ -2659,6 +2640,15 @@ const handleKeyDown = (e) => {
 };
 
 onMounted(() => {
+  if (route.query.search) {
+    searchQuery.value = String(route.query.search);
+  }
+  if (route.query.status !== undefined && route.query.status !== '') {
+    filterStatus.value = String(route.query.status);
+  }
+  if (route.query.payment !== undefined && route.query.payment !== '') {
+    filterPayment.value = String(route.query.payment);
+  }
   fetchBookings();
   window.addEventListener('keydown', handleKeyDown);
 });

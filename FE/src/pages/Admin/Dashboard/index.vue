@@ -1,42 +1,103 @@
 <template>
   <div class="dashboard-page">
-    <!-- Header info removed or simplified as TopAdmin has the title -->
-    <section class="welcome-banner card">
-      <div class="welcome-text">
-        <h2 class="welcome-title">Chào mừng trở lại, <span>Admin</span></h2>
-        <p>Hệ thống đang hoạt động ổn định. Đây là tổng quan hoạt động trong ngày.</p>
-      </div>
-      <div class="welcome-actions" style="display: flex; gap: 12px; align-items: center;">
-        <button 
-          class="btn-export-csv" 
-          @click="handleExportRevenueReport" 
-          :disabled="exportingReport"
-          title="Xuất báo cáo doanh thu tài chính ra file CSV UTF-8"
-        >
-          <i class="fa-solid fa-file-csv" :class="{ 'fa-spin': exportingReport }"></i>
-          <span>{{ exportingReport ? 'Đang xuất...' : 'Xuất Báo Cáo (CSV)' }}</span>
-        </button>
-        <div class="current-date">
-          <i class="fa-solid fa-calendar-check"></i>
-          <span>{{ todayDate }}</span>
+    <!-- 1. Header Trung Tâm Điều Hành -->
+    <header class="ops-header card">
+      <div class="header-left">
+        <div class="header-badge">
+          <span class="pulse-dot"></span>
+          <span>Trung Tâm Điều Hành Thuê Xe</span>
         </div>
+        <h1 class="header-title">Tổng Quan <span>Vận Hành Đội Xe</span></h1>
+        <p class="header-subtitle">
+          Giám sát lịch trình giao nhận xe, xử lý yêu cầu tức thời và theo dõi dòng tiền minh bạch.
+        </p>
       </div>
-    </section>
 
-    <!-- Pending Bookings Alert -->
-    <div v-if="stats.summary?.pending_bookings > 0" class="pending-alert-banner">
-      <div class="alert-content">
-        <div class="alert-icon">
-          <i class="fa-solid fa-bell bell-shake"></i>
+      <div class="header-controls">
+        <!-- Bộ lọc ngày thống nhất -->
+        <div class="filter-bar">
+          <div class="preset-buttons">
+            <button 
+              v-for="p in datePresets" 
+              :key="p.id" 
+              type="button" 
+              class="btn-preset" 
+              :class="{ active: selectedPreset === p.id }"
+              @click="applyPreset(p.id)"
+            >
+              {{ p.label }}
+            </button>
+          </div>
+
+          <!-- Tùy chọn ngày nếu chọn 'custom' -->
+          <div v-if="selectedPreset === 'custom'" class="custom-dates">
+            <input 
+              type="date" 
+              v-model="customStartDate" 
+              class="date-input" 
+              title="Từ ngày"
+            />
+            <span class="date-sep">→</span>
+            <input 
+              type="date" 
+              v-model="customEndDate" 
+              class="date-input" 
+              title="Đến ngày"
+            />
+            <button class="btn-apply-date" @click="fetchStats" type="button">
+              Áp dụng
+            </button>
+          </div>
+
+          <!-- Trục ngày -->
+          <div class="dimension-picker">
+            <select v-model="selectedDateBy" @change="fetchStats" class="dimension-select" title="Trục phân bổ thời gian">
+              <option value="payment_date">Trục: Ngày thanh toán</option>
+              <option value="booking_date">Trục: Ngày đặt xe</option>
+            </select>
+          </div>
         </div>
-        <div class="alert-text">
-          <h3>Chú ý: Có {{ stats.summary?.pending_bookings }} đơn đặt xe đang chờ xác nhận!</h3>
-          <p>Vui lòng kiểm tra mục Đơn đặt xe và phản hồi khách hàng sớm nhất có thể.</p>
+
+        <!-- Các nút thao tác Header -->
+        <div class="action-buttons">
+          <button 
+            class="btn-action-refresh" 
+            @click="fetchStats" 
+            :disabled="loadingStats"
+            title="Làm mới dữ liệu toàn hệ thống"
+          >
+            <i class="fa-solid fa-rotate-right" :class="{ 'fa-spin': loadingStats }"></i>
+            <span>{{ loadingStats ? 'Đang tải...' : 'Làm mới' }}</span>
+          </button>
+
+          <button 
+            v-if="canViewFinancial"
+            class="btn-action-export" 
+            @click="handleExportCsv" 
+            :disabled="exportingReport"
+            title="Xuất báo cáo doanh thu tài chính theo bộ lọc hiện tại (CSV UTF-8)"
+          >
+            <i class="fa-solid fa-file-csv" :class="{ 'fa-spin': exportingReport }"></i>
+            <span>{{ exportingReport ? 'Đang xuất...' : 'Xuất CSV' }}</span>
+          </button>
         </div>
       </div>
-      <router-link to="/admin/bookings" class="btn-alert">
-        Xử lý ngay <i class="fa-solid fa-arrow-right"></i>
-      </router-link>
+    </header>
+
+    <!-- Scope Disclosure Banner -->
+    <div class="scope-notice">
+      <div class="notice-left">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>
+          <strong>Phạm vi báo cáo:</strong> Số liệu doanh thu và GMV phản ánh trong 
+          <strong>{{ currentRangeLabel }}</strong> ({{ selectedDateBy === 'payment_date' ? 'theo ngày thanh toán' : 'theo ngày đặt xe' }}). 
+          Các chỉ số giao nhận, việc cần xử lý và hiện trạng xe phản ánh <strong>thời điểm hiện tại</strong>.
+        </span>
+      </div>
+      <div class="notice-time">
+        <i class="fa-regular fa-clock"></i>
+        <span>{{ currentTimeStr }}</span>
+      </div>
     </div>
 
     <!-- Stats Error Notice with Retry -->
@@ -50,92 +111,306 @@
       </button>
     </div>
 
-    <!-- Stats Cards -->
-    <section class="stats-grid">
-      <div class="stat-card card revenue">
-        <div class="stat-icon">
-          <i class="fa-solid fa-money-bill-trend-up"></i>
+    <!-- 2. Hàng KPI Ưu Tiên Vận Hành -->
+    <section class="kpi-grid">
+      <!-- KPI 1: Đơn chờ duyệt -->
+      <div class="kpi-card pending-card pointer" @click="navigateToBookings('status=0')" title="Bấm để mở danh sách đơn chờ duyệt">
+        <div class="kpi-icon-wrap amber">
+          <i class="fa-solid fa-clock-rotate-left"></i>
         </div>
-        <div class="stat-info">
-          <div class="stat-title-row">
-            <span class="stat-label">Doanh thu đã thanh toán</span>
-            <span class="stat-badge-method" title="Số liệu dựa trên biên lai và duyệt đối soát thủ công">Duyệt biên lai</span>
+        <div class="kpi-body">
+          <span class="kpi-label">Đơn chờ duyệt</span>
+          <div class="kpi-value-row">
+            <h2 class="kpi-value">{{ stats.summary?.pending_bookings || 0 }}</h2>
+            <span v-if="(stats.summary?.pending_bookings || 0) > 0" class="kpi-badge urgent">Cần xử lý</span>
+            <span v-else class="kpi-badge ok">Ổn định</span>
           </div>
-          <h2 class="stat-value">{{ formatCurrency(stats.summary?.valid_paid_revenue || stats.summary?.total_revenue || 0) }}</h2>
-          <div class="stat-sub-metrics">
-            <span title="Tổng giá trị toàn bộ đơn được tạo (GMV)">GMV: {{ formatCurrency(stats.summary?.total_booking_value || 0) }}</span>
-            <span v-if="stats.summary?.total_deposit_held > 0" class="sub-metric-deposit" title="Tiền cọc bảo đảm đang ký quỹ (tách biệt doanh thu thuê xe)">
-              • Cọc giữ: {{ formatCurrency(stats.summary?.total_deposit_held) }}
+          <span class="kpi-subtext">Đơn đặt mới đang chờ nhân viên xác nhận</span>
+        </div>
+      </div>
+
+      <!-- KPI 2: Giao xe hôm nay -->
+      <div class="kpi-card delivery-card pointer" @click="navigateToBookings('status=1')" title="Bấm để mở danh sách giao xe">
+        <div class="kpi-icon-wrap emerald">
+          <i class="fa-solid fa-key"></i>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-label">Giao xe hôm nay</span>
+          <div class="kpi-value-row">
+            <h2 class="kpi-value">{{ stats.summary?.deliveries_today || 0 }}</h2>
+            <span class="kpi-badge info">Lịch hẹn</span>
+          </div>
+          <span class="kpi-subtext">
+            Chờ giao: <strong>{{ stats.summary?.deliveries_pending || 0 }}</strong> • Đã bàn giao: <strong>{{ stats.summary?.deliveries_completed || 0 }}</strong>
+          </span>
+        </div>
+      </div>
+
+      <!-- KPI 3: Nhận trả hôm nay -->
+      <div class="kpi-card return-card pointer" @click="navigateToBookings('status=3')" title="Bấm để mở danh sách xe đang thuê">
+        <div class="kpi-icon-wrap sky">
+          <i class="fa-solid fa-car-side"></i>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-label">Nhận trả hôm nay</span>
+          <div class="kpi-value-row">
+            <h2 class="kpi-value">{{ stats.summary?.returns_today || 0 }}</h2>
+            <span class="kpi-badge sky">Dự kiến</span>
+          </div>
+          <span class="kpi-subtext">
+            Đang lưu hành: <strong>{{ stats.summary?.returns_pending || 0 }}</strong> • Đã nhận: <strong>{{ stats.summary?.returns_received || 0 }}</strong>
+          </span>
+        </div>
+      </div>
+
+      <!-- KPI 4: Thực thu tiền thuê (hoặc Tỷ lệ xe sẵn sàng nếu không có quyền tài chính) -->
+      <div v-if="canViewFinancial" class="kpi-card revenue-card">
+        <div class="kpi-icon-wrap green">
+          <i class="fa-solid fa-sack-dollar"></i>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label-row">
+            <span class="kpi-label">Thực thu thuê xe</span>
+            <span class="kpi-badge-reconciled" title="Tiền thuê đã đối soát sau trừ hoàn tiền (không bao gồm tiền cọc)">Thực thu</span>
+          </div>
+          <div class="kpi-value-row">
+            <h2 class="kpi-value highlight">
+              {{ formatCurrency(stats.summary?.net_rental_collected ?? stats.summary?.valid_paid_revenue ?? 0) }}
+            </h2>
+          </div>
+          <div class="kpi-finance-breakdown">
+            <span title="Tổng giá trị đơn được tạo trong kỳ (GMV)">
+              GMV: <strong>{{ formatCurrency(stats.summary?.total_booking_value || 0) }}</strong>
             </span>
-            <span v-if="stats.summary?.refund_review_value > 0" class="sub-metric-refund" title="Đơn đã hủy nhưng đã thu tiền, cần xử lý hoàn tiền">
-              • Chờ hoàn: {{ formatCurrency(stats.summary?.refund_review_value) }}
-            </span>
-            <span v-else class="sub-metric-unpaid" title="Đơn đã duyệt xe nhưng chưa thanh toán">
-              • Chờ thu: {{ formatCurrency(stats.summary?.unpaid_confirmed_value || 0) }}
+            <span class="deposit-pill" title="Tiền cọc bảo đảm đang ký quỹ tính đến mốc báo cáo (tách biệt doanh thu thuê)">
+              • Cọc giữ: <strong>{{ formatCurrency(stats.summary?.total_deposit_held || 0) }}</strong>
             </span>
           </div>
         </div>
       </div>
 
-      <div class="stat-card card bookings">
-        <div class="stat-icon">
-          <i class="fa-solid fa-calendar-check"></i>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">Tổng đơn đặt xe</span>
-          <h2 class="stat-value">{{ stats.summary?.total_bookings || 0 }}</h2>
-          <span class="stat-change"><i class="fa-solid fa-clock"></i> {{ stats.summary?.pending_bookings || 0 }} đơn đang chờ duyệt</span>
-        </div>
-      </div>
-
-      <div class="stat-card card cars">
-        <div class="stat-icon">
+      <!-- KPI 4 (Dành cho Điều phối viên không có quyền tài chính): Tỷ lệ xe sẵn sàng -->
+      <div v-else class="kpi-card fleet-card">
+        <div class="kpi-icon-wrap indigo">
           <i class="fa-solid fa-car"></i>
         </div>
-        <div class="stat-info">
-          <span class="stat-label">Phương tiện sẵn có</span>
-          <h2 class="stat-value">{{ stats.summary?.available_cars || 0 }}/{{ stats.summary?.total_cars || 0 }}</h2>
-          <span class="stat-change"><i class="fa-solid fa-wrench"></i> {{ (Number(stats.summary?.total_cars || 0) - Number(stats.summary?.available_cars || 0)) }} xe đang bảo trì</span>
-        </div>
-      </div>
-
-      <div class="stat-card card users">
-        <div class="stat-icon">
-          <i class="fa-solid fa-users"></i>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">Khách hàng hệ thống</span>
-          <h2 class="stat-value">{{ stats.summary?.total_users || 0 }}</h2>
-          <span class="stat-change"><i class="fa-solid fa-user-check"></i> Tài khoản khách hàng kích hoạt</span>
+        <div class="kpi-body">
+          <span class="kpi-label">Tỷ lệ xe sẵn sàng</span>
+          <div class="kpi-value-row">
+            <h2 class="kpi-value highlight">{{ stats.fleet_breakdown?.available_rate || stats.summary?.available_rate || 0 }}%</h2>
+            <span class="kpi-badge ok">Điều phối</span>
+          </div>
+          <span class="kpi-subtext">
+            <strong>{{ stats.fleet_breakdown?.available_cars || 0 }}</strong> xe sẵn sàng trên tổng <strong>{{ stats.fleet_breakdown?.total_cars || 0 }}</strong> xe
+          </span>
         </div>
       </div>
     </section>
 
-    <!-- Operational Method Disclosure -->
-    <div class="revenue-method-notice">
-      <i class="fa-solid fa-circle-info"></i>
-      <span><strong>Quy chuẩn tài chính:</strong> Doanh thu phản ánh tiền thuê xe thực tế sau đối soát; tiền cọc bảo đảm (<strong class="text-cyan">{{ formatCurrency(stats.summary?.total_deposit_held || 0) }}</strong>) được quản lý ký quỹ độc lập, tuyệt đối không tính vào doanh thu thuê. Đơn hủy đã thu tiền được bóc tách sang mục chờ xử lý hoàn tiền.</span>
-    </div>
+    <!-- 3. Khối Việc Cần Xử Lý Ngay (Action Center) -->
+    <section class="action-center card">
+      <div class="section-header">
+        <div class="title-with-badge">
+          <i class="fa-solid fa-bolt-lightning text-amber"></i>
+          <h3>Việc Cần Xử Lý Ngay</h3>
+          <span v-if="totalActionCount > 0" class="badge-count-urgent">{{ totalActionCount }}</span>
+          <span v-else class="badge-count-ok">Tất cả ổn định</span>
+        </div>
+        <p class="section-sub">
+          Các yêu cầu và cảnh báo vận hành cần nhân viên can thiệp xử lý kịp thời.
+        </p>
+      </div>
 
-    <!-- Charts Section -->
-    <section class="charts-section">
-      <!-- Revenue Chart Card -->
-      <div class="chart-card card">
+      <div class="action-grid">
+        <!-- Action Item 1: Xe quá hạn trả -->
+        <div class="action-card overdue" :class="{ 'has-alerts': (stats.operational_actions?.overdue_returns || 0) > 0 }">
+          <div class="action-card-header">
+            <div class="action-card-title">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Xe quá hạn trả</span>
+            </div>
+            <span class="action-count-pill red">{{ stats.operational_actions?.overdue_returns || 0 }} xe</span>
+          </div>
+          <p class="action-desc">
+            Xe đang cho thuê nhưng đã vượt quá giờ hẹn kết thúc hợp đồng theo lịch.
+          </p>
+
+          <!-- Danh sách xe quá hạn nếu có -->
+          <div v-if="(stats.operational_actions?.overdue_bookings || []).length > 0" class="overdue-list">
+            <div 
+              v-for="b in stats.operational_actions.overdue_bookings" 
+              :key="b.id" 
+              class="overdue-item pointer"
+              @click="navigateToBookings(`search=${b.ma_dat_xe}`)"
+              title="Bấm để xem chi tiết đơn"
+            >
+              <div class="overdue-car-info">
+                <strong>{{ b.car_name }}</strong>
+                <span class="code">#{{ b.ma_dat_xe }}</span>
+              </div>
+              <div class="overdue-customer">
+                <span>{{ b.user_name }}</span>
+                <a v-if="b.user_phone" :href="'tel:' + b.user_phone" class="phone-link" @click.stop title="Gọi điện">
+                  <i class="fa-solid fa-phone"></i> {{ b.user_phone }}
+                </a>
+              </div>
+              <div class="overdue-time-tag">
+                <i class="fa-regular fa-clock"></i>
+                <span>Trễ +{{ b.hours_overdue }}h</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="action-empty">
+            <i class="fa-solid fa-circle-check text-emerald"></i>
+            <span>Không có xe nào quá hạn trả</span>
+          </div>
+        </div>
+
+        <!-- Action Item 2: Biên lai chờ đối soát -->
+        <div class="action-card receipts" :class="{ 'has-alerts': (stats.operational_actions?.pending_receipts || 0) > 0 }">
+          <div class="action-card-header">
+            <div class="action-card-title">
+              <i class="fa-solid fa-receipt"></i>
+              <span>Biên lai chờ duyệt</span>
+            </div>
+            <span class="action-count-pill amber">{{ stats.operational_actions?.pending_receipts || 0 }} đơn</span>
+          </div>
+          <p class="action-desc">
+            Khách hàng đã chuyển khoản và tải ảnh biên lai lên, đang chờ kế toán đối soát xác nhận.
+          </p>
+          <div class="action-footer">
+            <button class="btn-action-link" @click="navigateToBookings('payment=verifying')">
+              <span>Mở danh sách đối soát</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Item 3: Yêu cầu tư vấn mới -->
+        <div class="action-card inquiries" :class="{ 'has-alerts': (stats.operational_actions?.new_contacts || 0) > 0 }">
+          <div class="action-card-header">
+            <div class="action-card-title">
+              <i class="fa-solid fa-comments"></i>
+              <span>Yêu cầu tư vấn mới</span>
+            </div>
+            <span class="action-count-pill sky">{{ stats.operational_actions?.new_contacts || 0 }} yêu cầu</span>
+          </div>
+          <p class="action-desc">
+            Tin nhắn liên hệ, yêu cầu báo giá hoặc tư vấn dịch vụ gửi qua biểu mẫu liên hệ chưa xử lý.
+          </p>
+          <div class="action-footer">
+            <router-link to="/admin/contacts" class="btn-action-link">
+              <span>Xem liên hệ & tư vấn</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Tổng Quan Đội Xe (Fleet Overview Bar) -->
+    <section class="fleet-overview card">
+      <div class="section-header flex-between">
+        <div>
+          <h3>Hiện Trạng Đội Xe</h3>
+          <p class="section-sub">
+            Phân định rõ xe sẵn sàng theo lịch, xe đang cho thuê và xe bảo trì tại thời điểm hiện tại.
+          </p>
+        </div>
+        <router-link to="/admin/cars" class="btn-text">
+          Quản lý đội xe <i class="fa-solid fa-arrow-right"></i>
+        </router-link>
+      </div>
+
+      <!-- Thanh trạng thái tỷ lệ đa màu -->
+      <div class="fleet-progress-track">
+        <div 
+          class="segment available" 
+          :style="{ width: availablePercent + '%' }"
+          :title="`Sẵn sàng: ${stats.fleet_breakdown?.available_cars || 0} xe (${availablePercent}%)`"
+        ></div>
+        <div 
+          class="segment renting" 
+          :style="{ width: rentingPercent + '%' }"
+          :title="`Đang lưu hành: ${stats.fleet_breakdown?.renting_cars || 0} xe (${rentingPercent}%)`"
+        ></div>
+        <div 
+          class="segment maintenance" 
+          :style="{ width: maintenancePercent + '%' }"
+          :title="`Bảo trì/Tạm dừng: ${stats.fleet_breakdown?.maintenance_cars || 0} xe (${maintenancePercent}%)`"
+        ></div>
+      </div>
+
+      <!-- Thẻ chú thích 3 nhóm -->
+      <div class="fleet-legend-grid">
+        <div class="legend-card">
+          <div class="legend-header">
+            <span class="legend-dot dot-emerald"></span>
+            <span class="legend-name">Sẵn sàng theo lịch</span>
+          </div>
+          <div class="legend-value-row">
+            <span class="legend-count">{{ stats.fleet_breakdown?.available_cars || 0 }}</span>
+            <span class="legend-unit">xe ({{ availablePercent }}%)</span>
+          </div>
+          <span class="legend-note">Không trùng lịch thuê, sẵn sàng phục vụ khách</span>
+        </div>
+
+        <div class="legend-card">
+          <div class="legend-header">
+            <span class="legend-dot dot-sky"></span>
+            <span class="legend-name">Đang lưu hành (Cho thuê)</span>
+          </div>
+          <div class="legend-value-row">
+            <span class="legend-count">{{ stats.fleet_breakdown?.renting_cars || 0 }}</span>
+            <span class="legend-unit">xe ({{ rentingPercent }}%)</span>
+          </div>
+          <span class="legend-note">Hợp đồng đang chạy hoặc đã giao khách</span>
+        </div>
+
+        <div class="legend-card">
+          <div class="legend-header">
+            <span class="legend-dot dot-amber"></span>
+            <span class="legend-name">Bảo trì & Tạm ngưng</span>
+          </div>
+          <div class="legend-value-row">
+            <span class="legend-count">{{ stats.fleet_breakdown?.maintenance_cars || 0 }}</span>
+            <span class="legend-unit">xe ({{ maintenancePercent }}%)</span>
+          </div>
+          <span class="legend-note">Đang kiểm định, bảo dưỡng hoặc tạm ẩn</span>
+        </div>
+
+        <div class="legend-card summary-box">
+          <div class="legend-header">
+            <span class="legend-dot dot-gray"></span>
+            <span class="legend-name">Quy mô toàn đội xe</span>
+          </div>
+          <div class="legend-value-row">
+            <span class="legend-count">{{ stats.fleet_breakdown?.total_cars || 0 }}</span>
+            <span class="legend-unit">xe</span>
+          </div>
+          <span class="legend-note">Tỷ lệ khả dụng: {{ stats.fleet_breakdown?.available_rate || 0 }}%</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Biểu Đồ Thu Tiền Thực Tế -->
+    <section class="chart-section">
+      <!-- Biểu đồ thu tiền thực tế (Nếu có quyền tài chính) -->
+      <div v-if="canViewFinancial" class="chart-card card">
         <div class="chart-header flex-between">
           <div>
-            <h3>Xu hướng doanh thu (6 tháng gần nhất)</h3>
+            <div class="chart-title-wrap">
+              <h3>Dòng Tiền Thu Thực Tế</h3>
+              <span class="granularity-tag">
+                {{ stats.chart_granularity === 'daily' ? 'Thống kê theo ngày' : 'Thống kê theo tháng' }}
+              </span>
+            </div>
             <p class="chart-sub">
-              {{ selectedDateBy === 'payment_date' ? 'Dữ liệu phân bổ theo ngày xác nhận thanh toán thực tế (payment_confirmed_at)' : 'Dữ liệu phân bổ theo ngày đặt đơn (created_at)' }}
+              {{ selectedDateBy === 'payment_date' ? 'Dữ liệu phân bổ theo ngày xác nhận thanh toán thực tế (chuẩn đối soát)' : 'Dữ liệu phân bổ theo ngày đặt đơn' }}
             </p>
           </div>
-          <div class="chart-filters">
-            <div class="date-by-select-wrap">
-              <label for="date-by-select"><i class="fa-solid fa-calendar-days"></i> Trục lọc:</label>
-              <select id="date-by-select" v-model="selectedDateBy" @change="fetchStats" class="select-dimension">
-                <option value="payment_date">Ngày thanh toán (Chuẩn)</option>
-                <option value="booking_date">Ngày đặt xe</option>
-              </select>
-            </div>
+          <div class="chart-unit-badge">
+            <span>Đơn vị: VNĐ</span>
           </div>
         </div>
 
@@ -143,131 +418,142 @@
         <div v-if="selectedDateBy === 'payment_date' && stats.legacy_undated && stats.legacy_undated.count > 0" class="legacy-undated-banner">
           <i class="fa-solid fa-clock-rotate-left"></i>
           <div>
-            <strong>Dữ liệu lịch sử:</strong> Có {{ stats.legacy_undated.count }} đơn đã thanh toán ({{ formatCurrency(stats.legacy_undated.total) }}) trước khi hệ thống lưu mốc ngày xác nhận. Số tiền này được bảo toàn trong tổng doanh thu nhưng không gán vào cột tháng để tránh bịa đặt ngày thu tiền.
+            <strong>Dữ liệu lịch sử:</strong> Có {{ stats.legacy_undated.count }} đơn đã thanh toán ({{ formatCurrency(stats.legacy_undated.total) }}) trước khi hệ thống lưu mốc ngày xác nhận. Số tiền này được bảo toàn trong tổng doanh thu nhưng không gán vào cột để tránh sai lệch mốc thời gian.
           </div>
         </div>
 
+        <!-- Biểu đồ cột CSS Bars -->
         <div class="chart-container">
           <div v-if="stats.revenue_chart && stats.revenue_chart.length > 0" class="bar-chart">
             <div v-for="(item, index) in stats.revenue_chart" :key="index" class="bar-wrapper">
               <div 
-                class="bar" 
-                :style="{ height: Math.max(((item.valid_paid_revenue ?? item.total) / maxRevenue * 100), 4) + '%' }"
-                :title="item.month + ': ' + formatCurrency(item.valid_paid_revenue ?? item.total)"
+                class="bar-track"
+                :title="`${item.label || item.month}: ${formatCurrency(item.valid_paid_revenue ?? item.total)}`"
               >
-                <span class="bar-tooltip">{{ formatCurrency(item.valid_paid_revenue ?? item.total) }}</span>
+                <div 
+                  class="bar-fill" 
+                  :style="{ height: getBarHeightPercent(item) + '%' }"
+                >
+                  <span class="bar-tooltip">{{ formatCurrency(item.valid_paid_revenue ?? item.total) }}</span>
+                </div>
               </div>
-              <span class="bar-label">{{ item.month }}</span>
+              <span class="bar-label">{{ item.label || item.month }}</span>
             </div>
           </div>
           <div v-else class="empty-chart">
             <i class="fa-solid fa-chart-column"></i>
-            <p>Chưa có dữ liệu doanh thu tháng này</p>
+            <p>Không có dữ liệu phát sinh trong khoảng thời gian đã chọn</p>
           </div>
         </div>
       </div>
 
-      <!-- Status Distribution Card -->
-      <div class="chart-card card distribution">
-        <div class="chart-header">
-          <h3>Phân bổ trạng thái đơn</h3>
-        </div>
-        <div class="status-list" v-if="stats.status_distribution && stats.status_distribution.length > 0">
-          <div class="status-item" v-for="s in stats.status_distribution" :key="s.tinh_trang">
-            <div class="status-info">
-              <span class="status-dot" :class="'status-' + s.tinh_trang"></span>
-              <span class="status-name">{{ getStatusLabel(s.tinh_trang) }}</span>
-            </div>
-            <span class="status-count">{{ s.count }}</span>
+      <!-- Nếu không có quyền tài chính: Thông báo dành riêng cho Điều phối viên -->
+      <div v-else class="chart-card card dispatcher-notice-card">
+        <div class="dispatcher-notice-content">
+          <div class="notice-icon">
+            <i class="fa-solid fa-user-shield"></i>
           </div>
-        </div>
-        <div v-else class="empty-chart">
-          <p>Chưa có dữ liệu phân bổ đơn</p>
+          <h3>Chế Độ Điều Phối Vận Hành</h3>
+          <p>
+            Bạn đang đăng nhập với vai trò Điều Phối Viên. Phân hệ tài chính và biểu đồ doanh thu chỉ hiển thị cho Kế Toán và Chủ Hệ Thống.
+          </p>
+          <div class="dispatcher-quick-actions">
+            <router-link to="/admin/bookings" class="btn-dispatcher">
+              <i class="fa-solid fa-calendar-check"></i> Xử lý đơn đặt xe
+            </router-link>
+            <router-link to="/admin/cars" class="btn-dispatcher secondary">
+              <i class="fa-solid fa-car-side"></i> Quản lý đội xe
+            </router-link>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Recent Bookings Section -->
+    <!-- 6. Bảng 5 Đơn Đặt Xe Gần Đây -->
     <section class="recent-bookings-section">
-        <div class="card glass">
-            <div class="card-header flex justify-between items-center mb-6">
-                <div>
-                  <h3 style="font-size: 1.25rem; font-weight: 800; font-family: var(--font-heading);">Đơn đặt xe gần đây</h3>
-                  <p style="color: var(--color-text-muted); font-size: 0.85rem; margin-top: 2px;">5 giao dịch mới nhất nhận từ khách hàng</p>
-                </div>
-                <router-link to="/admin/bookings" class="btn-text">
-                  Xem tất cả đơn <i class="fa-solid fa-arrow-right"></i>
-                </router-link>
-            </div>
-            <div class="table-responsive">
-                <!-- API Error State with Retry -->
-                <div v-if="bookingsError" class="bookings-error-box" style="padding: 40px; text-align: center;">
-                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 2.2rem; color: #ef4444; margin-bottom: 12px;"></i>
-                    <h4 style="font-size: 1.1rem; font-weight: 700; color: var(--color-text-main); margin-bottom: 6px;">Không thể tải danh sách đơn</h4>
-                    <p style="color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 16px;">{{ bookingsError }}</p>
-                    <button class="btn-retry-primary" @click="fetchRecentBookings" type="button">
-                      <i class="fa-solid fa-rotate-right"></i> Thử lại
-                    </button>
-                </div>
-
-                <!-- Loading State -->
-                <div v-else-if="loadingBookings" style="padding: 30px; text-align: center;">
-                    <div class="skeleton-shimmer" style="height: 48px; border-radius: 8px; margin-bottom: 8px;"></div>
-                    <div class="skeleton-shimmer" style="height: 48px; border-radius: 8px;"></div>
-                </div>
-
-                <!-- Table Data State -->
-                <table class="premium-table" v-else-if="recentBookings.length > 0">
-                    <thead>
-                        <tr>
-                            <th>Mã đơn</th>
-                            <th>Khách hàng</th>
-                            <th>Xe</th>
-                            <th>Ngày đặt</th>
-                            <th>Tổng tiền</th>
-                            <th>Trạng thái thuê</th>
-                            <th>Thanh toán</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="booking in recentBookings" :key="booking.id">
-                            <td><span class="code-badge">#{{ booking.ma_dat_xe }}</span></td>
-                            <td>
-                                <div class="user-cell">
-                                    <div class="avatar-sm">{{ (booking.user_name || booking.ho_ten || 'K').charAt(0).toUpperCase() }}</div>
-                                    <span>{{ booking.user_name || booking.ho_ten || 'Khách hàng' }}</span>
-                                </div>
-                            </td>
-                            <td>{{ booking.car_name || booking.ten_xe || 'Xe hệ thống' }}</td>
-                            <td>{{ formatDate(booking.created_at) }}</td>
-                            <td class="font-bold">{{ formatCurrency(booking.tong_tien) }}</td>
-                            <td>
-                                <span class="status-tag rental" :class="'rental-' + booking.tinh_trang">
-                                    {{ getStatusLabel(booking.tinh_trang) }}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="status-tag" :class="getPaymentStatusClass(booking)">
-                                    {{ getPaymentStatusText(booking) }}
-                                </span>
-                            </td>
-                            <td>
-                                <button class="btn-action" @click="viewBooking" title="Chi tiết đơn">
-                                  <i class="fa-solid fa-arrow-right"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <!-- Empty State -->
-                <div v-else class="empty-state-box" style="padding: 40px; text-align: center; color: var(--color-text-muted);">
-                    <i class="fa-solid fa-calendar-xmark" style="font-size: 2rem; margin-bottom: 12px; opacity: 0.5;"></i>
-                    <p>Hiện chưa có đơn đặt xe nào trong hệ thống.</p>
-                </div>
-            </div>
+      <div class="recent-bookings-card card">
+        <div class="card-header flex-between">
+          <div>
+            <h3>Đơn Đặt Xe Mới Nhất</h3>
+            <p class="section-sub">5 giao dịch phát sinh gần nhất trong hệ thống (nhấp vào hàng để xem chi tiết)</p>
+          </div>
+          <router-link to="/admin/bookings" class="btn-text">
+            Xem tất cả đơn <i class="fa-solid fa-arrow-right"></i>
+          </router-link>
         </div>
+
+        <div class="table-responsive">
+          <table class="ops-table" v-if="recentBookings.length > 0">
+            <thead>
+              <tr>
+                <th>Mã đơn</th>
+                <th>Khách hàng</th>
+                <th>Xe</th>
+                <th>Thời gian</th>
+                <th v-if="canViewFinancial">Số tiền</th>
+                <th>Trạng thái thuê</th>
+                <th>Thanh toán</th>
+                <th class="text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="b in recentBookings" 
+                :key="b.id" 
+                class="table-row pointer"
+                @click="navigateToBookings(`search=${b.ma_dat_xe}`)"
+                title="Bấm để mở chi tiết đơn này"
+              >
+                <td>
+                  <span class="code-badge">#{{ b.ma_dat_xe }}</span>
+                </td>
+                <td>
+                  <div class="user-inline">
+                    <span class="avatar-sm">{{ (b.user_name || 'K').charAt(0).toUpperCase() }}</span>
+                    <div class="user-details">
+                      <span class="name">{{ b.user_name || 'Khách hàng' }}</span>
+                      <small class="phone">{{ b.user_phone }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="car-name-text">{{ b.car_name || 'Xe hệ thống' }}</span>
+                </td>
+                <td>
+                  <span class="time-text">{{ b.created_at }}</span>
+                </td>
+                <td v-if="canViewFinancial">
+                  <strong class="amount-text">{{ formatCurrency(b.tong_tien) }}</strong>
+                </td>
+                <td>
+                  <span class="status-pill rental" :class="'rental-' + b.tinh_trang">
+                    {{ getRentalStatusLabel(b.tinh_trang) }}
+                  </span>
+                </td>
+                <td>
+                  <span class="status-pill payment" :class="getPaymentStatusClass(b)">
+                    {{ getPaymentStatusText(b) }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <button 
+                    class="btn-row-action" 
+                    @click.stop="navigateToBookings(`search=${b.ma_dat_xe}`)" 
+                    title="Mở đơn này"
+                  >
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div v-else class="empty-table">
+            <i class="fa-solid fa-calendar-xmark"></i>
+            <p>Chưa có đơn đặt xe nào trong hệ thống</p>
+          </div>
+        </div>
+      </div>
     </section>
   </div>
 </template>
@@ -281,100 +567,186 @@ import { createToaster } from "@meforma/vue-toaster";
 const toaster = createToaster({ position: "top-right" });
 const router = useRouter();
 
+// Bộ lọc ngày
+const datePresets = [
+  { id: 'today', label: 'Hôm nay' },
+  { id: '7days', label: '7 ngày qua' },
+  { id: '30days', label: '30 ngày qua' },
+  { id: 'this_month', label: 'Tháng này' },
+  { id: 'custom', label: 'Tùy chọn' },
+  { id: 'all', label: 'Toàn bộ' }
+];
+
+const selectedPreset = ref('30days');
 const selectedDateBy = ref('payment_date');
+const customStartDate = ref('');
+const customEndDate = ref('');
 const exportingReport = ref(false);
+const loadingStats = ref(true);
+const statsError = ref(null);
 
-const handleExportRevenueReport = async () => {
-  exportingReport.value = true;
-  try {
-    const token = localStorage.getItem('token_admin') || localStorage.getItem('token_client');
-    const response = await fetch(`/api/admin/reports/export?date_by=${selectedDateBy.value}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'text/csv',
-      }
-    });
-
-    if (!response.ok) {
-      if (response.status === 403) {
-        toaster.error("Bạn không có quyền xuất báo cáo doanh thu tài chính!");
-      } else {
-        toaster.error("Có lỗi xảy ra khi xuất báo cáo!");
-      }
-      return;
-    }
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bao_cao_doanh_thu_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    toaster.success("Xuất báo cáo doanh thu thành công!");
-  } catch (err) {
-    toaster.error("Không thể kết nối đến máy chủ để tải báo cáo!");
-  } finally {
-    exportingReport.value = false;
-  }
-};
-
+// Dữ liệu thống kê
 const stats = ref({
   summary: {
-    total_revenue: 0,
-    valid_paid_revenue: 0,
-    total_booking_value: 0,
-    confirmed_booking_value: 0,
-    paid_booking_value: 0,
-    refund_review_value: 0,
-    unpaid_confirmed_value: 0,
     total_bookings: 0,
     pending_bookings: 0,
-    available_cars: 0,
-    total_cars: 0,
-    total_users: 0
+    valid_paid_revenue: 0,
+    net_rental_collected: 0,
+    total_booking_value: 0,
+    total_deposit_held: 0,
+    refund_review_value: 0,
+    unpaid_confirmed_value: 0,
+    deliveries_today: 0,
+    deliveries_pending: 0,
+    deliveries_completed: 0,
+    returns_today: 0,
+    returns_pending: 0,
+    returns_received: 0,
+    overdue_returns_count: 0,
+    available_rate: 0,
   },
+  operational_actions: {
+    pending_receipts: 0,
+    new_contacts: 0,
+    overdue_returns: 0,
+    overdue_bookings: [],
+  },
+  fleet_breakdown: {
+    total_cars: 0,
+    available_cars: 0,
+    renting_cars: 0,
+    maintenance_cars: 0,
+    available_rate: 0,
+  },
+  recent_bookings: [],
   revenue_chart: [],
+  chart_granularity: 'monthly',
   legacy_undated: { count: 0, total: 0 },
-  status_distribution: [],
-  payment_distribution: []
 });
-const recentBookings = ref([]);
-const loadingStats = ref(true);
-const loadingBookings = ref(true);
-const statsError = ref(null);
-const bookingsError = ref(null);
 
-const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('vi-VN');
-};
+const canViewFinancial = ref(true);
 
-const todayDate = computed(() => {
-  return new Intl.DateTimeFormat('vi-VN', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+const recentBookings = computed(() => {
+  return stats.value.recent_bookings || [];
+});
+
+// Tính toán thời gian & nhãn bộ lọc
+const currentTimeStr = computed(() => {
+  return new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   }).format(new Date());
 });
 
-const maxRevenue = computed(() => {
-  if (!stats.value.revenue_chart || stats.value.revenue_chart.length === 0) return 1;
-  const max = Math.max(...stats.value.revenue_chart.map(i => Number(i.valid_paid_revenue ?? i.total) || 0));
-  return max > 0 ? max * 1.2 : 1;
+const currentRangeLabel = computed(() => {
+  const map = {
+    today: 'Hôm nay',
+    '7days': '7 ngày vừa qua',
+    '30days': '30 ngày vừa qua',
+    this_month: 'Tháng hiện tại',
+    all: 'Toàn bộ thời gian',
+    custom: customStartDate.value && customEndDate.value
+      ? `Từ ${customStartDate.value} đến ${customEndDate.value}`
+      : 'Khoảng tùy chọn'
+  };
+  return map[selectedPreset.value] || 'Khoảng thời gian đã chọn';
 });
 
+const totalActionCount = computed(() => {
+  const actions = stats.value.operational_actions || {};
+  return (actions.overdue_returns || 0) + (actions.pending_receipts || 0) + (actions.new_contacts || 0);
+});
+
+// Tỷ lệ phân bổ đội xe (%)
+const availablePercent = computed(() => {
+  const total = stats.value.fleet_breakdown?.total_cars || 0;
+  if (!total) return 0;
+  const avail = stats.value.fleet_breakdown?.available_cars || 0;
+  return Math.round((avail / total) * 100);
+});
+
+const rentingPercent = computed(() => {
+  const total = stats.value.fleet_breakdown?.total_cars || 0;
+  if (!total) return 0;
+  const renting = stats.value.fleet_breakdown?.renting_cars || 0;
+  return Math.round((renting / total) * 100);
+});
+
+const maintenancePercent = computed(() => {
+  const total = stats.value.fleet_breakdown?.total_cars || 0;
+  if (!total) return 0;
+  const maint = stats.value.fleet_breakdown?.maintenance_cars || 0;
+  return Math.round((maint / total) * 100);
+});
+
+// Chiều cao cột biểu đồ
+const maxRevenueValue = computed(() => {
+  const chart = stats.value.revenue_chart || [];
+  if (!chart.length) return 1;
+  const max = Math.max(...chart.map(i => Number(i.valid_paid_revenue ?? i.total ?? 0)));
+  return max > 0 ? max * 1.15 : 1;
+});
+
+const getBarHeightPercent = (item) => {
+  const val = Number(item.valid_paid_revenue ?? item.total ?? 0);
+  if (val <= 0) return 4;
+  return Math.min(100, Math.max(6, Math.round((val / maxRevenueValue.value) * 100)));
+};
+
+// Áp dụng Preset ngày
+const applyPreset = (presetId) => {
+  selectedPreset.value = presetId;
+  const today = new Date();
+
+  if (presetId === 'today') {
+    const ymd = today.toISOString().slice(0, 10);
+    customStartDate.value = ymd;
+    customEndDate.value = ymd;
+  } else if (presetId === '7days') {
+    const past = new Date(today);
+    past.setDate(past.getDate() - 6);
+    customStartDate.value = past.toISOString().slice(0, 10);
+    customEndDate.value = today.toISOString().slice(0, 10);
+  } else if (presetId === '30days') {
+    const past = new Date(today);
+    past.setDate(past.getDate() - 29);
+    customStartDate.value = past.toISOString().slice(0, 10);
+    customEndDate.value = today.toISOString().slice(0, 10);
+  } else if (presetId === 'this_month') {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    customStartDate.value = start.toISOString().slice(0, 10);
+    customEndDate.value = end.toISOString().slice(0, 10);
+  } else if (presetId === 'all') {
+    customStartDate.value = '';
+    customEndDate.value = '';
+  }
+
+  fetchStats();
+};
+
+// Gọi API lấy dữ liệu thống kê
 const fetchStats = async () => {
   loadingStats.value = true;
   statsError.value = null;
+
   try {
-    const res = await baseRequest.get(`admin/statistics?date_by=${selectedDateBy.value}`);
+    const params = new URLSearchParams();
+    params.append('date_by', selectedDateBy.value);
+
+    if (selectedPreset.value !== 'all' && customStartDate.value && customEndDate.value) {
+      params.append('start_date', customStartDate.value);
+      params.append('end_date', customEndDate.value);
+    }
+
+    const res = await baseRequest.get(`admin/statistics?${params.toString()}`);
     if (res.data && res.data.status) {
       stats.value = res.data.data;
+      canViewFinancial.value = res.data.can_view_financial ?? (res.data.data?.can_view_financial ?? true);
     } else {
       statsError.value = res.data?.message || "Không thể tải dữ liệu thống kê từ máy chủ.";
     }
@@ -386,30 +758,42 @@ const fetchStats = async () => {
   }
 };
 
-const fetchRecentBookings = async () => {
-  loadingBookings.value = true;
-  bookingsError.value = null;
+// Xuất file CSV báo cáo tài chính
+const handleExportCsv = async () => {
+  exportingReport.value = true;
   try {
-    // Explicit route verified with BE/routes/api.php
-    const resBookings = await baseRequest.get('admin/bookings/data');
-    if (resBookings.data && resBookings.data.status && Array.isArray(resBookings.data.data)) {
-      recentBookings.value = resBookings.data.data.slice(0, 5);
-    } else {
-      bookingsError.value = resBookings.data?.message || "Không thể tải danh sách đơn đặt xe gần đây.";
+    const params = new URLSearchParams();
+    params.append('date_by', selectedDateBy.value);
+
+    if (selectedPreset.value !== 'all' && customStartDate.value && customEndDate.value) {
+      params.append('start_date', customStartDate.value);
+      params.append('end_date', customEndDate.value);
     }
+
+    const filename = `bao_cao_doanh_thu_${new Date().toISOString().slice(0, 10)}.csv`;
+    await baseRequest.downloadFile(`admin/reports/export?${params.toString()}`, filename);
+    toaster.success("Xuất báo cáo doanh thu thành công!");
   } catch (err) {
-    bookingsError.value = "Lỗi kết nối máy chủ khi tải đơn đặt gần đây.";
-    console.error("Lỗi khi tải đơn đặt gần đây:", err);
+    if (err.response?.status === 403) {
+      toaster.error("Bạn không có quyền xuất báo cáo doanh thu tài chính!");
+    } else {
+      toaster.error("Không thể kết nối đến máy chủ để tải báo cáo!");
+    }
   } finally {
-    loadingBookings.value = false;
+    exportingReport.value = false;
   }
+};
+
+// Điều hướng nhanh đến danh sách đơn
+const navigateToBookings = (queryStr) => {
+  router.push(`/admin/bookings?${queryStr}`);
 };
 
 const formatCurrency = (val) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 };
 
-const getStatusLabel = (status) => {
+const getRentalStatusLabel = (status) => {
   const labels = {
     0: 'Chờ duyệt',
     1: 'Đã duyệt',
@@ -423,7 +807,7 @@ const getStatusLabel = (status) => {
 
 const getPaymentStatusText = (b) => {
   if (!b) return 'Chưa thanh toán';
-  if (Number(b.tinh_trang) === 2 && Number(b.is_thanh_toan) === 1) return 'Đã thu (Cần hoàn tiền)';
+  if (Number(b.tinh_trang) === 2 && Number(b.is_thanh_toan) === 1) return 'Đã thu (Cần hoàn)';
   if (Number(b.is_thanh_toan) === 1) return 'Đã thanh toán';
   if (b.bill_image) return 'Chờ duyệt bill';
   return 'Chưa thanh toán';
@@ -437,14 +821,8 @@ const getPaymentStatusClass = (b) => {
   return 'pending';
 };
 
-const viewBooking = () => {
-  router.push('/admin/bookings');
-};
-
 onMounted(() => {
-  // Stats and Recent Bookings load independently so one failure does not affect the other
-  fetchStats();
-  fetchRecentBookings();
+  applyPreset('30days');
 });
 </script>
 
@@ -452,625 +830,1139 @@ onMounted(() => {
 .dashboard-page {
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  animation: fadeIn 0.8s ease-out;
+  gap: 20px;
+  padding: 0;
+  color: #1e293b;
+  font-family: inherit;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Card chuẩn */
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.welcome-banner {
+/* 1. Header Điều Hành */
+.ops-header {
+  padding: 24px 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 40px;
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-soft);
-  position: relative;
-  overflow: hidden;
-  border-radius: 20px;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.welcome-title {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: var(--color-text-main);
-  letter-spacing: -1px;
+.header-left {
+  max-width: 520px;
 }
 
-.welcome-title span {
-  color: var(--color-primary);
-}
-
-.welcome-banner p {
-  color: var(--color-text-muted);
-  font-size: 1.1rem;
-  margin-top: 8px;
-  font-weight: 500;
-}
-
-.current-date {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
-  background: var(--bg-main);
-  border-radius: 14px;
-  font-weight: 700;
-  color: var(--color-primary);
-  font-family: var(--font-heading);
-}
-
-.btn-export-csv {
+.header-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: white;
-  border: none;
-  border-radius: 14px;
+  background: #ecfdf5;
+  color: #059669;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
   font-weight: 700;
-  font-size: 0.95rem;
-  font-family: var(--font-heading);
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25);
-  white-space: nowrap;
+  margin-bottom: 8px;
+  border: 1px solid #a7f3d0;
 }
 
-.btn-export-csv:hover:not(:disabled) {
-  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.35);
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #059669;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2);
 }
 
-.btn-export-csv:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Pending Alert Banner */
-.pending-alert-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
-  border-left: 4px solid #ef4444;
-  border-radius: var(--radius-md);
-  margin-top: -8px;
-}
-
-.alert-content {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.alert-icon {
-  width: 48px;
-  height: 48px;
-  background: #ef4444;
-  color: white;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
-
-.bell-shake {
-  animation: shake 2s infinite ease-in-out;
-}
-
-@keyframes shake {
-  0% { transform: rotate(0); }
-  10% { transform: rotate(15deg); }
-  20% { transform: rotate(-15deg); }
-  30% { transform: rotate(10deg); }
-  40% { transform: rotate(-10deg); }
-  50% { transform: rotate(5deg); }
-  60% { transform: rotate(0); }
-  100% { transform: rotate(0); }
-}
-
-.alert-text h3 {
-  color: #b91c1c;
-  font-size: 1.15rem;
+.header-title {
+  font-size: 1.65rem;
   font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
 }
 
-.alert-text p {
-  color: #991b1b;
+.header-title span {
+  color: #059669;
+}
+
+.header-subtitle {
+  color: #64748b;
   font-size: 0.9rem;
-  margin-top: 4px;
+  line-height: 1.5;
+  margin: 0;
 }
 
-.btn-alert {
-  background: #ef4444;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-weight: 700;
+.header-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.filter-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.3s;
+  flex-wrap: wrap;
 }
 
-.btn-alert:hover {
-  background: #dc2626;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+.preset-buttons {
+  display: flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
+.btn-preset {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.stat-card {
-  padding: 32px;
-  position: relative;
-  background: white;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+.btn-preset:hover {
+  color: #0f172a;
+}
+
+.btn-preset.active {
+  background: #ffffff;
+  color: #059669;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.custom-dates {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 6px;
 }
 
-.stat-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
+.date-input {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #1e293b;
+}
+
+.date-sep {
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.btn-apply-date {
+  background: #059669;
+  color: #ffffff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dimension-select {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-action-refresh,
+.btn-action-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-action-refresh {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.btn-action-refresh:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.btn-action-export {
+  background: #059669;
+  border: 1px solid #059669;
+  color: #ffffff;
+}
+
+.btn-action-export:hover:not(:disabled) {
+  background: #047857;
+}
+
+.btn-action-refresh:disabled,
+.btn-action-export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Scope Disclosure */
+.scope-notice {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #475569;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notice-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notice-left i {
+  color: #059669;
+  font-size: 1rem;
+}
+
+.notice-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Error Banner */
+.stats-error-banner {
+  background: #fef2f2;
+  border-color: #fecaca;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-msg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #dc2626;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.btn-retry {
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 2. KPI Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.kpi-card.pointer {
+  cursor: pointer;
+}
+
+.kpi-card.pointer:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
+}
+
+.kpi-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
-  transition: all 0.3s;
+  font-size: 1.3rem;
+  flex-shrink: 0;
 }
 
-.revenue .stat-icon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-.bookings .stat-icon { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.cars .stat-icon { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.users .stat-icon { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+.kpi-icon-wrap.amber { background: #fffbeb; color: #d97706; }
+.kpi-icon-wrap.emerald { background: #ecfdf5; color: #059669; }
+.kpi-icon-wrap.sky { background: #f0f9ff; color: #0284c7; }
+.kpi-icon-wrap.green { background: #f0fdf4; color: #16a34a; }
+.kpi-icon-wrap.indigo { background: #eef2ff; color: #4f46e5; }
 
-.stat-info {
+.kpi-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.kpi-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpi-badge-reconciled {
+  font-size: 0.72rem;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.kpi-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.kpi-value.highlight {
+  color: #059669;
+}
+
+.kpi-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.kpi-badge.urgent { background: #fee2e2; color: #dc2626; }
+.kpi-badge.ok { background: #ecfdf5; color: #059669; }
+.kpi-badge.info { background: #f0fdf4; color: #15803d; }
+.kpi-badge.sky { background: #e0f2fe; color: #0369a1; }
+
+.kpi-subtext {
+  font-size: 0.8rem;
+  color: #64748b;
+  display: block;
+  margin-top: 4px;
+}
+
+.kpi-finance-breakdown {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.deposit-pill {
+  color: #0284c7;
+}
+
+/* 3. Action Center */
+.action-center {
+  padding: 24px;
+}
+
+.section-header {
+  margin-bottom: 20px;
+}
+
+.title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title-with-badge h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.text-amber { color: #f59e0b; }
+.text-emerald { color: #059669; }
+
+.badge-count-urgent {
+  background: #ef4444;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.badge-count-ok {
+  background: #ecfdf5;
+  color: #059669;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid #a7f3d0;
+}
+
+.section-sub {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 4px 0 0 0;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.action-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
 }
 
-.stat-label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.action-card.overdue.has-alerts {
+  background: #fff5f5;
+  border-color: #fecaca;
 }
 
-.stat-value {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: var(--color-text-main);
-  margin: 4px 0;
-  letter-spacing: -1px;
-}
-
-.stat-change {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
-}
-
-.stat-sub-metrics {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  font-weight: 600;
-  margin-top: 2px;
-}
-
-.sub-metric-deposit {
-  color: #0284c7;
-  font-weight: 700;
-}
-
-.sub-metric-refund {
-  color: #dc2626;
-  font-weight: 700;
-}
-
-.sub-metric-unpaid {
-  color: #d97706;
-}
-
-.text-cyan {
-  color: #0891b2;
-}
-
-.stat-card:hover .stat-icon {
-  transform: scale(1.1) rotate(5deg);
-}
-
-/* Charts */
-.charts-section {
-  display: grid;
-  grid-template-columns: 1.8fr 1.2fr;
-  gap: 32px;
-}
-
-.chart-card {
-  padding: 40px;
-  background: white;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-}
-
-.chart-card h3 {
-  font-size: 1.4rem;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-}
-
-.chart-header {
+.action-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 8px;
+}
+
+.action-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.action-card.overdue.has-alerts .action-card-title {
+  color: #b91c1c;
+}
+
+.action-count-pill {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.action-count-pill.red { background: #fee2e2; color: #dc2626; }
+.action-count-pill.amber { background: #fef3c7; color: #d97706; }
+.action-count-pill.sky { background: #e0f2fe; color: #0284c7; }
+
+.action-desc {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0 0 14px 0;
+  line-height: 1.4;
+}
+
+.overdue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.overdue-item {
+  background: #ffffff;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all 0.15s ease;
+}
+
+.overdue-item:hover {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.overdue-car-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.overdue-car-info strong {
+  color: #0f172a;
+}
+
+.overdue-car-info .code {
+  color: #ef4444;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.overdue-customer {
+  display: flex;
+  justify-content: space-between;
+  color: #475569;
+  font-size: 0.78rem;
+}
+
+.phone-link {
+  color: #0284c7;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.overdue-time-tag {
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.action-empty {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #059669;
+  font-weight: 600;
+  padding: 10px 0;
+}
+
+.action-footer {
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.btn-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #059669;
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  transition: gap 0.15s ease;
+}
+
+.btn-action-link:hover {
+  gap: 10px;
+  color: #047857;
+}
+
+/* 4. Fleet Overview */
+.fleet-overview {
+  padding: 24px;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-text {
+  color: #059669;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fleet-progress-track {
+  height: 12px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  display: flex;
+  overflow: hidden;
+  margin: 16px 0 20px 0;
+  border: 1px solid #e2e8f0;
+}
+
+.fleet-progress-track .segment {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.segment.available { background: #059669; }
+.segment.renting { background: #0284c7; }
+.segment.maintenance { background: #f59e0b; }
+
+.fleet-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.legend-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.legend-card.summary-box {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.legend-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot-emerald { background: #059669; }
+.dot-sky { background: #0284c7; }
+.dot-amber { background: #f59e0b; }
+.dot-gray { background: #64748b; }
+
+.legend-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.legend-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.legend-count {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.legend-unit {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.legend-note {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: block;
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+/* 5. Charts & Recent Grid */
+.charts-and-recent-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 20px;
+}
+
+.chart-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-header {
+  margin-bottom: 16px;
+}
+
+.chart-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chart-title-wrap h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.granularity-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #e0f2fe;
+  color: #0284c7;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.chart-sub {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin: 4px 0 0 0;
+}
+
+.chart-unit-badge {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.legacy-undated-banner {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: flex;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: #475569;
+  margin-bottom: 16px;
+}
+
+.legacy-undated-banner i {
+  color: #f59e0b;
+  font-size: 1rem;
+}
+
+.chart-container {
+  height: 260px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 10px 0 0 0;
+  margin-top: auto;
 }
 
 .bar-chart {
   width: 100%;
-  height: 300px;
+  height: 100%;
   display: flex;
-  justify-content: space-around;
   align-items: flex-end;
-  gap: 20px;
+  justify-content: space-around;
+  gap: 8px;
 }
 
 .bar-wrapper {
   flex: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 100%;
+  justify-content: flex-end;
+  min-width: 24px;
 }
 
-.bar {
+.bar-track {
   width: 100%;
-  max-width: 44px;
-  background: var(--grad-active);
-  border-radius: 10px 10px 4px 4px;
+  max-width: 38px;
+  height: calc(100% - 24px);
+  display: flex;
+  align-items: flex-end;
+  background: #f8fafc;
+  border-radius: 6px 6px 0 0;
   position: relative;
-  transition: all 0.5s ease;
+}
+
+.bar-fill {
+  width: 100%;
+  background: #059669;
+  border-radius: 6px 6px 0 0;
+  position: relative;
+  transition: height 0.3s ease;
+  min-height: 4px;
+}
+
+.bar-fill:hover {
+  background: #047857;
+}
+
+.bar-tooltip {
+  position: absolute;
+  bottom: 105%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10;
+}
+
+.bar-wrapper:hover .bar-tooltip {
+  opacity: 1;
 }
 
 .bar-label {
-  margin-top: 16px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 6px;
+  text-align: center;
+  white-space: nowrap;
 }
 
-.status-list {
+.empty-chart {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.status-item {
-  background: var(--bg-main);
-  padding: 20px;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.02);
-  display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  gap: 8px;
+  font-size: 0.85rem;
 }
 
-.status-dot {
-  width: 10px;
-  height: 10px;
+.empty-chart i {
+  font-size: 2rem;
+  opacity: 0.4;
+}
+
+/* Dispatcher Notice Card */
+.dispatcher-notice-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.dispatcher-notice-content {
+  max-width: 360px;
+  padding: 20px;
+}
+
+.notice-icon {
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  display: inline-block;
-  margin-right: 12px;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin: 0 auto 14px auto;
 }
 
-.status-0 { background: #f59e0b; }
-.status-1 { background: #10b981; }
-.status-2 { background: #ef4444; }
-
-.status-name {
-  font-weight: 700;
-  font-family: var(--font-heading);
-  color: var(--color-text-main);
-}
-
-.status-count {
+.dispatcher-notice-content h3 {
+  font-size: 1.15rem;
   font-weight: 800;
-  font-size: 1.1rem;
+  color: #0f172a;
+  margin: 0 0 8px 0;
 }
 
-/* Recent Bookings Table */
-.recent-bookings-section {
-    margin-top: 32px;
+.dispatcher-notice-content p {
+  color: #64748b;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
 }
 
-.premium-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 8px;
+.dispatcher-quick-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
 }
 
-.premium-table th {
-    padding: 16px;
-    text-align: left;
-    font-size: 0.85rem;
-    font-weight: 800;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
+.btn-dispatcher {
+  background: #059669;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.premium-table td {
-    padding: 16px;
-    background: #f8fafc;
-    border-top: 1px solid rgba(0, 0, 0, 0.02);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.02);
+.btn-dispatcher.secondary {
+  background: #f1f5f9;
+  color: #334155;
 }
 
-.premium-table tr td:first-child { border-radius: 12px 0 0 12px; border-left: 1px solid rgba(0, 0, 0, 0.02); }
-.premium-table tr td:last-child { border-radius: 0 12px 12px 0; border-right: 1px solid rgba(0, 0, 0, 0.02); }
+/* Recent Bookings Card */
+.recent-bookings-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header {
+  margin-bottom: 16px;
+}
+
+.card-header h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ops-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ops-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.table-row:hover td {
+  background: #f8fafc;
+}
 
 .code-badge {
-    padding: 6px 12px;
-    background: #e2e8f0;
-    color: #475569;
-    border-radius: 8px;
-    font-family: monospace;
-    font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
 }
 
-.user-cell {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-weight: 700;
+.user-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .avatar-sm {
-    width: 32px;
-    height: 32px;
-    background: var(--grad-active);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-}
-
-.stat-title-row {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #334155;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.stat-badge-method {
-  font-size: 0.68rem;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
+  justify-content: center;
   font-weight: 700;
-  text-transform: none;
-  letter-spacing: normal;
+  font-size: 0.75rem;
+  flex-shrink: 0;
 }
 
-.stat-sub-metrics {
+.user-details {
   display: flex;
-  gap: 6px;
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.user-details .name {
   font-weight: 600;
-  margin-top: 2px;
+  color: #0f172a;
 }
 
-.sub-metric-refund {
-  color: #ef4444;
-  font-weight: 700;
+.user-details .phone {
+  font-size: 0.72rem;
+  color: #64748b;
 }
 
-.sub-metric-unpaid {
-  color: #f59e0b;
+.car-name-text {
   font-weight: 600;
+  color: #334155;
 }
 
-.revenue-method-notice {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
-  background: rgba(59, 130, 246, 0.05);
-  border: 1px dashed rgba(59, 130, 246, 0.3);
-  border-radius: 14px;
-  font-size: 0.85rem;
-  color: var(--color-text-main);
-  line-height: 1.5;
+.time-text {
+  color: #64748b;
+  font-size: 0.8rem;
 }
 
-.revenue-method-notice i {
-  color: #3b82f6;
-  font-size: 1.1rem;
-}
-
-.date-by-select-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.select-dimension {
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--bg-surface);
-  color: var(--color-text-main);
-  font-size: 0.82rem;
+.amount-text {
+  color: #0f172a;
   font-weight: 700;
-  cursor: pointer;
-  outline: none;
 }
 
-.select-dimension:focus {
-  border-color: var(--color-primary);
-}
-
-.legacy-undated-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 18px;
-  margin-bottom: 20px;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  border-left: 4px solid #f59e0b;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  color: #92400e;
-  line-height: 1.45;
-}
-
-.status-tag {
-    padding: 6px 14px;
-    border-radius: 100px;
-    font-size: 0.75rem;
-    font-weight: 800;
-}
-
-.status-tag.paid { background: #f0fdf4; color: #22c55e; }
-.status-tag.pending { background: #fff7ed; color: #f97316; }
-.status-tag.refund { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-.status-tag.verifying { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
-
-.status-tag.rental {
-  font-weight: 700;
-  border: 1px solid transparent;
-}
-.status-tag.rental-0 { background: #fffbeb; color: #b45309; border-color: #fef3c7; }
-.status-tag.rental-1 { background: #e0e7ff; color: #4338ca; border-color: #c7d2fe; }
-.status-tag.rental-2 { background: #fef2f2; color: #b91c1c; border-color: #fee2e2; }
-.status-tag.rental-3 { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
-.status-tag.rental-4 { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
-.status-tag.rental-5 { background: #f0fdf4; color: #15803d; border-color: #dcfce7; }
-
-.btn-action {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-    background: white;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-action:hover {
-    background: var(--color-primary);
-    color: white;
-    border-color: var(--color-primary);
-}
-
-.btn-text {
-    font-weight: 700;
-    color: var(--color-primary);
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.stats-error-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: #fef2f2;
-  border-left: 4px solid #ef4444;
-  border-radius: var(--radius-md);
-  margin-top: -8px;
-}
-
-.stats-error-banner .error-msg {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #b91c1c;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.btn-retry {
-  background: white;
-  color: #b91c1c;
-  border: 1px solid #f87171;
-  padding: 7px 16px;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 0.85rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
-}
-
-.btn-retry:hover {
-  background: #fee2e2;
-}
-
-.bookings-error-box {
-  background: #fff5f5;
+.status-pill {
+  display: inline-block;
+  padding: 3px 8px;
   border-radius: 12px;
-  border: 1px dashed #fca5a5;
-  margin: 12px 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.btn-retry-primary {
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  padding: 9px 20px;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 0.88rem;
-  cursor: pointer;
+/* Trạng thái thuê */
+.status-pill.rental-0 { background: #fef3c7; color: #b45309; }
+.status-pill.rental-1 { background: #ecfdf5; color: #047857; }
+.status-pill.rental-2 { background: #fee2e2; color: #b91c1c; }
+.status-pill.rental-3 { background: #e0f2fe; color: #0369a1; }
+.status-pill.rental-4 { background: #f3e8ff; color: #7e22ce; }
+.status-pill.rental-5 { background: #dcfce7; color: #15803d; }
+
+/* Trạng thái thanh toán */
+.status-pill.payment.paid { background: #dcfce7; color: #166534; }
+.status-pill.payment.pending { background: #f1f5f9; color: #64748b; }
+.status-pill.payment.verifying { background: #fef3c7; color: #d97706; }
+.status-pill.payment.refund { background: #fee2e2; color: #dc2626; }
+
+.btn-row-action {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.btn-retry-primary:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
+.btn-row-action:hover {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
 }
 
+.empty-table {
+  padding: 30px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.empty-table i {
+  font-size: 2rem;
+  margin-bottom: 8px;
+  opacity: 0.4;
+}
+
+/* Responsive */
 @media (max-width: 1200px) {
-  .charts-section { grid-template-columns: 1fr; }
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .fleet-legend-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .charts-and-recent-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .ops-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-controls {
+    align-items: stretch;
+  }
+  .action-grid {
+    grid-template-columns: 1fr;
+  }
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .fleet-legend-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

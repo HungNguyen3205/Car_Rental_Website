@@ -61,4 +61,23 @@ export default {
     delete(url, config = {}) {
         return axios.delete(`${apiUrl}/${url}`, { ...config, headers: { ...this.getHeader(), ...config.headers } });
     },
+    getApiUrl() {
+        return apiUrl;
+    },
+    async downloadFile(url, filename, config = {}) {
+        const response = await axios.get(`${apiUrl}/${url}`, {
+            ...config,
+            responseType: 'blob',
+            headers: { ...this.getHeader(), ...config.headers }
+        });
+        const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: response.headers['content-type'] || 'text/csv' }));
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(blobUrl);
+        return response;
+    },
 };

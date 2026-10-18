@@ -158,7 +158,7 @@ class ExportController extends Controller
     }
 
     /**
-     * Xuất báo cáo tài chính & doanh thu theo kỳ.
+     * Xuất báo cáo tài chính & doanh thu theo kỳ và khoảng ngày.
      */
     public function exportRevenue(Request $request)
     {
@@ -174,8 +174,14 @@ class ExportController extends Controller
 
         $dateBy = $request->input('date_by', RevenueCalculationService::DATE_BY_PAYMENT);
         $months = (int) $request->input('months', 6);
+        $startDate = $request->filled('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : null;
+        $endDate = $request->filled('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : null;
 
-        $trendData = $this->revenueService->getMonthlyRevenueTrend($months, $dateBy);
+        if ($startDate && $endDate && $startDate->diffInDays($endDate) <= 31) {
+            $trendData = $this->revenueService->getDailyRevenueTrend($startDate, $endDate, $dateBy);
+        } else {
+            $trendData = $this->revenueService->getMonthlyRevenueTrend($months, $dateBy, $startDate, $endDate);
+        }
         $chart = $trendData['chart'] ?? [];
 
         $headers = [
@@ -190,10 +196,10 @@ class ExportController extends Controller
         return CsvExportService::streamDownload($filename, $headers, function ($stream) use ($chart) {
             foreach ($chart as $row) {
                 fputcsv($stream, [
-                    CsvExportService::sanitizeForCsv($row['month']),
-                    number_format($row['total_booking_value'], 0, ',', '.') . ' đ',
-                    number_format($row['valid_paid_revenue'], 0, ',', '.') . ' đ',
-                    number_format($row['refund_review_value'], 0, ',', '.') . ' đ',
+                    CsvExportService::sanitizeForCsv($row['label'] ?? $row['month']),
+                    number_format($row['total_booking_value'] ?? 0, 0, ',', '.') . ' đ',
+                    number_format($row['valid_paid_revenue'] ?? $row['total'] ?? 0, 0, ',', '.') . ' đ',
+                    number_format($row['refund_review_value'] ?? 0, 0, ',', '.') . ' đ',
                 ]);
             }
         });
