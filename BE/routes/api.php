@@ -109,7 +109,7 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
                 ->middleware('permission:handovers.manage');
         });
 
-        // Quản lý khách hàng
+        // Quản lý khách hàng & Hồ sơ CRM
         Route::get('/users/data', [AuthController::class, 'getAllUsers'])
             ->middleware('permission:bookings.view,admins.manage');
         Route::get('/users/search', [AuthController::class, 'searchCustomers'])
@@ -120,6 +120,19 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             ->middleware('permission:admins.manage');
         Route::post('/users/promote', [AdminRoleController::class, 'promoteUser'])
             ->middleware('permission:admins.manage');
+
+        // Quản lý chuyên sâu Hồ Sơ Khách Hàng (Customer Profiles)
+        Route::group(['prefix' => 'customers', 'middleware' => 'permission:bookings.view,admins.manage'], function () {
+            Route::get('/', [\App\Http\Controllers\Admin\CustomerController::class, 'index']);
+            Route::get('/{id}', [\App\Http\Controllers\Admin\CustomerController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\Admin\CustomerController::class, 'update'])
+                ->middleware('permission:bookings.manage,admins.manage');
+            Route::post('/{id}/notes', [\App\Http\Controllers\Admin\CustomerController::class, 'addNote']);
+            Route::post('/{id}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'toggleStatus'])
+                ->middleware('permission:admins.manage');
+            Route::post('/{id}/link-contact', [\App\Http\Controllers\Admin\CustomerController::class, 'linkContact'])
+                ->middleware('permission:bookings.manage,admins.manage');
+        });
 
         // Quản trị viên & Phân quyền
         Route::group(['prefix' => 'admins', 'middleware' => 'permission:admins.manage'], function () {

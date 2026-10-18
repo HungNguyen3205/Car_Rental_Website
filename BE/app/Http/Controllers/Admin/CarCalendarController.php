@@ -75,9 +75,9 @@ class CarCalendarController extends Controller
         $carIds = $cars->pluck('id');
 
         // 3. Truy vấn các đơn đặt xe giao với khoảng thời gian của các xe đang xem
-        $bookingQuery = Booking::whereIn('car_id', $carIds)
-            ->where('start_date', '<', $viewEndStr)
-            ->where('end_date', '>', $viewStartStr)
+        $bookingQuery = Booking::whereIn('bookings.car_id', $carIds)
+            ->where('bookings.start_date', '<', $viewEndStr)
+            ->where('bookings.end_date', '>', $viewStartStr)
             ->join('users', 'bookings.user_id', '=', 'users.id')
             ->select(
                 'bookings.*',
@@ -92,29 +92,29 @@ class CarCalendarController extends Controller
         $now = Carbon::now();
 
         if ($statusFilter === 'pending') {
-            $bookingQuery->where('tinh_trang', Booking::STATUS_PENDING);
+            $bookingQuery->where('bookings.tinh_trang', Booking::STATUS_PENDING);
         } elseif ($statusFilter === 'confirmed') {
-            $bookingQuery->where('tinh_trang', Booking::STATUS_CONFIRMED)
-                ->where('start_date', '>', $now->format('Y-m-d H:i:s'));
+            $bookingQuery->where('bookings.tinh_trang', Booking::STATUS_CONFIRMED)
+                ->where('bookings.start_date', '>', $now->format('Y-m-d H:i:s'));
         } elseif ($statusFilter === 'in_progress') {
             $bookingQuery->where(function ($q) use ($now) {
-                $q->whereIn('tinh_trang', [Booking::STATUS_IN_PROGRESS, Booking::STATUS_RETURNED])
+                $q->whereIn('bookings.tinh_trang', [Booking::STATUS_IN_PROGRESS, Booking::STATUS_RETURNED])
                   ->orWhere(function ($sub) use ($now) {
-                      $sub->where('tinh_trang', Booking::STATUS_CONFIRMED)
-                          ->where('start_date', '<=', $now->format('Y-m-d H:i:s'))
-                          ->where('end_date', '>', $now->format('Y-m-d H:i:s'));
+                      $sub->where('bookings.tinh_trang', Booking::STATUS_CONFIRMED)
+                          ->where('bookings.start_date', '<=', $now->format('Y-m-d H:i:s'))
+                          ->where('bookings.end_date', '>', $now->format('Y-m-d H:i:s'));
                   });
             });
         } elseif ($statusFilter === 'completed') {
             $bookingQuery->where(function ($q) use ($now) {
-                $q->where('tinh_trang', Booking::STATUS_COMPLETED)
+                $q->where('bookings.tinh_trang', Booking::STATUS_COMPLETED)
                   ->orWhere(function ($sub) use ($now) {
-                      $sub->where('tinh_trang', Booking::STATUS_CONFIRMED)
-                          ->where('end_date', '<=', $now->format('Y-m-d H:i:s'));
+                      $sub->where('bookings.tinh_trang', Booking::STATUS_CONFIRMED)
+                          ->where('bookings.end_date', '<=', $now->format('Y-m-d H:i:s'));
                   });
             });
         } elseif ($statusFilter === 'cancelled') {
-            $bookingQuery->where('tinh_trang', Booking::STATUS_CANCELLED);
+            $bookingQuery->where('bookings.tinh_trang', Booking::STATUS_CANCELLED);
         }
 
         $bookings = $bookingQuery->get();

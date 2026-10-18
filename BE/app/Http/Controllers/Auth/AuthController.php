@@ -458,11 +458,13 @@ class AuthController extends Controller
 
     public function getAllUsers()
     {
-        $users = User::select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_trang as is_active', 'created_at', DB::raw("'user' as role"))
+        $users = User::select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_trang as is_active', 'created_at')
+            ->selectRaw("'user' as role, 'user' as entity_type, CONCAT('#CUS-', id) as formatted_id")
             ->orderByDesc('id')
             ->get();
         $admins = DB::table('admins')
-            ->select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_trang as is_active', 'created_at', DB::raw("'admin' as role"))
+            ->select('id', 'ho_ten', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_trang as is_active', 'created_at')
+            ->selectRaw("'admin' as role, 'admin' as entity_type, CONCAT('#ADM-', id) as formatted_id")
             ->orderByDesc('id')
             ->get();
         
