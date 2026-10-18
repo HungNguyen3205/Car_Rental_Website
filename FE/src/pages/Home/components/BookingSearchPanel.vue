@@ -115,6 +115,7 @@
             :teleport="true"
             format="dd/MM/yyyy HH:mm"
             class="dark-datepicker"
+            dark
           />
         </div>
 
@@ -132,6 +133,7 @@
             :teleport="true"
             format="dd/MM/yyyy HH:mm"
             class="dark-datepicker"
+            dark
           />
         </div>
 
@@ -629,6 +631,61 @@ const vClickOutside = {
   gap: 10px;
 }
 
+/* VueDatePicker Dark Theme Customization */
+.dark-datepicker {
+  width: 100%;
+}
+
+.dark-datepicker :deep(.dp__input_wrap) {
+  height: 48px;
+}
+
+.dark-datepicker :deep(.dp__input) {
+  height: 48px !important;
+  background: rgba(11, 18, 32, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px !important;
+  padding: 0 36px 0 38px !important;
+  color: #ffffff !important;
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+  font-family: inherit !important;
+  outline: none !important;
+  transition: all 200ms ease !important;
+  box-shadow: none !important;
+}
+
+.dark-datepicker :deep(.dp__input::placeholder) {
+  color: #64748b !important;
+  font-weight: 400 !important;
+}
+
+.dark-datepicker :deep(.dp__input:hover) {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: rgba(11, 18, 32, 0.9) !important;
+}
+
+.dark-datepicker :deep(.dp__input:focus) {
+  border-color: var(--color-primary, #059669) !important;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2) !important;
+  background: rgba(11, 18, 32, 0.95) !important;
+}
+
+.dark-datepicker :deep(.dp__input_icon) {
+  color: var(--color-primary-glow, #10b981) !important;
+  padding-left: 12px !important;
+  font-size: 0.92rem !important;
+}
+
+.dark-datepicker :deep(.dp__clear_icon) {
+  color: #94a3b8 !important;
+  padding-right: 12px !important;
+}
+
+.dark-datepicker :deep(.dp__clear_icon:hover) {
+  color: #ffffff !important;
+}
+
 /* Transitions */
 .dropdown-fade-enter-active,
 .dropdown-fade-leave-active {
@@ -670,5 +727,71 @@ const vClickOutside = {
   .action-block {
     grid-column: span 1;
   }
+}
+</style>
+
+<style>
+/* Teleported VueDatePicker Dark Theme Popup Menu */
+.dp__menu.dp__theme_dark {
+  background: #111a2e !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(24px) !important;
+  font-family: var(--font-body, inherit) !important;
+  padding: 8px !important;
+}
+
+.dp__theme_dark .dp__calendar_header_item {
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+}
+
+.dp__theme_dark .dp__cell_inner {
+  border-radius: 8px !important;
+  transition: all 150ms ease !important;
+  font-size: 0.85rem !important;
+  color: #e2e8f0 !important;
+}
+
+.dp__theme_dark .dp__cell_inner:hover {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #ffffff !important;
+}
+
+.dp__theme_dark .dp__active_date {
+  background: var(--color-primary, #059669) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.4) !important;
+}
+
+.dp__theme_dark .dp__today {
+  border: 1px solid var(--color-primary-glow, #10b981) !important;
+}
+
+.dp__theme_dark .dp__overlay_cell_active {
+  background: var(--color-primary, #059669) !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+}
+
+.dp__theme_dark .dp__action_buttons .dp__action_select {
+  background: var(--color-primary, #059669) !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+.dp__theme_dark .dp__action_buttons .dp__action_cancel {
+  color: #94a3b8 !important;
+  border-radius: 8px !important;
+}
+
+.dp__theme_dark .dp__arrow_top,
+.dp__theme_dark .dp__arrow_bottom {
+  background: #111a2e !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
 }
 </style>

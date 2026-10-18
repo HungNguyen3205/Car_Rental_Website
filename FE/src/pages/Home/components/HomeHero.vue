@@ -146,7 +146,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.hero-section{position:relative;background:var(--bg-dark);color:#f8fafc;padding:138px 0 68px;isolation:isolate}
+.hero-section{position:relative;background:var(--bg-dark);color:#f8fafc;padding:138px 0 68px;isolation:isolate;overflow-x:clip}
 .hero-section::before{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse at 72% 60%,rgba(5,150,105,.1),transparent 52%);pointer-events:none}
 .hero-container{max-width:1380px}
 .hero-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.3fr);gap:22px;align-items:center;min-height:440px}
@@ -169,15 +169,15 @@ onUnmounted(() => {
 .btn-hero-explore{display:flex;align-items:center;gap:22px;border-radius:40px;background:var(--color-primary);color:#fff;font-size:.8rem;font-weight:600;padding:12px 19px;transition:background .2s,transform .2s}
 .btn-hero-explore:hover{background:var(--color-primary-hover);transform:translateY(-2px)}
 .btn-hero-explore>span{font-size:1.1rem}.btn-hero-fleet{font-size:.77rem;color:#bdcbc9}.btn-hero-fleet span{margin-left:10px}
-.hero-visual{position:relative;min-width:0;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.hero-visual{position:relative;min-width:0;align-self:stretch;display:flex;flex-direction:column;justify-content:center;padding-right:36px}
 .visual-note{display:flex;align-items:center;gap:9px;align-self:flex-end;font-size:.65rem;color:#a3b3b7;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:10px 13px;margin-bottom:8px}
-.car-stage-wrapper{position:relative;width:100%;aspect-ratio:1.7;isolation:isolate;overflow:clip;overflow-clip-margin:18px}
+.car-stage-wrapper{position:relative;width:100%;aspect-ratio:1.55;isolation:isolate;overflow:clip;overflow-clip-margin:140px}
 .stage-halo{position:absolute;inset:17% 5% 2%;background:radial-gradient(ellipse,rgba(16,185,129,.07),transparent 65%);pointer-events:none}
 .stage-road{position:absolute;left:7%;right:2%;bottom:11%;height:1px;background:linear-gradient(90deg,transparent,rgba(167,243,208,.15),transparent)}
-.car-layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-origin:55% 78%}
+.car-layer{position:absolute;top:0;bottom:0;left:-36px;right:36px;display:flex;align-items:center;justify-content:center;transform-origin:55% 78%}
 .car-suspension{width:100%;position:relative;z-index:1;transform-origin:60% 78%}
-.hero-car-img{width:100%;height:auto;max-height:390px;object-fit:contain;user-select:none;filter:drop-shadow(0 18px 12px rgba(0,0,0,.22))}
-.car-ground-shadow{position:absolute;bottom:12%;left:12%;width:79%;height:9%;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.8),transparent 70%);filter:blur(7px);transform-origin:center}
+.hero-car-img{width:100%;height:auto;max-height:480px;object-fit:contain;user-select:none;filter:drop-shadow(0 20px 16px rgba(0,0,0,.28));transform:scale(1.18);transform-origin:50% 76%}
+.car-ground-shadow{position:absolute;bottom:10%;left:8%;width:88%;height:10%;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.85),transparent 70%);filter:blur(8px);transform-origin:center}
 .car-in{animation:vehicle-arrive .94s cubic-bezier(.16,1,.3,1) both;z-index:2}
 .car-out{animation:vehicle-depart .46s cubic-bezier(.55,0,.85,.36) both;z-index:1}
 .car-in .car-suspension{animation:body-settle .94s ease-out both}
@@ -192,6 +192,6 @@ onUnmounted(() => {
 @keyframes info-reveal{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @media(min-width:1600px){.hero-grid{min-height:480px}}
 @media(max-width:1000px){.hero-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:14px}.hero-title{font-size:clamp(2.4rem,4.5vw,3.5rem)}.hero-eyebrow{font-size:.55rem}.segment-btn{padding:9px 14px}.hero-specs-row{gap:17px}.visual-note{font-size:.58rem}.hero-section{padding-top:120px}}
-@media(max-width:700px){.hero-section{padding:108px 0 46px}.hero-grid{grid-template-columns:minmax(0,1fr);gap:15px}.hero-title{font-size:clamp(2.4rem,8.8vw,3.6rem)}.hero-description{margin-bottom:22px}.hero-eyebrow{margin-bottom:18px}.hero-visual{margin-top:4px}.visual-note{display:none}.car-stage-wrapper{aspect-ratio:1.9}.hero-specs-row{margin-top:21px;min-height:50px}.hero-quick-actions{margin-top:17px}.stage-caption{margin-top:0}.hero-car-img{max-height:280px}.segment-btn{padding:9px 18px}.hero-specs-row strong{font-size:.9rem}}
+@media(max-width:700px){.hero-section{padding:108px 0 46px}.hero-grid{grid-template-columns:minmax(0,1fr);gap:15px}.hero-title{font-size:clamp(2.4rem,8.8vw,3.6rem)}.hero-description{margin-bottom:22px}.hero-eyebrow{margin-bottom:18px}.hero-visual{margin-top:4px;padding-right:0}.visual-note{display:none}.car-stage-wrapper{aspect-ratio:1.9}.car-layer{left:0;right:0}.hero-specs-row{margin-top:21px;min-height:50px}.hero-quick-actions{margin-top:17px}.stage-caption{margin-top:0}.hero-car-img{max-height:280px}.segment-btn{padding:9px 18px}.hero-specs-row strong{font-size:.9rem}}
 @media(prefers-reduced-motion:reduce){.hero-info,.car-in,.car-out,.car-suspension,.car-ground-shadow{animation:none!important}.car-out{display:none}.segment-indicator{transition:none}}
 </style>
