@@ -95,6 +95,16 @@ const routes = [
                 component: () => import('../pages/Admin/Cars/index.vue'),
             },
             {
+                path: 'cars/create',
+                name: 'AdminCarCreate',
+                component: () => import('../pages/Admin/Cars/CarEditor.vue'),
+            },
+            {
+                path: 'cars/edit/:id',
+                name: 'AdminCarEdit',
+                component: () => import('../pages/Admin/Cars/CarEditor.vue'),
+            },
+            {
                 path: 'calendar',
                 name: 'AdminCalendar',
                 component: () => import('../pages/Admin/Calendar/index.vue'),

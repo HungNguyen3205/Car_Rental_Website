@@ -70,6 +70,10 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
                 ->middleware('permission:cars.manage');
             Route::post('/force-delete', [AdminCarController::class, 'forceDeleteData'])
                 ->middleware('permission:cars.manage');
+            Route::get('/detail/{id}', [AdminCarController::class, 'getDetail'])
+                ->middleware('permission:bookings.view,cars.manage');
+            Route::post('/upload-image', [AdminCarController::class, 'uploadImage'])
+                ->middleware('permission:cars.manage');
             Route::post('/status', [AdminCarController::class, 'statusData'])
                 ->middleware('permission:cars.manage');
             Route::post('/publication-status', [AdminCarController::class, 'publicationStatusData'])

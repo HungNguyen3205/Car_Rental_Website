@@ -128,6 +128,74 @@ class CarController extends Controller
         ]);
     }
 
+    public function getDetail($id)
+    {
+        try {
+            $car = Car::withTrashed()
+                ->leftJoin('car_categories', 'cars.category_id', '=', 'car_categories.id')
+                ->where('cars.id', $id)
+                ->select('cars.*', 'car_categories.name as category_name')
+                ->first();
+
+            if (!$car) {
+                return response()->json([
+                    'status'  => 0,
+                    'message' => 'Xe không tồn tại trong hệ thống!',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 1,
+                'data'   => $car,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Car getDetail error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Lỗi khi tải thông tin chi tiết xe!',
+            ], 500);
+        }
+    }
+
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|file|image|mimes:jpeg,jpg,png,webp|max:5120',
+        ], [
+            'image.required' => 'Vui lòng chọn tệp hình ảnh để tải lên!',
+            'image.file'     => 'Dữ liệu tải lên phải là một tệp hợp lệ!',
+            'image.image'    => 'Tệp tải lên phải là hình ảnh!',
+            'image.mimes'    => 'Hình ảnh chỉ chấp nhận định dạng: jpeg, jpg, png, webp!',
+            'image.max'      => 'Kích thước hình ảnh không được vượt quá 5MB!',
+        ]);
+
+        try {
+            $file = $request->file('image');
+            $ext = $file->guessExtension() ?: 'png';
+            $filename = 'car_' . time() . '_' . \Illuminate\Support\Str::random(10) . '.' . $ext;
+            
+            $uploadPath = public_path('uploads/cars');
+            if (!\Illuminate\Support\Facades\File::exists($uploadPath)) {
+                \Illuminate\Support\Facades\File::makeDirectory($uploadPath, 0755, true);
+            }
+
+            $file->move($uploadPath, $filename);
+            $relativeUrl = '/uploads/cars/' . $filename;
+
+            return response()->json([
+                'status'  => 1,
+                'message' => 'Tải ảnh lên thành công!',
+                'url'     => $relativeUrl,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Car uploadImage error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra khi lưu tệp ảnh. Vui lòng thử lại sau!',
+            ], 500);
+        }
+    }
+
     public function createData(AdminCarCreateRequest $request)
     {
         try {
@@ -136,7 +204,9 @@ class CarController extends Controller
 
             $car = Car::create([
                 'name'                => $validated['name'],
+                'license_plate'       => $validated['license_plate'] ?? null,
                 'price_per_day'       => $validated['price_per_day'],
+                'current_km'          => $validated['current_km'] ?? 0,
                 'type'                => $validated['type'] ?? 'Sedan',
                 'city'                => $validated['city'] ?? 'sg',
                 'status'              => $validated['status'] ?? 'available',
@@ -163,6 +233,7 @@ class CarController extends Controller
                 "Xe {$car->name} (#CAR-{$car->id})",
                 [
                     'name'               => $car->name,
+                    'license_plate'      => $car->license_plate,
                     'price_per_day'      => $car->price_per_day,
                     'city'               => $car->city,
                     'status'             => $car->status,
@@ -196,6 +267,24 @@ class CarController extends Controller
                 ], 404);
             }
 
+            // Kiểm soát xung đột ghi đè đồng thời (Optimistic Concurrency Control)
+            if ($request->filled('updated_at')) {
+                try {
+                    $submittedUpdatedAt = \Carbon\Carbon::parse($request->updated_at);
+                    if ($car->updated_at && $car->updated_at->timestamp > $submittedUpdatedAt->timestamp) {
+                        return response()->json([
+                            'status'             => 0,
+                            'error_type'         => 'CONCURRENCY_CONFLICT',
+                            'message'            => 'Dữ liệu xe này đã được cập nhật bởi một phiên làm việc khác trước đó! Vui lòng làm mới trang để xem thông tin mới nhất.',
+                            'current_updated_at' => $car->updated_at->toISOString(),
+                            'data'               => $car,
+                        ], 409);
+                    }
+                } catch (\Exception $e) {
+                    // Fallback nếu chuỗi ngày gửi lên không parse được
+                }
+            }
+
             // Kiểm tra quy tắc: Không được chuyển sang nháp hoặc lưu trữ nếu xe đang có đơn đặt xe hoạt động
             if (isset($validated['publication_status']) && $validated['publication_status'] !== Car::PUB_STATUS_PUBLISHED && $car->publication_status === Car::PUB_STATUS_PUBLISHED) {
                 if ($car->hasActiveBookings()) {
@@ -208,7 +297,9 @@ class CarController extends Controller
 
             $fields = [
                 'name',
+                'license_plate',
                 'price_per_day',
+                'current_km',
                 'type',
                 'city',
                 'status',
@@ -241,6 +332,7 @@ class CarController extends Controller
 
             $oldData = [
                 'name'               => $car->name,
+                'license_plate'      => $car->license_plate,
                 'price_per_day'      => $car->price_per_day,
                 'status'             => $car->status,
                 'publication_status' => $car->publication_status,

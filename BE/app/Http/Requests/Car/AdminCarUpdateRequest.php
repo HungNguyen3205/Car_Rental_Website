@@ -19,9 +19,23 @@ class AdminCarUpdateRequest extends BaseApiRequest
                 'string',
                 'max:255',
             ],
+            'license_plate' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            'updated_at' => [
+                'nullable',
+                'string',
+            ],
             'price_per_day' => [
                 'required',
                 'numeric',
+                'min:0',
+            ],
+            'current_km' => [
+                'nullable',
+                'integer',
                 'min:0',
             ],
             'category_id' => [

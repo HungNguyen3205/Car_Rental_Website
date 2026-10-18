@@ -813,10 +813,12 @@
 
 <script setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import baseRequest from '../../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 import { resolveCarImage, handleCarImgError } from '../../../core/carImageHelper';
 
+const router = useRouter();
 const toaster = createToaster({ position: "top-right" });
 
 // Cars data & categories
@@ -1070,42 +1072,13 @@ const onCategoryChange = () => {
   }
 };
 
-// Modal Open
+// Modal / Editor Navigation
 const openModal = (car = null) => {
-  formErrors.value = {};
-  if (car) {
-    editingCar.value = { 
-      ...car,
-      status: car.status || 'available',
-      publication_status: car.publication_status || 'published',
-      fuel_type: car.fuel_type || 'electric',
-      is_active: car.is_active !== undefined ? Boolean(car.is_active) : (car.publication_status === 'published')
-    };
-    galleryInput.value = Array.isArray(car.gallery) 
-      ? car.gallery.join('\n') 
-      : (typeof car.gallery === 'string' ? car.gallery : '');
+  if (car && car.id) {
+    router.push(`/admin/cars/edit/${car.id}`);
   } else {
-    editingCar.value = {
-      name: '',
-      price_per_day: 1200000,
-      city: 'sg',
-      type: 'SUV Điện',
-      fuel_type: 'electric',
-      status: 'available',
-      publication_status: 'published',
-      category_id: categories.value[0]?.id || 1,
-      image: '/assets/images/vf9.png',
-      seats: null,
-      battery_capacity: '',
-      range_per_charge: '',
-      transmission: 'Tự động',
-      year_of_manufacture: 2024,
-      description: '',
-      is_active: true
-    };
-    galleryInput.value = '';
+    router.push('/admin/cars/create');
   }
-  showModal.value = true;
 };
 
 // Save Car

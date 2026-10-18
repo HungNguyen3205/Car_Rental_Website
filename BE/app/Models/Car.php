@@ -21,6 +21,7 @@ class Car extends Model
 
     protected $fillable = [
         'name',
+        'license_plate',
         'price_per_day',
         'current_km',
         'type',
