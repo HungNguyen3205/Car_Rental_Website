@@ -257,6 +257,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import baseRequest from '../../../core/baseRequest';
+import { clearAuthStorage } from '../../../core/authStorage';
 
 const router = useRouter();
 const route = useRoute();
@@ -475,18 +476,22 @@ watch(() => route.path, () => {
   checkAuth();
 });
 
-const logout = () => {
-  localStorage.removeItem('token_client');
-  localStorage.removeItem('user_role');
-  localStorage.removeItem('user');
-  user.value = null;
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
+const logout = async () => {
+  try {
+    await baseRequest.post('logout');
+  } catch {
+    // Bỏ qua lỗi mạng
+  } finally {
+    clearAuthStorage();
+    user.value = null;
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    closeMenu();
+    if (mobileMenuOpen.value) closeMobileMenu();
+    router.push('/');
   }
-  closeMenu();
-  if (mobileMenuOpen.value) closeMobileMenu();
-  router.push('/');
 };
 
 onMounted(() => {

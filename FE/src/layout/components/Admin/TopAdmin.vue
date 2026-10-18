@@ -74,6 +74,8 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import baseRequest from '../../../core/baseRequest';
+import { clearAuthStorage } from '../../../core/authStorage';
 
 defineEmits(['toggle-sidebar']);
 
@@ -132,11 +134,15 @@ const toggleMenu = () => {
     showMenu.value = !showMenu.value;
 };
 
-const logout = () => {
-    localStorage.removeItem('token_client');
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('user');
-    router.push('/login');
+const logout = async () => {
+    try {
+        await baseRequest.post('logout');
+    } catch {
+        // Bỏ qua lỗi mạng khi logout, vẫn dọn sạch dữ liệu client
+    } finally {
+        clearAuthStorage();
+        router.push('/login');
+    }
 };
 
 const pageTitle = computed(() => {

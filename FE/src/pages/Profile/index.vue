@@ -308,6 +308,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import baseRequest from '../../core/baseRequest';
+import { clearAuthStorage } from '../../core/authStorage';
 import { createToaster } from "@meforma/vue-toaster";
 
 const router = useRouter();
@@ -443,10 +444,7 @@ const handleLogoutCurrent = async () => {
   } catch (e) {
     console.warn('Lỗi khi đăng xuất:', e);
   } finally {
-    localStorage.removeItem('token_client');
-    localStorage.removeItem('token_admin');
-    localStorage.removeItem('user');
-    localStorage.removeItem('user_role');
+    clearAuthStorage();
     loggingOutCurrent.value = false;
     router.push('/login');
   }
@@ -461,10 +459,7 @@ const handleLogoutAll = async () => {
   } catch (e) {
     toaster.error(e.response?.data?.message || 'Có lỗi xảy ra khi đăng xuất khỏi tất cả thiết bị.');
   } finally {
-    localStorage.removeItem('token_client');
-    localStorage.removeItem('token_admin');
-    localStorage.removeItem('user');
-    localStorage.removeItem('user_role');
+    clearAuthStorage();
     loggingOutAll.value = false;
     router.push('/login');
   }

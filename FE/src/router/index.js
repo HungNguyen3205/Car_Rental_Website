@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import baseRequest from '../core/baseRequest';
+import { clearAuthStorage } from '../core/authStorage';
 
 const routes = [
     // Client Area
@@ -131,41 +133,78 @@ const router = createRouter({
     routes
 });
 
+// Bộ đệm trạng thái xác thực phiên admin trong bộ nhớ (tránh gọi API lặp lại khi chuyển tab nhanh)
+let verifiedAdminSession = {
+    token: null,
+    verifiedAt: 0,
+};
+
 // Navigation Guard bảo vệ phân quyền thực tế, chống leo quyền bằng sửa đổi localStorage
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     // 1. Quản lý truy cập khu vực Admin
     if (to.path.startsWith('/admin')) {
         const tokenAdmin = localStorage.getItem('token_admin');
         const tokenClient = localStorage.getItem('token_client');
-        const rawUser = localStorage.getItem('user');
+        const currentToken = tokenAdmin || tokenClient;
+        const redirectParam = encodeURIComponent(to.fullPath);
 
         // Bắt buộc phải có token xác thực
-        if (!tokenAdmin && !tokenClient) {
-            return next('/login?required=admin');
+        if (!currentToken) {
+            return next(`/login?required=admin&redirect=${redirectParam}`);
         }
 
-        let user = null;
-        try {
-            user = rawUser ? JSON.parse(rawUser) : null;
-        } catch (e) {
-            localStorage.clear();
-            return next('/login');
-        }
+        // Kiểm tra cache xác thực phiên gần nhất (trong vòng 45 giây và cùng token)
+        const isRecentlyVerified = 
+            verifiedAdminSession.token === currentToken &&
+            (Date.now() - verifiedAdminSession.verifiedAt < 45000);
 
-        // Ngăn chặn đổi vai trò chỉ bằng localStorage: Yêu cầu cả token_admin và user.role === 'admin'
-        if ((tokenAdmin || tokenClient) && user?.role === 'admin') {
+        if (isRecentlyVerified) {
             return next();
         }
 
-        // Thiếu quyền admin thực tế
-        return next('/');
+        // Xác minh phiên trực tiếp với backend (Tuyệt đối không tin vai trò lưu tĩnh trong localStorage)
+        try {
+            const res = await baseRequest.get('check-login');
+            if (res.data?.status === 1 && res.data?.user?.role === 'admin') {
+                // Xác nhận hợp lệ từ backend
+                verifiedAdminSession = {
+                    token: currentToken,
+                    verifiedAt: Date.now()
+                };
+                // Đồng bộ dữ liệu định danh chính chủ từ backend
+                localStorage.setItem('user', JSON.stringify(res.data.user));
+                localStorage.setItem('user_role', 'admin');
+                if (res.data.user.permissions) {
+                    localStorage.setItem('admin_permissions', JSON.stringify(res.data.user.permissions));
+                }
+                return next();
+            } else {
+                // Backend trả về không phải vai trò admin (Ví dụ: khách hàng bình thường cố truy cập admin)
+                verifiedAdminSession = { token: null, verifiedAt: 0 };
+                return next(`/login?required=admin&forbidden=1&redirect=${redirectParam}`);
+            }
+        } catch (error) {
+            verifiedAdminSession = { token: null, verifiedAt: 0 };
+            const status = error.response?.status;
+            if (status === 401) {
+                clearAuthStorage();
+                return next(`/login?expired=1&redirect=${redirectParam}`);
+            }
+            if (status === 403) {
+                clearAuthStorage();
+                return next('/login?locked=1');
+            }
+            // Lỗi mạng hoặc server không phản hồi
+            return next(`/login?required=admin&redirect=${redirectParam}`);
+        }
     }
 
     // 2. Quản lý truy cập khu vực Khách hàng cần xác thực (chuyến đi của tôi, hồ sơ cá nhân)
     if (to.path.startsWith('/my-bookings') || to.path === '/profile') {
         const token = localStorage.getItem('token_client') || localStorage.getItem('token_admin');
         if (!token) {
-            return next('/login?required=auth');
+            const redirectParam = encodeURIComponent(to.fullPath);
+            return next(`/login?required=auth&redirect=${redirectParam}`);
         }
     }
 

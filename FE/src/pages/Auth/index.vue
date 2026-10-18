@@ -17,6 +17,18 @@
         <p v-else>{{ isLogin ? 'Đăng nhập để tiếp tục hành trình và quản lý các chuyến đi' : 'Bắt đầu trải nghiệm thuê xe điện xanh cùng DriveRent' }}</p>
       </div>
 
+      <!-- Status Notice Banner from Query Parameters -->
+      <div v-if="authNotice" :class="['auth-notice-banner', authNotice.type, 'animate-in']">
+        <i :class="authNotice.icon"></i>
+        <div class="notice-content">
+          <strong>{{ authNotice.title }}</strong>
+          <p>{{ authNotice.message }}</p>
+        </div>
+        <button type="button" class="close-notice-btn" @click="authNotice = null" aria-label="Đóng thông báo">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
       <!-- FORGOT PASSWORD VIEW -->
       <div v-if="isForgot" class="forgot-wrapper animate-in">
         <!-- Success Notice (Non-revealing) -->
@@ -101,38 +113,48 @@
       <template v-else>
         <!-- Form -->
         <form @submit.prevent="handleSubmit" class="auth-form">
+          <!-- General Form Error Banner -->
+          <div v-if="errors.general" class="error-banner animate-in">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>{{ errors.general }}</span>
+          </div>
+
           <!-- Full Name (Only in Register mode) -->
           <div class="form-group" v-if="!isLogin">
             <label for="register-name">Họ và tên</label>
-            <div class="input-wrap">
+            <div class="input-wrap" :class="{ 'has-error': errors.ho_ten }">
               <i class="fa-regular fa-user"></i>
               <input 
                 id="register-name"
                 type="text" 
                 v-model="registerForm.ho_ten" 
+                @input="errors.ho_ten = ''; errors.general = ''"
                 placeholder="Nguyễn Văn A" 
                 autocomplete="name"
                 class="form-control"
                 required 
               />
             </div>
+            <span v-if="errors.ho_ten" class="field-error-text">{{ errors.ho_ten }}</span>
           </div>
 
           <!-- Email -->
           <div class="form-group">
             <label for="auth-email">Địa chỉ Email</label>
-            <div class="input-wrap">
+            <div class="input-wrap" :class="{ 'has-error': errors.email }">
               <i class="fa-regular fa-envelope"></i>
               <input 
                 id="auth-email"
                 type="email" 
                 v-model="activeEmail" 
+                @input="errors.email = ''; errors.general = ''"
                 placeholder="email@example.com" 
                 autocomplete="email"
                 class="form-control"
                 required 
               />
             </div>
+            <span v-if="errors.email" class="field-error-text">{{ errors.email }}</span>
           </div>
 
           <!-- Password -->
@@ -141,12 +163,13 @@
               <label for="auth-password">Mật khẩu</label>
               <a v-if="isLogin" role="button" class="forgot-link" @click="openForgot">Quên mật khẩu?</a>
             </div>
-            <div class="input-wrap">
+            <div class="input-wrap" :class="{ 'has-error': errors.password }">
               <i class="fa-solid fa-lock"></i>
               <input 
                 id="auth-password"
                 :type="showPassword ? 'text' : 'password'" 
                 v-model="activePassword" 
+                @input="errors.password = ''; errors.general = ''"
                 placeholder="••••••••" 
                 :autocomplete="isLogin ? 'current-password' : 'new-password'"
                 class="form-control"
@@ -161,6 +184,7 @@
                 <i :class="showPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
               </button>
             </div>
+            <span v-if="errors.password" class="field-error-text">{{ errors.password }}</span>
           </div>
 
           <!-- Submit Button -->
@@ -200,19 +224,29 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import baseRequest from '../../core/baseRequest';
+import { setAuthSession, getSafePostLoginRedirect } from '../../core/authStorage';
 import { createToaster } from "@meforma/vue-toaster";
 
 const toaster = createToaster({ position: "top-right" });
 const router = useRouter();
+const route = useRoute();
 const isLogin = ref(true);
 const isForgot = ref(false);
 const forgotSubmitted = ref(false);
 const forgotLoading = ref(false);
 const showPassword = ref(false);
 const loading = ref(false);
+const authNotice = ref(null);
+
+const errors = reactive({
+  email: '',
+  password: '',
+  ho_ten: '',
+  general: ''
+});
 
 const loginForm = reactive({
   email: '',
@@ -230,6 +264,46 @@ const registerForm = reactive({
 const forgotForm = reactive({
   email: '',
   account_type: 'customer'
+});
+
+onMounted(() => {
+  const query = route.query;
+  if (query.expired === '1') {
+    authNotice.value = {
+      type: 'warning',
+      icon: 'fa-solid fa-clock-rotate-left',
+      title: 'Phiên làm việc đã hết hạn',
+      message: 'Vui lòng đăng nhập lại để tiếp tục phiên làm việc an toàn.'
+    };
+  } else if (query.required === 'admin' && query.forbidden === '1') {
+    authNotice.value = {
+      type: 'danger',
+      icon: 'fa-solid fa-ban',
+      title: 'Thiếu quyền quản trị',
+      message: 'Tài khoản hiện tại không có quyền truy cập khu vực Quản trị. Vui lòng đăng nhập bằng tài khoản Quản trị viên!'
+    };
+  } else if (query.required === 'admin') {
+    authNotice.value = {
+      type: 'info',
+      icon: 'fa-solid fa-shield-halved',
+      title: 'Yêu cầu quyền Quản trị viên',
+      message: 'Khu vực quản trị yêu cầu bạn đăng nhập bằng tài khoản Quản trị viên.'
+    };
+  } else if (query.locked === '1') {
+    authNotice.value = {
+      type: 'danger',
+      icon: 'fa-solid fa-user-lock',
+      title: 'Tài khoản tạm ngưng',
+      message: 'Tài khoản của bạn đã bị khóa hoặc chưa được kích hoạt. Vui lòng liên hệ ban quản trị.'
+    };
+  } else if (query.required === 'auth') {
+    authNotice.value = {
+      type: 'info',
+      icon: 'fa-solid fa-circle-info',
+      title: 'Yêu cầu đăng nhập',
+      message: 'Vui lòng đăng nhập để tiếp tục truy cập chuyến đi hoặc hồ sơ của bạn.'
+    };
+  }
 });
 
 const openForgot = () => {
@@ -263,6 +337,10 @@ const activePassword = computed({
 
 const toggleMode = () => {
   isLogin.value = !isLogin.value;
+  errors.email = '';
+  errors.password = '';
+  errors.ho_ten = '';
+  errors.general = '';
 };
 
 const handleForgotPassword = async () => {
@@ -285,7 +363,6 @@ const handleForgotPassword = async () => {
     if (error.response?.status === 429) {
       toaster.error('Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi 1 phút trước khi thử lại!');
     } else {
-      // Ngay cả khi có lỗi mạng/lỗi khác, giữ phản hồi thân thiện
       toaster.error(error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau!');
     }
   } finally {
@@ -294,6 +371,35 @@ const handleForgotPassword = async () => {
 };
 
 const handleSubmit = async () => {
+  errors.email = '';
+  errors.password = '';
+  errors.ho_ten = '';
+  errors.general = '';
+
+  if (isLogin.value) {
+    if (!loginForm.email) {
+      errors.email = 'Vui lòng nhập địa chỉ email!';
+      return;
+    }
+    if (!loginForm.password) {
+      errors.password = 'Vui lòng nhập mật khẩu!';
+      return;
+    }
+  } else {
+    if (!registerForm.ho_ten) {
+      errors.ho_ten = 'Vui lòng nhập họ và tên!';
+      return;
+    }
+    if (!registerForm.email) {
+      errors.email = 'Vui lòng nhập địa chỉ email!';
+      return;
+    }
+    if (!registerForm.password || registerForm.password.length < 6) {
+      errors.password = 'Mật khẩu phải có ít nhất 6 ký tự!';
+      return;
+    }
+  }
+
   loading.value = true;
   try {
     const url = isLogin.value ? 'login' : 'register';
@@ -304,25 +410,47 @@ const handleSubmit = async () => {
     if (res.data.status) {
       toaster.success(res.data.message || (isLogin.value ? 'Đăng nhập thành công!' : 'Đăng ký thành công!'));
       if (isLogin.value) {
-        localStorage.setItem('token_client', res.data.token);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-        localStorage.setItem('user_role', res.data.user.role);
-        
-        if (res.data.user.role === 'admin') {
-          localStorage.setItem('token_admin', res.data.token);
-          router.push('/admin');
-        } else {
-          router.push('/');
-        }
+        setAuthSession({
+          token: res.data.token,
+          user: res.data.user,
+          role: res.data.user.role
+        });
+
+        authNotice.value = null;
+        const targetPath = getSafePostLoginRedirect(route.query.redirect, res.data.user.role);
+        router.push(targetPath);
       } else {
         isLogin.value = true;
       }
     } else {
-      toaster.error(res.data.message || 'Thao tác không thành công!');
+      errors.general = res.data.message || 'Thao tác không thành công!';
+      toaster.error(errors.general);
     }
   } catch (error) {
-    const err = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau!';
-    toaster.error(err);
+    const status = error.response?.status;
+    const data = error.response?.data;
+
+    if (status === 401) {
+      errors.general = data?.message || 'Tài khoản hoặc mật khẩu không chính xác!';
+      toaster.error(errors.general);
+    } else if (status === 403) {
+      errors.general = data?.message || 'Tài khoản chưa được kích hoạt hoặc đã bị khóa!';
+      toaster.error(errors.general);
+    } else if (status === 422) {
+      const fieldErrors = data?.errors || {};
+      if (fieldErrors.email) errors.email = fieldErrors.email[0];
+      if (fieldErrors.password) errors.password = fieldErrors.password[0];
+      if (fieldErrors.ho_ten) errors.ho_ten = fieldErrors.ho_ten[0];
+      if (!errors.email && !errors.password && !errors.ho_ten) {
+        errors.general = data?.message || 'Dữ liệu không hợp lệ!';
+      }
+    } else if (status === 429) {
+      errors.general = data?.message || 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau!';
+      toaster.error(errors.general);
+    } else {
+      errors.general = data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau!';
+      toaster.error(errors.general);
+    }
   } finally {
     loading.value = false;
   }
@@ -643,5 +771,111 @@ const handleSocialLogin = (provider) => {
 
 .back-link:hover {
   color: var(--color-primary);
+}
+
+/* Auth Notice Banners & Field Error Styles */
+.auth-notice-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md, 10px);
+  margin-bottom: 20px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  position: relative;
+  text-align: left;
+}
+
+.auth-notice-banner i {
+  font-size: 1.15rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.auth-notice-banner.warning {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #b45309;
+}
+.auth-notice-banner.warning i {
+  color: #f59e0b;
+}
+
+.auth-notice-banner.danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #b91c1c;
+}
+.auth-notice-banner.danger i {
+  color: #ef4444;
+}
+
+.auth-notice-banner.info {
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(14, 165, 233, 0.28);
+  color: #0369a1;
+}
+.auth-notice-banner.info i {
+  color: #0ea5e9;
+}
+
+.notice-content {
+  flex: 1;
+}
+
+.notice-content strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.notice-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.95;
+}
+
+.close-notice-btn {
+  background: none;
+  border: none;
+  color: currentColor;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.close-notice-btn:hover {
+  opacity: 1;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-sm, 8px);
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.input-wrap.has-error .form-control {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2) !important;
+}
+
+.field-error-text {
+  display: block;
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin-top: 5px;
+  padding-left: 4px;
+  text-align: left;
 }
 </style>

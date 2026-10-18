@@ -78,6 +78,7 @@
 import { useRouter } from 'vue-router';
 import { ref, onMounted, onUnmounted } from 'vue';
 import baseRequest from '../../../core/baseRequest';
+import { clearAuthStorage } from '../../../core/authStorage';
 
 defineProps({
     isOpen: {
@@ -140,11 +141,15 @@ onUnmounted(() => {
     window.removeEventListener('keydown', handleKeyDown);
 });
 
-const handleLogout = () => {
-    localStorage.removeItem('token_client');
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('user');
-    router.push('/login');
+const handleLogout = async () => {
+    try {
+        await baseRequest.post('logout');
+    } catch {
+        // Bỏ qua lỗi mạng
+    } finally {
+        clearAuthStorage();
+        router.push('/login');
+    }
 };
 </script>
 

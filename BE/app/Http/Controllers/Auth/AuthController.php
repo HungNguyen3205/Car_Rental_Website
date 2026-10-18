@@ -161,9 +161,9 @@ class AuthController extends Controller
         ], 404);
     }
 
-    public function checkLogin()
+    public function checkLogin(Request $request)
     {
-        $user = Auth::guard('admin')->user() ?? Auth::guard('sanctum')->user();
+        $user = $request->user() ?? Auth::guard('admin')->user() ?? Auth::guard('sanctum')->user();
         if (!$user) {
             return response()->json([
                 'status' => 0,

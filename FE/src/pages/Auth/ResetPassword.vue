@@ -22,8 +22,8 @@
         </div>
         <h3>Mật Khẩu Đã Được Cập Nhật!</h3>
         <p>Tất cả các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi an toàn. Bạn đã được tự động đăng nhập vào hệ thống.</p>
-        <router-link to="/" class="btn-primary w-full mt-3">
-          Tiếp tục đến Trang chủ
+        <router-link :to="form.account_type === 'admin' ? '/admin' : '/'" class="btn-primary w-full mt-3">
+          {{ form.account_type === 'admin' ? 'Tiếp tục đến Bảng Điều Khiển Quản Trị' : 'Tiếp tục đến Trang Chủ' }}
         </router-link>
       </div>
 
@@ -133,6 +133,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import baseRequest from '../../core/baseRequest';
+import { setAuthSession } from '../../core/authStorage';
 import { createToaster } from "@meforma/vue-toaster";
 
 const route = useRoute();
@@ -197,16 +198,13 @@ const handleReset = async () => {
       toaster.success("Đặt lại mật khẩu thành công!");
       success.value = true;
 
-      // Lưu token mới được cấp cho phiên này
+      // Lưu phiên mới được cấp một cách chuẩn hóa
       if (res.data.token) {
-        if (form.account_type === 'admin') {
-          localStorage.setItem('token_admin', res.data.token);
-        } else {
-          localStorage.setItem('token_client', res.data.token);
-        }
-        if (res.data.user) {
-          localStorage.setItem('user', JSON.stringify(res.data.user));
-        }
+        setAuthSession({
+          token: res.data.token,
+          user: res.data.user,
+          role: form.account_type === 'admin' ? 'admin' : (res.data.user?.role || 'customer')
+        });
       }
     } else {
       errorMessage.value = res.data?.message || "Đặt lại mật khẩu thất bại!";
