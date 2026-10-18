@@ -512,6 +512,10 @@ onUnmounted(() => {
   right: 0;
   z-index: var(--z-sticky);
   padding: 16px 0;
+  background: rgba(11, 18, 32, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   transition: padding var(--duration-normal) var(--ease-smooth),
               background var(--duration-normal) var(--ease-smooth),
               border-color var(--duration-normal) var(--ease-smooth),
@@ -520,11 +524,11 @@ onUnmounted(() => {
 
 .header-main.is-sticky {
   padding: 10px 0;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(11, 18, 32, 0.94);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: 0 4px 20px -2px rgba(16, 24, 40, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
 }
 
 .header-container {
@@ -563,12 +567,12 @@ onUnmounted(() => {
   font-family: var(--font-heading);
   font-size: 1.35rem;
   font-weight: 800;
-  color: var(--color-text-main);
+  color: #ffffff;
   letter-spacing: -0.03em;
 }
 
 .logo-text span {
-  color: var(--color-primary);
+  color: var(--color-primary-glow, #10b981);
 }
 
 /* Nav Links Desktop */
@@ -581,9 +585,10 @@ onUnmounted(() => {
 .nav-links a {
   font-size: 0.935rem;
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: #94a3b8;
   padding: 6px 4px;
   position: relative;
+  transition: color var(--duration-fast) ease;
 }
 
 .nav-links a::after {
@@ -593,14 +598,14 @@ onUnmounted(() => {
   left: 0;
   width: 0;
   height: 2px;
-  background: var(--color-primary);
+  background: var(--color-primary, #059669);
   border-radius: 2px;
   transition: width var(--duration-fast) var(--ease-smooth);
 }
 
 .nav-links a:hover,
 .nav-links a.active {
-  color: var(--color-text-main);
+  color: #ffffff;
 }
 
 .nav-links a.active::after,
@@ -619,15 +624,20 @@ onUnmounted(() => {
 .login-link {
   font-weight: 600;
   font-size: 0.935rem;
-  color: var(--color-text-main);
+  color: #cbd5e1;
   padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  transition: background var(--duration-fast);
+  border-radius: 9999px;
+  transition: all var(--duration-fast);
 }
 
 .login-link:hover {
-  background: var(--bg-surface-sub);
-  color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.register-btn {
+  border-radius: 9999px;
+  padding: 10px 22px;
 }
 
 .register-btn {
