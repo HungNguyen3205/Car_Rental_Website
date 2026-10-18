@@ -138,6 +138,11 @@ const routes = [
                 path: 'settings',
                 name: 'AdminSettings',
                 component: () => import('../pages/Admin/Settings/index.vue'),
+            },
+            {
+                path: 'media',
+                name: 'AdminMedia',
+                component: () => import('../pages/Admin/Media/index.vue'),
             }
         ]
     }

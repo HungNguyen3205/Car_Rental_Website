@@ -23,6 +23,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::post('/contact', [\App\Http\Controllers\Client\ContactController::class, 'store']);
 Route::get('/settings/public', [\App\Http\Controllers\Public\SettingController::class, 'index']);
 Route::get('/car-categories', [\App\Http\Controllers\Client\CarCategoryController::class, 'index']);
+Route::get('/admin/media/{id}/stream', [\App\Http\Controllers\Admin\MediaController::class, 'stream']);
 
 Route::group(['prefix' => 'client'], function () {
     Route::get('/car/data', [ClientCarController::class, 'getDataClient']);
@@ -154,6 +155,15 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             Route::patch('/{id}/status', [\App\Http\Controllers\Admin\CarCategoryController::class, 'toggleStatus']);
             Route::post('/{id}/status', [\App\Http\Controllers\Admin\CarCategoryController::class, 'toggleStatus']);
             Route::delete('/{id}', [\App\Http\Controllers\Admin\CarCategoryController::class, 'destroy']);
+        });
+
+        // Thư viện tài nguyên dùng chung (Shared Media Library)
+        Route::group(['prefix' => 'media', 'middleware' => 'permission:cars.manage,settings.manage,bookings.view'], function () {
+            Route::get('/', [\App\Http\Controllers\Admin\MediaController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Admin\MediaController::class, 'store']);
+            Route::get('/{id}/references', [\App\Http\Controllers\Admin\MediaController::class, 'references']);
+            Route::put('/{id}', [\App\Http\Controllers\Admin\MediaController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\Admin\MediaController::class, 'destroy']);
         });
 
         // Xuất dữ liệu (CSV Export)

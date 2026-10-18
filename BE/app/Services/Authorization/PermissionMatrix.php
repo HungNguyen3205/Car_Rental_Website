@@ -138,9 +138,7 @@ class PermissionMatrix
                 self::PERM_PAYMENTS_MANAGE,
                 self::PERM_REPORTS_VIEW,
             ],
-            default => [
-                self::PERM_BOOKINGS_VIEW,
-            ],
+            default => [],
         };
     }
 

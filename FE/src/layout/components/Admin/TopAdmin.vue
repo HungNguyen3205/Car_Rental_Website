@@ -154,6 +154,7 @@ const pageTitle = computed(() => {
         case 'AdminBookings': return 'Quản lý đơn đặt xe';
         case 'AdminUsers': return 'Quản lý khách hàng';
         case 'AdminPermissions': return 'Tài khoản quản trị';
+        case 'AdminMedia': return 'Thư viện tài nguyên';
         default: return 'Trang quản trị';
     }
 });

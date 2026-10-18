@@ -354,6 +354,10 @@
 
               <div class="thumb-controls">
                 <div class="upload-btn-row">
+                  <button type="button" class="btn-media-picker" @click="openMediaPickerForThumbnail">
+                    <i class="fa-solid fa-photo-film"></i>
+                    <span>Chọn từ Thư viện tài nguyên</span>
+                  </button>
                   <label class="btn-secondary btn-file-upload" :class="{ disabled: uploadingMain }">
                     <i v-if="uploadingMain" class="fa-solid fa-spinner fa-spin"></i>
                     <i v-else class="fa-solid fa-cloud-arrow-up"></i>
@@ -393,19 +397,25 @@
                 <p class="sub-label">Bộ ảnh ngoại thất, nội thất, khoang hành lý phục vụ trang chi tiết xe.</p>
               </div>
 
-              <label class="btn-secondary btn-file-upload btn-sm" :class="{ disabled: uploadingGallery }">
-                <i v-if="uploadingGallery" class="fa-solid fa-spinner fa-spin"></i>
-                <i v-else class="fa-solid fa-plus"></i>
-                <span>{{ uploadingGallery ? 'Đang tải...' : 'Thêm ảnh từ máy' }}</span>
-                <input 
-                  type="file" 
-                  accept="image/png,image/jpeg,image/webp" 
-                  multiple 
-                  @change="onUploadGalleryImages" 
-                  :disabled="uploadingGallery" 
-                  hidden
-                />
-              </label>
+              <div class="gallery-upload-actions">
+                <button type="button" class="btn-media-picker btn-sm" @click="openMediaPickerForGallery">
+                  <i class="fa-solid fa-photo-film"></i>
+                  <span>Chọn từ Thư viện</span>
+                </button>
+                <label class="btn-secondary btn-file-upload btn-sm" :class="{ disabled: uploadingGallery }">
+                  <i v-if="uploadingGallery" class="fa-solid fa-spinner fa-spin"></i>
+                  <i v-else class="fa-solid fa-plus"></i>
+                  <span>{{ uploadingGallery ? 'Đang tải...' : 'Thêm ảnh từ máy' }}</span>
+                  <input 
+                    type="file" 
+                    accept="image/png,image/jpeg,image/webp" 
+                    multiple 
+                    @change="onUploadGalleryImages" 
+                    :disabled="uploadingGallery" 
+                    hidden
+                  />
+                </label>
+              </div>
             </div>
 
             <!-- Quick Add URL input -->
@@ -782,6 +792,16 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal 3: Media Picker Modal -->
+    <MediaPickerModal 
+      :visible="showMediaPicker" 
+      :multiple="mediaPickerMultiple" 
+      collection="cars"
+      :title="mediaPickerTitle"
+      @close="showMediaPicker = false" 
+      @select="onSelectFromMediaPicker" 
+    />
   </div>
 </template>
 
@@ -791,6 +811,7 @@ import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import baseRequest from '../../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 import { resolveCarImage, handleCarImgError } from '../../../core/carImageHelper';
+import MediaPickerModal from '../../../components/Media/MediaPickerModal.vue';
 
 const toaster = createToaster({ position: "top-right" });
 const route = useRoute();
@@ -1048,6 +1069,48 @@ const onUploadGalleryImages = async (e) => {
   if (successCount > 0) {
     markDirty();
     toaster.success(`Đã tải lên thành công ${successCount} ảnh vào thư viện!`);
+  }
+};
+
+// Media Picker Handlers
+const showMediaPicker = ref(false);
+const mediaPickerMultiple = ref(false);
+const mediaPickerTarget = ref('thumbnail');
+
+const mediaPickerTitle = computed(() => {
+  return mediaPickerTarget.value === 'thumbnail'
+    ? 'Chọn Ảnh Đại Diện Xe Từ Thư Viện'
+    : 'Chọn Ảnh Thư Viện Xe (Gallery)';
+});
+
+const openMediaPickerForThumbnail = () => {
+  mediaPickerTarget.value = 'thumbnail';
+  mediaPickerMultiple.value = false;
+  showMediaPicker.value = true;
+};
+
+const openMediaPickerForGallery = () => {
+  mediaPickerTarget.value = 'gallery';
+  mediaPickerMultiple.value = true;
+  showMediaPicker.value = true;
+};
+
+const onSelectFromMediaPicker = (selected) => {
+  if (mediaPickerTarget.value === 'thumbnail') {
+    const item = Array.isArray(selected) ? selected[0] : selected;
+    if (item) {
+      form.image = item.url || item.display_url;
+      markDirty();
+      toaster.success('Đã chọn ảnh đại diện từ Thư viện tài nguyên!');
+    }
+  } else {
+    const items = Array.isArray(selected) ? selected : [selected];
+    const newUrls = items.map(it => it.url || it.display_url).filter(Boolean);
+    if (newUrls.length > 0) {
+      galleryList.value.push(...newUrls);
+      markDirty();
+      toaster.success(`Đã thêm ${newUrls.length} ảnh từ Thư viện vào Gallery!`);
+    }
   }
 };
 
@@ -1671,6 +1734,38 @@ onUnmounted(() => {
 .btn-file-upload.disabled {
   opacity: 0.5;
   pointer-events: none;
+}
+
+.btn-media-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-media-picker:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.btn-media-picker.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+}
+
+.gallery-upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .divider {

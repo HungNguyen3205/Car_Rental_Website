@@ -86,6 +86,24 @@ class Admin extends Authenticatable
     }
 
     /**
+     * Kiểm tra admin có ít nhất một trong các quyền được chỉ định hay không
+     */
+    public function hasAnyPermission(array $permissions): bool
+    {
+        if ($this->isOwner()) {
+            return true;
+        }
+
+        foreach ($permissions as $perm) {
+            if ($this->hasPermission($perm)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Kiểm tra vai trò của Admin
      */
     public function hasRole(string|array $roles): bool
