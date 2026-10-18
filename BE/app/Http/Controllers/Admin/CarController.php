@@ -8,6 +8,7 @@ use App\Http\Requests\Car\AdminCarCreateRequest;
 use App\Http\Requests\Car\AdminCarUpdateRequest;
 use App\Models\Car;
 use App\Models\CarCategory;
+use App\Services\Audit\AuditService;
 use Illuminate\Support\Facades\Log;
 
 class CarController extends Controller
@@ -30,14 +31,38 @@ class CarController extends Controller
         try {
             $validated = $request->validated();
             $car = Car::create([
-                'name'          => $validated['name'],
-                'price_per_day' => $validated['price_per_day'],
-                'type'          => $validated['type'] ?? 'Sedan',
-                'city'          => $validated['city'] ?? 'sg',
-                'status'        => $validated['status'] ?? 'available',
-                'image'         => $validated['image'] ?? '/assets/images/cars/vf9.png',
-                'category_id'   => $validated['category_id'] ?? 1,
+                'name'                => $validated['name'],
+                'price_per_day'       => $validated['price_per_day'],
+                'type'                => $validated['type'] ?? 'Sedan',
+                'city'                => $validated['city'] ?? 'sg',
+                'status'              => $validated['status'] ?? 'available',
+                'image'               => $validated['image'] ?? '/assets/images/cars/vf9.png',
+                'category_id'         => $validated['category_id'] ?? 1,
+                'fuel_type'           => $validated['fuel_type'] ?? 'electric',
+                'seats'               => $validated['seats'] ?? null,
+                'battery_capacity'    => $validated['battery_capacity'] ?? null,
+                'range_per_charge'    => $validated['range_per_charge'] ?? null,
+                'transmission'        => $validated['transmission'] ?? null,
+                'year_of_manufacture' => $validated['year_of_manufacture'] ?? null,
+                'gallery'             => $validated['gallery'] ?? [],
+                'rental_conditions'   => $validated['rental_conditions'] ?? null,
+                'extra_fees_info'     => $validated['extra_fees_info'] ?? null,
+                'description'         => $validated['description'] ?? null,
+                'is_active'           => $validated['is_active'] ?? true,
             ]);
+
+            AuditService::log(
+                'car.created',
+                'Car',
+                $car->id,
+                "Xe {$car->name} (#CAR-{$car->id})",
+                [
+                    'name'          => $car->name,
+                    'price_per_day' => $car->price_per_day,
+                    'city'          => $car->city,
+                    'status'        => $car->status,
+                ]
+            );
 
             return response()->json([
                 'status'  => 1,
@@ -65,29 +90,52 @@ class CarController extends Controller
                 ], 404);
             }
 
-            // Strictly whitelist updated fields, no uncontrolled mass assignment
-            $updateData = [
-                'name'          => $validated['name'],
-                'price_per_day' => $validated['price_per_day'],
+            // Whitelist updated fields, no uncontrolled mass assignment
+            $fields = [
+                'name',
+                'price_per_day',
+                'type',
+                'city',
+                'status',
+                'image',
+                'category_id',
+                'fuel_type',
+                'seats',
+                'battery_capacity',
+                'range_per_charge',
+                'transmission',
+                'year_of_manufacture',
+                'gallery',
+                'rental_conditions',
+                'extra_fees_info',
+                'description',
+                'is_active',
             ];
 
-            if (array_key_exists('type', $validated)) {
-                $updateData['type'] = $validated['type'];
-            }
-            if (array_key_exists('city', $validated)) {
-                $updateData['city'] = $validated['city'];
-            }
-            if (array_key_exists('status', $validated)) {
-                $updateData['status'] = $validated['status'];
-            }
-            if (array_key_exists('image', $validated)) {
-                $updateData['image'] = $validated['image'];
-            }
-            if (array_key_exists('category_id', $validated)) {
-                $updateData['category_id'] = $validated['category_id'];
+            $updateData = [];
+            foreach ($fields as $field) {
+                if (array_key_exists($field, $validated)) {
+                    $updateData[$field] = $validated[$field];
+                }
             }
 
+            $oldData = [
+                'name'          => $car->name,
+                'price_per_day' => $car->price_per_day,
+                'status'        => $car->status,
+                'city'          => $car->city,
+            ];
+
             $car->update($updateData);
+
+            AuditService::log(
+                'car.updated',
+                'Car',
+                $car->id,
+                "Xe {$car->name} (#CAR-{$car->id})",
+                $updateData,
+                $oldData
+            );
 
             return response()->json([
                 'status'  => 1,
@@ -114,7 +162,19 @@ class CarController extends Controller
                 ], 404);
             }
 
+            $carName = $car->name;
+            $carId = $car->id;
             $car->delete();
+
+            AuditService::log(
+                'car.deleted',
+                'Car',
+                $carId,
+                "Xe {$carName} (#CAR-{$carId})",
+                null,
+                ['name' => $carName]
+            );
+
             return response()->json([
                 'status'  => 1,
                 'message' => 'Xóa xe thành công!',
@@ -139,8 +199,18 @@ class CarController extends Controller
                 ], 404);
             }
 
+            $oldStatus = $car->status;
             $car->status = ($car->status === 'available' ? 'maintenance' : 'available');
             $car->save();
+
+            AuditService::log(
+                'car.status_changed',
+                'Car',
+                $car->id,
+                "Xe {$car->name} (#CAR-{$car->id})",
+                ['status' => $car->status],
+                ['status' => $oldStatus]
+            );
 
             return response()->json([
                 'status'  => 1,

@@ -14,8 +14,23 @@ class BookingPolicy
     public function before($user, string $ability): ?bool
     {
         if ($user instanceof Admin) {
-            // Admin có quyền nếu tài khoản không bị khóa (tinh_trang != 0)
-            return (int) ($user->tinh_trang ?? 1) !== 0;
+            // Admin bị khóa tài khoản thì bị từ chối mọi quyền
+            if ((int) ($user->tinh_trang ?? 1) === 0) {
+                return false;
+            }
+
+            // Chủ hệ thống (Owner) có toàn quyền
+            if ($user->isOwner()) {
+                return true;
+            }
+
+            // Kiểm tra quyền nghiệp vụ tương ứng cho các vai trò khác
+            return match ($ability) {
+                'confirmPayment' => $user->hasPermission('payments.manage'),
+                'createOnBehalf', 'manageStatus' => $user->hasPermission('bookings.manage'),
+                'view', 'viewReceipt' => $user->hasPermission('bookings.view'),
+                default => null,
+            };
         }
 
         return null;
@@ -83,5 +98,53 @@ class BookingPolicy
     public function createOnBehalf($user): bool
     {
         return ($user instanceof Admin) && (int) ($user->tinh_trang ?? 1) !== 0;
+    }
+
+    /**
+     * Cập nhật trạng thái đơn thuê (Duyệt lịch / Hủy đơn thuê): Chỉ dành cho Admin
+     */
+    public function updateStatus($user, Booking $booking): bool
+    {
+        return ($user instanceof Admin) && (int) ($user->tinh_trang ?? 1) !== 0;
+    }
+
+    /**
+     * Xem sổ giao dịch: Chủ đơn hoặc Admin
+     */
+    public function viewTransactions($user, Booking $booking): bool
+    {
+        return (int) $booking->user_id === (int) $user->id;
+    }
+
+    /**
+     * Ghi nhận giao dịch tài chính: Chỉ Admin
+     */
+    public function recordTransaction($user, Booking $booking): bool
+    {
+        return ($user instanceof Admin) && (int) ($user->tinh_trang ?? 1) !== 0;
+    }
+
+    /**
+     * Xem biên bản bàn giao/nhận trả xe và ảnh chứng từ: Chủ đơn hoặc Admin
+     */
+    public function viewHandover($user, Booking $booking): bool
+    {
+        return (int) $booking->user_id === (int) $user->id;
+    }
+
+    /**
+     * Lập biên bản bàn giao hoặc nhận trả xe: Chỉ Admin
+     */
+    public function createHandover($user, Booking $booking): bool
+    {
+        return ($user instanceof Admin) && (int) ($user->tinh_trang ?? 1) !== 0;
+    }
+
+    /**
+     * Khách hàng xác nhận biên bản của chính mình
+     */
+    public function confirmHandoverByCustomer($user, Booking $booking): bool
+    {
+        return (int) $booking->user_id === (int) $user->id;
     }
 }

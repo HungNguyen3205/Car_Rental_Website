@@ -54,7 +54,7 @@
             <i class="fa-solid fa-phone-volume"></i>
             <div>
               <span class="label">Hotline tư vấn</span>
-              <strong>1900 1234</strong>
+              <strong>{{ settings.hotline || '1900 1234' }}</strong>
             </div>
           </div>
           <div class="contact-item">
@@ -68,7 +68,7 @@
             <i class="fa-solid fa-location-dot"></i>
             <div>
               <span class="label">Mạng lưới giao xe</span>
-              <span>Hà Nội, TP. HCM, Đà Nẵng</span>
+              <span>{{ serviceLocationsText }}</span>
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@
     <div class="footer-bottom">
       <div class="app-container bottom-container">
         <p class="copyright">
-          © 2026 <strong>DriveRent</strong>. Bản quyền thuộc về nền tảng thuê xe điện thông minh.
+          © {{ currentYear }} <strong>{{ settings.site_name || 'DriveRent' }}</strong>. Bản quyền thuộc về nền tảng thuê xe điện thông minh.
         </p>
         <div class="bottom-links">
           <span>Tiêu chuẩn vận hành thông minh & an toàn</span>
@@ -90,6 +90,23 @@
 </template>
 
 <script setup>
+import { computed, onMounted } from 'vue';
+import { useSystemSettings } from '../../../core/settingsStore';
+
+const { settings, fetchSettings } = useSystemSettings();
+
+const currentYear = new Date().getFullYear();
+
+const serviceLocationsText = computed(() => {
+  if (Array.isArray(settings.service_locations)) {
+    return settings.service_locations.join(', ');
+  }
+  return 'Hà Nội, TP. HCM, Đà Nẵng';
+});
+
+onMounted(() => {
+  fetchSettings();
+});
 </script>
 
 <script>

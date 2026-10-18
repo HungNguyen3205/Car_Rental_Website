@@ -32,5 +32,6 @@ Thumbs.db
 # Application storage & keys
 storage/*.key
 storage/pail
+storage/backups/
 Homestead.json
 Homestead.yaml

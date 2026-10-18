@@ -14,6 +14,11 @@ class PromoteUserRequest extends BaseApiRequest
                 'integer',
                 'exists:users,id',
             ],
+            'role' => [
+                'nullable',
+                'string',
+                'in:owner,dispatcher,accountant',
+            ],
         ];
     }
 

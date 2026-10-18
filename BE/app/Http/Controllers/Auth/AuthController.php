@@ -6,17 +6,23 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AdminCustomerCreateRequest;
 use App\Http\Requests\Admin\AdminCustomerSearchRequest;
 use App\Http\Requests\Auth\ChangePasswordRequest;
+use App\Http\Requests\Auth\ForgotPasswordRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Requests\Auth\UserActionIdRequest;
 use App\Http\Requests\Auth\UserLoginRequest;
 use App\Http\Requests\Auth\UserRegisterRequest;
+use App\Mail\ResetPasswordMail;
 use App\Models\Admin;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -24,14 +30,25 @@ class AuthController extends Controller
     public function login(UserLoginRequest $request)
     {
         $credentials = $request->validated();
+        $throttleKey = 'login:' . $request->ip() . '|' . Str::lower($credentials['email']);
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return response()->json([
+                'status'  => 0,
+                'message' => "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau {$seconds} giây!",
+            ], 429);
+        }
 
         // 1. Check in Admin table
         $admin = Admin::where('email', $credentials['email'])->first();
         if ($admin && Hash::check($credentials['password'], $admin->password)) {
-            if ($admin->tinh_trang == 0) {
+            RateLimiter::clear($throttleKey);
+
+            if ((int) ($admin->tinh_trang ?? 1) === 0 || (int) ($admin->is_active ?? 1) === 0) {
                 return response()->json([
                     'status'  => 0,
-                    'message' => 'Tài khoản Admin đã bị bộ khóa!',
+                    'message' => 'Tài khoản Admin đã bị khóa!',
                 ], 403);
             }
 
@@ -43,6 +60,8 @@ class AuthController extends Controller
                     'id'            => $admin->id,
                     'ho_ten'        => $admin->ho_ten,
                     'role'          => 'admin',
+                    'admin_role'    => $admin->role,
+                    'permissions'   => $admin->all_permissions,
                     'email'         => $admin->email,
                     'so_dien_thoai' => $admin->so_dien_thoai,
                     'dia_chi'       => $admin->dia_chi,
@@ -53,7 +72,9 @@ class AuthController extends Controller
         // 2. Check in User (Customer) table
         $user = User::where('email', $credentials['email'])->first();
         if ($user && Hash::check($credentials['password'], $user->password)) {
-            if ($user->tinh_trang == 0) {
+            RateLimiter::clear($throttleKey);
+
+            if ((int) ($user->tinh_trang ?? 1) === 0) {
                 return response()->json([
                     'status'  => 0,
                     'message' => 'Tài khoản chưa được kích hoạt hoặc đã bị khóa!',
@@ -75,6 +96,8 @@ class AuthController extends Controller
                 ],
             ]);
         }
+
+        RateLimiter::hit($throttleKey, 60);
 
         return response()->json([
             'status'  => 0,
@@ -140,22 +163,51 @@ class AuthController extends Controller
 
     public function checkLogin()
     {
-        $user = Auth::guard('sanctum')->user();
+        $user = Auth::guard('admin')->user() ?? Auth::guard('sanctum')->user();
+        if (!$user) {
+            return response()->json([
+                'status' => 0,
+                'user'   => null,
+            ]);
+        }
+
+        $isAdmin = $user instanceof Admin;
         return response()->json([
-            'status' => $user ? 1 : 0,
-            'user'   => $user
+            'status' => 1,
+            'user'   => [
+                'id'            => $user->id,
+                'ho_ten'        => $user->ho_ten,
+                'email'         => $user->email,
+                'role'          => $isAdmin ? 'admin' : 'customer',
+                'admin_role'    => $isAdmin ? $user->role : null,
+                'permissions'   => $isAdmin ? $user->all_permissions : [],
+                'so_dien_thoai' => $user->so_dien_thoai ?? null,
+                'dia_chi'       => $user->dia_chi ?? null,
+            ],
         ]);
     }
 
     public function logout()
     {
-        $user = Auth::guard('sanctum')->user();
+        $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
+        if ($user) {
+            $user->currentAccessToken()?->delete();
+        }
+        return response()->json([
+            'status'  => 1,
+            'message' => 'Đăng xuất khỏi thiết bị hiện tại thành công!',
+        ]);
+    }
+
+    public function logoutAll()
+    {
+        $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
         if ($user) {
             $user->tokens()->delete();
         }
         return response()->json([
             'status'  => 1,
-            'message' => 'Đăng xuất thành công!',
+            'message' => 'Đã đăng xuất khỏi tất cả các thiết bị thành công!',
         ]);
     }
 
@@ -211,7 +263,7 @@ class AuthController extends Controller
 
     public function doiMatKhau(ChangePasswordRequest $request)
     {
-        $user = Auth::guard('sanctum')->user();
+        $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
         if (!$user) {
             return response()->json([
                 'status'  => 0,
@@ -221,11 +273,40 @@ class AuthController extends Controller
 
         try {
             $validated = $request->validated();
-            $user->update(['password' => Hash::make($validated['password'])]);
+
+            // 1. Kiểm tra mật khẩu hiện tại (trừ trường hợp tài khoản mạng xã hội chưa từng đặt mật khẩu)
+            if (!empty($user->password)) {
+                if (empty($validated['current_password']) || !Hash::check($validated['current_password'], $user->password)) {
+                    return response()->json([
+                        'status'  => 0,
+                        'message' => 'Mật khẩu hiện tại không chính xác!',
+                    ], 422);
+                }
+
+                if (Hash::check($validated['password'], $user->password)) {
+                    return response()->json([
+                        'status'  => 0,
+                        'message' => 'Mật khẩu mới không được trùng với mật khẩu hiện tại!',
+                    ], 422);
+                }
+            }
+
+            // 2. Cập nhật mật khẩu mới
+            $user->password = Hash::make($validated['password']);
+            $user->save();
+
+            // 3. Chính sách thu hồi phiên: Mặc định thu hồi tất cả các phiên trên thiết bị khác để bảo đảm an toàn
+            $revokeOthers = $validated['revoke_other_sessions'] ?? true;
+            if ($revokeOthers) {
+                $currentTokenId = $user->currentAccessToken()?->id;
+                if ($currentTokenId) {
+                    $user->tokens()->where('id', '!=', $currentTokenId)->delete();
+                }
+            }
 
             return response()->json([
                 'status'  => 1,
-                'message' => 'Đổi mật khẩu thành công!',
+                'message' => 'Đổi mật khẩu thành công! Các phiên đăng nhập trên thiết bị khác đã được thu hồi an toàn.',
             ]);
         } catch (\Exception $e) {
             Log::error('Change password error: ' . $e->getMessage());
@@ -234,6 +315,145 @@ class AuthController extends Controller
                 'message' => 'Có lỗi xảy ra khi đổi mật khẩu!',
             ], 500);
         }
+    }
+
+    public function forgotPassword(ForgotPasswordRequest $request)
+    {
+        $email = Str::lower(trim($request->email));
+        $accountType = $request->account_type ?? 'customer';
+        $throttleKey = 'forgot-password:' . $request->ip() . '|' . $email;
+
+        // Rate limit: tối đa 3 lần trong 60 giây
+        if (RateLimiter::tooManyAttempts($throttleKey, 3)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return response()->json([
+                'status'  => 0,
+                'message' => "Bạn đã gửi yêu cầu quá thường xuyên. Vui lòng thử lại sau {$seconds} giây!",
+            ], 429);
+        }
+        RateLimiter::hit($throttleKey, 60);
+
+        // Tìm tài khoản theo đúng loại tài khoản chỉ định để không gửi nhầm giữa customer và admin
+        $account = ($accountType === 'admin')
+            ? Admin::where('email', $email)->first()
+            : User::where('email', $email)->first();
+
+        // Chỉ tạo token nếu tài khoản tồn tại và không bị khóa
+        if ($account && (int) ($account->tinh_trang ?? 1) !== 0 && (int) ($account->is_active ?? 1) !== 0) {
+            $rawToken = Str::random(64);
+            $hashedToken = Hash::make($rawToken);
+
+            DB::table('password_reset_tokens')->updateOrInsert(
+                [
+                    'email'        => $email,
+                    'account_type' => $accountType,
+                ],
+                [
+                    'token'      => $hashedToken,
+                    'created_at' => now(),
+                ]
+            );
+
+            $feUrl = env('FRONTEND_URL', 'http://localhost:5173');
+            $resetUrl = "{$feUrl}/reset-password?token={$rawToken}&email=" . urlencode($email) . "&type={$accountType}";
+
+            try {
+                Mail::to($email)->send(new ResetPasswordMail($resetUrl, $account->ho_ten, $accountType, 60));
+            } catch (\Exception $e) {
+                Log::error('Send password reset email failed: ' . $e->getMessage());
+            }
+        }
+
+        // Luôn trả về phản hồi đồng nhất để không tiết lộ thông tin email có tồn tại hay không
+        return response()->json([
+            'status'  => 1,
+            'message' => 'Nếu địa chỉ email tồn tại trên hệ thống, chúng tôi đã gửi hướng dẫn khôi phục mật khẩu đến email của bạn.',
+        ]);
+    }
+
+    public function resetPassword(ResetPasswordRequest $request)
+    {
+        $email = Str::lower(trim($request->email));
+        $accountType = $request->account_type ?? 'customer';
+
+        // 1. Tìm bản ghi token theo email và loại tài khoản
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $email)
+            ->where('account_type', $accountType)
+            ->first();
+
+        if (!$record || !Hash::check($request->token, $record->token)) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Mã đặt lại mật khẩu không hợp lệ hoặc đã được sử dụng!',
+            ], 400);
+        }
+
+        // 2. Kiểm tra thời hạn hiệu lực (60 phút)
+        $createdAt = Carbon::parse($record->created_at);
+        if ($createdAt->addMinutes(60)->isPast()) {
+            DB::table('password_reset_tokens')
+                ->where('email', $email)
+                ->where('account_type', $accountType)
+                ->delete();
+
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Mã đặt lại mật khẩu đã hết hạn (chỉ có hiệu lực trong 60 phút). Vui lòng gửi lại yêu cầu mới!',
+            ], 400);
+        }
+
+        // 3. Tìm tài khoản tương ứng
+        $model = ($accountType === 'admin') ? Admin::class : User::class;
+        $account = $model::where('email', $email)->first();
+
+        if (!$account) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Không tìm thấy tài khoản tương ứng!',
+            ], 404);
+        }
+
+        if ((int) ($account->tinh_trang ?? 1) === 0 || (int) ($account->is_active ?? 1) === 0) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên!',
+            ], 403);
+        }
+
+        // 4. Cập nhật mật khẩu mới
+        $account->password = Hash::make($request->password);
+        $account->save();
+
+        // 5. Xóa token ngay lập tức (Bảo đảm token chỉ dùng một lần duy nhất)
+        DB::table('password_reset_tokens')
+            ->where('email', $email)
+            ->where('account_type', $accountType)
+            ->delete();
+
+        // 6. Chính sách thu hồi phiên: Hủy toàn bộ token cũ trên tất cả thiết bị
+        $account->tokens()->delete();
+
+        // 7. Cấp token mới cho phiên hiện tại
+        $tokenName = ($accountType === 'admin') ? 'token_admin' : 'token_client';
+        $newToken = $account->createToken($tokenName)->plainTextToken;
+
+        $isAdmin = $account instanceof Admin;
+        return response()->json([
+            'status'  => 1,
+            'message' => 'Đặt lại mật khẩu thành công! Tất cả các phiên đăng nhập cũ trên thiết bị khác đã được thu hồi an toàn.',
+            'token'   => $newToken,
+            'user'    => [
+                'id'            => $account->id,
+                'ho_ten'        => $account->ho_ten,
+                'role'          => $isAdmin ? 'admin' : 'customer',
+                'admin_role'    => $isAdmin ? $account->role : null,
+                'permissions'   => $isAdmin ? $account->all_permissions : [],
+                'email'         => $account->email,
+                'so_dien_thoai' => $account->so_dien_thoai ?? null,
+                'dia_chi'       => $account->dia_chi ?? null,
+            ],
+        ]);
     }
 
     public function getAllUsers()

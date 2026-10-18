@@ -7,11 +7,15 @@ use App\Exceptions\CarBookingValidationException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Booking\CancelBookingRequest;
 use App\Http\Requests\Booking\CreateBookingRequest;
+use App\Http\Requests\Booking\CustomerConfirmHandoverRequest;
 use App\Http\Requests\Booking\LookupBookingCodeRequest;
 use App\Http\Requests\Booking\UploadReceiptRequest;
 use App\Models\Booking;
 use App\Models\Car;
+use App\Services\Booking\BookingHandoverService;
+use App\Services\Booking\BookingLifecycleService;
 use App\Services\Booking\BookingService;
+use App\Services\Notification\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
@@ -22,10 +26,17 @@ use Carbon\Carbon;
 class BookingController extends Controller
 {
     protected BookingService $bookingService;
+    protected BookingLifecycleService $lifecycleService;
+    protected NotificationService $notificationService;
 
-    public function __construct(BookingService $bookingService)
-    {
+    public function __construct(
+        BookingService $bookingService, 
+        BookingLifecycleService $lifecycleService,
+        NotificationService $notificationService
+    ) {
         $this->bookingService = $bookingService;
+        $this->lifecycleService = $lifecycleService;
+        $this->notificationService = $notificationService;
     }
 
     public function datLichXe(CreateBookingRequest $request)
@@ -67,6 +78,9 @@ class BookingController extends Controller
                     'dia_chi_tra_xe'  => $validated['dia_chi_tra_xe'] ?? null,
                 ]
             );
+
+            // Gửi thông báo đặt xe mới
+            $this->notificationService->notifyBookingCreated($booking);
 
             return response()->json([
                 'status'  => 1,
@@ -124,9 +138,14 @@ class BookingController extends Controller
             ->orderByDesc('bookings.id')
             ->get();
             
-        // Gắn đường dẫn tải biên lai an toàn có kiểm soát quyền
+        // Gắn đường dẫn tải biên lai an toàn có kiểm soát quyền và metadata vòng đời
         $data->transform(function ($item) {
             $item->receipt_url = !empty($item->bill_image) ? url('/api/bookings/' . $item->id . '/receipt') : null;
+            $item->status_meta = $this->lifecycleService->getStatusMeta((int) $item->tinh_trang);
+            $item->timeline = $this->lifecycleService->getTimelineEvents($item);
+            $item->financial_summary = $item->getFinancialSummary();
+            $item->has_delivery = $item->deliveryRecord()->exists();
+            $item->has_return = $item->returnRecord()->exists();
             return $item;
         });
 
@@ -139,6 +158,7 @@ class BookingController extends Controller
     /**
      * Hủy đơn đặt xe: Chỉ cho phép chủ đơn hoặc Admin;
      * Trả về 404 nếu đơn không tồn tại hoặc không thuộc quyền để tránh lộ thông tin đơn.
+     * Sử dụng BookingLifecycleService tập trung để lưu vết kiểm toán và nhả lịch an toàn.
      */
     public function huyLichXe(CancelBookingRequest $request)
     {
@@ -162,7 +182,10 @@ class BookingController extends Controller
         }
 
         try {
-            $this->bookingService->cancelBooking($booking);
+            $reason = $request->cancel_reason ?: 'Khách hàng yêu cầu hủy đơn qua website';
+            $this->lifecycleService->transition($booking, Booking::STATUS_CANCELLED, $user, [
+                'cancel_reason' => $reason
+            ]);
             return response()->json(['status' => 1, 'message' => 'Hủy đơn đặt xe thành công!']);
         } catch (CarBookingValidationException $e) {
             return response()->json(['status' => 0, 'message' => $e->getMessage()], 400);
@@ -212,6 +235,9 @@ class BookingController extends Controller
                 'dia_chi_tra_xe'  => $booking->dia_chi_tra_xe,
                 'has_receipt'     => !empty($booking->bill_image),
                 'receipt_url'     => !empty($booking->bill_image) ? url('/api/bookings/' . $booking->id . '/receipt') : null,
+                'cancel_reason'   => $booking->cancel_reason,
+                'status_meta'     => $this->lifecycleService->getStatusMeta((int) $booking->tinh_trang),
+                'timeline'        => $this->lifecycleService->getTimelineEvents($booking),
             ]
         ]);
     }
@@ -358,5 +384,95 @@ class BookingController extends Controller
         }
 
         return response()->json(['status' => 0, 'message' => 'Không tìm thấy tệp biên lai vật lý trên máy chủ!'], 404);
+    }
+
+    /**
+     * Khách hàng xem sổ giao dịch và số dư tiền cọc / tiền thuê của đơn mình
+     */
+    public function getTransactionsClient($id, Request $request)
+    {
+        $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
+        if (!$user) {
+            return response()->json(['status' => 0, 'message' => 'Bạn cần đăng nhập để xem thông tin giao dịch!'], 401);
+        }
+
+        $booking = Booking::with('car')->find($id);
+        if (!$booking || !$user->can('viewTransactions', $booking)) {
+            return response()->json(['status' => 0, 'message' => 'Không tìm thấy đơn đặt xe!'], 404);
+        }
+
+        return response()->json([
+            'status' => 1,
+            'data'   => $booking->getFinancialSummary(),
+            'booking' => [
+                'id'            => $booking->id,
+                'ma_dat_xe'     => $booking->ma_dat_xe,
+                'car_name'      => $booking->car?->name,
+                'start_date'    => $booking->start_date,
+                'end_date'      => $booking->end_date,
+                'tong_tien'     => $booking->tong_tien,
+                'tinh_trang'    => $booking->tinh_trang,
+                'is_thanh_toan' => $booking->is_thanh_toan,
+            ]
+        ]);
+    }
+
+    /**
+     * Khách hàng xem chi tiết biên bản bàn giao, nhận trả và đối chiếu
+     */
+    public function getHandoversClient($id, BookingHandoverService $handoverService)
+    {
+        $user = Auth::guard('sanctum')->user() ?? Auth::guard('admin')->user();
+        if (!$user) {
+            return response()->json(['status' => 0, 'message' => 'Bạn cần đăng nhập để xem thông tin biên bản!'], 401);
+        }
+
+        $booking = Booking::with('car')->find($id);
+        if (!$booking || !$user->can('viewHandover', $booking)) {
+            return response()->json(['status' => 0, 'message' => 'Không tìm thấy đơn đặt xe!'], 404);
+        }
+
+        $data = $handoverService->getHandoverComparison($booking);
+
+        return response()->json([
+            'status' => 1,
+            'data'   => $data,
+        ]);
+    }
+
+    /**
+     * Khách hàng trực tiếp xác nhận biên bản giao xe hoặc nhận trả xe
+     */
+    public function confirmHandoverClient($id, CustomerConfirmHandoverRequest $request, BookingHandoverService $handoverService)
+    {
+        $user = Auth::guard('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 0, 'message' => 'Bạn cần đăng nhập để thực hiện xác nhận!'], 401);
+        }
+
+        $booking = Booking::find($id);
+        if (!$booking || !$user->can('confirmHandoverByCustomer', $booking)) {
+            return response()->json(['status' => 0, 'message' => 'Không tìm thấy đơn đặt xe hoặc bạn không có quyền xác nhận!'], 403);
+        }
+
+        try {
+            $record = $handoverService->confirmByCustomer(
+                $booking, 
+                $user, 
+                $request->input('type'), 
+                $request->validated()
+            );
+
+            return response()->json([
+                'status'  => 1,
+                'message' => 'Xác nhận biên bản thành công! Hệ thống đã ghi nhận chữ ký xác nhận của bạn.',
+                'data'    => $record,
+            ]);
+        } catch (CarBookingValidationException $e) {
+            return response()->json(['status' => 0, 'message' => $e->getMessage()], $e->getCode() ?: 422);
+        } catch (\Exception $e) {
+            Log::error('confirmHandoverClient error: ' . $e->getMessage());
+            return response()->json(['status' => 0, 'message' => 'Có lỗi xảy ra khi xác nhận biên bản!'], 500);
+        }
     }
 }

@@ -185,6 +185,10 @@ class BookingService
             }
 
             $lockedBooking->tinh_trang = 2; // Đã hủy
+            $lockedBooking->cancelled_at = Carbon::now();
+            $lockedBooking->cancelled_by_type = 'user';
+            $lockedBooking->cancelled_by_id = $lockedBooking->user_id;
+            $lockedBooking->cancel_reason = 'Khách hàng hủy đơn';
             $lockedBooking->save();
 
             return $lockedBooking;

@@ -62,6 +62,11 @@
                   <i class="fa-solid" :class="getPaymentStatus(booking).icon"></i>
                   {{ getPaymentStatus(booking).text }}
                 </span>
+
+                <!-- Deposit Held Badge -->
+                <span v-if="booking.financial_summary?.deposit_held_amount > 0" class="deposit-tag" title="Tiền cọc bảo đảm đang được giữ ký quỹ">
+                  <i class="fa-solid fa-shield-halved"></i> Cọc: {{ Number(booking.financial_summary.deposit_held_amount).toLocaleString('vi-VN') }}đ
+                </span>
               </div>
 
               <h3 class="booking-car-title">{{ booking.car_name }}</h3>
@@ -86,6 +91,16 @@
             <div class="booking-price-area">
               <span class="price-label">Tổng chi phí thuê</span>
               <span class="total-amount">{{ Number(booking.tong_tien).toLocaleString('vi-VN') }}đ</span>
+
+              <!-- Multi-installment Breakdown -->
+              <div v-if="booking.financial_summary?.has_transactions" class="client-price-sub">
+                <span v-if="booking.financial_summary.paid_rent_amount > 0" class="sub-paid text-success">
+                  Đã trả: {{ Number(booking.financial_summary.paid_rent_amount).toLocaleString('vi-VN') }}đ
+                </span>
+                <span v-if="booking.financial_summary.remaining_rent_amount > 0" class="sub-remaining text-warning">
+                  Còn lại: {{ Number(booking.financial_summary.remaining_rent_amount).toLocaleString('vi-VN') }}đ
+                </span>
+              </div>
               
               <div class="action-btn-group">
                 <!-- View Detail Button: Always available -->
@@ -94,14 +109,14 @@
                   Chi tiết đơn
                 </router-link>
 
-                <!-- Pay / Upload Bill Button: When not yet paid -->
+                <!-- Pay / Upload Bill Button: When not yet paid or partially paid -->
                 <button 
-                  v-if="booking.is_thanh_toan === 0 && booking.tinh_trang !== 2" 
+                  v-if="(Number(booking.is_thanh_toan) === 0 || Number(booking.is_thanh_toan) === 2) && booking.tinh_trang !== 2" 
                   class="btn-pay" 
                   @click="openPaymentModal(booking)"
                 >
                   <i class="fa-solid fa-qrcode"></i>
-                  Thanh toán
+                  {{ Number(booking.is_thanh_toan) === 2 ? 'Thanh toán tiếp' : 'Thanh toán' }}
                 </button>
 
                 <!-- Cancel Button: Only when pending approval -->
@@ -145,7 +160,7 @@
           <div class="payment-card-body">
             <div class="payment-qr-container">
               <img 
-                :src="`https://api.vietqr.io/image/970436-123456789-V3N0a6.jpg?accountName=NAM%20HUNG%20RENTAL&amount=${selectedBooking.tong_tien}&addInfo=${selectedBooking.ma_dat_xe}`" 
+                :src="`https://api.vietqr.io/image/${settings.bank_bin || '970422'}-${settings.bank_account_number || '0971120038'}-qr_only.png?accountName=${encodeURIComponent(settings.bank_account_holder || 'NAM HUNG RENTAL')}&amount=${selectedBooking.financial_summary?.remaining_rent_amount && selectedBooking.financial_summary.remaining_rent_amount > 0 ? selectedBooking.financial_summary.remaining_rent_amount : selectedBooking.tong_tien}&addInfo=${selectedBooking.ma_dat_xe}`" 
                 alt="VietQR Chuyển Khoản"
                 class="qr-image"
               />
@@ -154,16 +169,29 @@
 
             <div class="payment-details-list">
               <div class="pay-row">
+                <span>Ngân hàng thụ hưởng:</span>
+                <strong>{{ settings.bank_name || 'MBBank (Quân Đội)' }}</strong>
+              </div>
+              <div class="pay-row">
+                <span>Số tài khoản:</span>
+                <strong class="highlight-text">{{ settings.bank_account_number || '0971120038' }}</strong>
+              </div>
+              <div class="pay-row">
+                <span>Chủ tài khoản:</span>
+                <span>{{ settings.bank_account_holder || 'NAM HUNG RENTAL' }}</span>
+              </div>
+              <div class="pay-row">
                 <span>Số tiền cần thanh toán:</span>
-                <strong class="text-primary">{{ Number(selectedBooking.tong_tien).toLocaleString('vi-VN') }} đ</strong>
+                <strong class="text-primary">
+                  {{ Number(selectedBooking.financial_summary?.remaining_rent_amount && selectedBooking.financial_summary.remaining_rent_amount > 0 ? selectedBooking.financial_summary.remaining_rent_amount : selectedBooking.tong_tien).toLocaleString('vi-VN') }} đ
+                </strong>
+                <small v-if="selectedBooking.financial_summary?.paid_rent_amount > 0" class="text-muted">
+                  (Đã thanh toán trước: {{ Number(selectedBooking.financial_summary.paid_rent_amount).toLocaleString('vi-VN') }} đ)
+                </small>
               </div>
               <div class="pay-row">
                 <span>Nội dung chuyển khoản:</span>
                 <strong class="highlight-text">{{ selectedBooking.ma_dat_xe }}</strong>
-              </div>
-              <div class="pay-row">
-                <span>Chủ tài khoản:</span>
-                <span>NAM HUNG RENTAL</span>
               </div>
             </div>
           </div>
@@ -213,8 +241,10 @@
 import { ref, onMounted, computed } from 'vue';
 import baseRequest from '../../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
+import { useSystemSettings } from '../../../core/settingsStore';
 
 const toaster = createToaster({ position: "top-right" });
+const { settings, fetchSettings } = useSystemSettings();
 
 const loading = ref(true);
 const bookings = ref([]);
@@ -227,9 +257,10 @@ const uploadingBill = ref(false);
 
 const tabs = [
   { key: 'all', label: 'Tất cả' },
-  { key: 'unpaid', label: 'Chưa thanh toán' },
-  { key: 'paid', label: 'Đã thanh toán' },
   { key: 'pending', label: 'Chờ duyệt' },
+  { key: 'confirmed', label: 'Đã duyệt' },
+  { key: 'in_progress', label: 'Đang thuê' },
+  { key: 'completed', label: 'Hoàn tất' },
   { key: 'cancelled', label: 'Đã hủy' }
 ];
 
@@ -270,35 +301,67 @@ const fetchBookings = async () => {
 
 const getTabCount = (key) => {
   if (key === 'all') return bookings.value.length;
-  if (key === 'unpaid') return bookings.value.filter(b => b.is_thanh_toan === 0 && b.tinh_trang !== 2).length;
-  if (key === 'paid') return bookings.value.filter(b => b.is_thanh_toan === 1).length;
-  if (key === 'pending') return bookings.value.filter(b => b.tinh_trang === 0).length;
-  if (key === 'cancelled') return bookings.value.filter(b => b.tinh_trang === 2).length;
+  if (key === 'pending') return bookings.value.filter(b => Number(b.tinh_trang) === 0).length;
+  if (key === 'confirmed') return bookings.value.filter(b => Number(b.tinh_trang) === 1).length;
+  if (key === 'in_progress') return bookings.value.filter(b => [3, 4].includes(Number(b.tinh_trang))).length;
+  if (key === 'completed') return bookings.value.filter(b => Number(b.tinh_trang) === 5).length;
+  if (key === 'cancelled') return bookings.value.filter(b => Number(b.tinh_trang) === 2).length;
   return 0;
 };
 
 const filteredBookings = computed(() => {
   if (activeTab.value === 'all') return bookings.value;
-  if (activeTab.value === 'unpaid') return bookings.value.filter(b => b.is_thanh_toan === 0 && b.tinh_trang !== 2);
-  if (activeTab.value === 'paid') return bookings.value.filter(b => b.is_thanh_toan === 1);
-  if (activeTab.value === 'pending') return bookings.value.filter(b => b.tinh_trang === 0);
-  if (activeTab.value === 'cancelled') return bookings.value.filter(b => b.tinh_trang === 2);
+  if (activeTab.value === 'pending') return bookings.value.filter(b => Number(b.tinh_trang) === 0);
+  if (activeTab.value === 'confirmed') return bookings.value.filter(b => Number(b.tinh_trang) === 1);
+  if (activeTab.value === 'in_progress') return bookings.value.filter(b => [3, 4].includes(Number(b.tinh_trang)));
+  if (activeTab.value === 'completed') return bookings.value.filter(b => Number(b.tinh_trang) === 5);
+  if (activeTab.value === 'cancelled') return bookings.value.filter(b => Number(b.tinh_trang) === 2);
   return bookings.value;
 });
 
 const getRentalStatusText = (status) => {
-  const texts = ['Chờ duyệt', 'Đã xác nhận', 'Đã hủy'];
-  return texts[status] || 'Đang xử lý';
+  const texts = {
+    0: 'Chờ duyệt',
+    1: 'Đã duyệt',
+    2: 'Đã hủy',
+    3: 'Đang thuê',
+    4: 'Đã trả xe',
+    5: 'Hoàn tất'
+  };
+  return texts[Number(status)] || 'Đang xử lý';
 };
 
 const getRentalStatusClass = (status) => {
-  if (status === 0) return 'pending';
-  if (status === 1) return 'paid';
-  return 'cancelled';
+  const num = Number(status);
+  if (num === 0) return 'pending';
+  if (num === 1) return 'confirmed';
+  if (num === 2) return 'cancelled';
+  if (num === 3) return 'in-progress';
+  if (num === 4) return 'returned';
+  if (num === 5) return 'completed';
+  return 'pending';
 };
 
 const getPaymentStatus = (booking) => {
   if (!booking) return { class: 'unpaid', icon: 'fa-credit-card', text: 'Chưa thanh toán' };
+
+  // Đơn đã hủy nhưng đã thu tiền: KHÔNG coi là đã hoàn tiền, hiển thị cần xử lý / đối soát hoàn tiền
+  if (Number(booking.tinh_trang) === 2 && Number(booking.is_thanh_toan) === 1) {
+    return {
+      class: 'refund-review',
+      icon: 'fa-triangle-exclamation',
+      text: 'Đã thu tiền (Cần đối soát hoàn tiền)'
+    };
+  }
+
+  // Đã thanh toán một phần
+  if (Number(booking.is_thanh_toan) === 2) {
+    return {
+      class: 'partial',
+      icon: 'fa-chart-pie',
+      text: 'Đã thanh toán 1 phần'
+    };
+  }
   
   if (Number(booking.is_thanh_toan) === 1) {
     return {
@@ -386,24 +449,29 @@ const submitReceiptUpload = async () => {
 };
 
 const confirmCancelBooking = async (booking) => {
-  if (!confirm(`Bạn có chắc muốn hủy đơn đặt xe #${booking.ma_dat_xe}? Thao tác này không thể hoàn tác.`)) {
+  const reason = prompt(`Xác nhận hủy đơn đặt xe #${booking.ma_dat_xe}.\nVui lòng nhập lý do hủy đơn (tùy chọn):`, "Khách hàng đổi kế hoạch");
+  if (reason === null) {
     return;
   }
 
   try {
-    const res = await baseRequest.post('user/bookings/huy-lich', { id: booking.id });
+    const res = await baseRequest.post('user/bookings/huy-lich', { 
+      id: booking.id,
+      cancel_reason: reason.trim() || 'Khách hàng yêu cầu hủy đơn'
+    });
     if (res.data.status) {
-      toaster.success(res.data.message || "Hủy đơn thành công!");
+      toaster.success(res.data.message || "Hủy đơn đặt xe thành công!");
       fetchBookings();
     } else {
       toaster.error(res.data.message || "Không thể hủy đơn này!");
     }
   } catch (err) {
-    toaster.error("Lỗi kết nối máy chủ khi hủy đơn!");
+    toaster.error(err.response?.data?.message || "Lỗi khi hủy đơn đặt xe!");
   }
 };
 
 onMounted(() => {
+  fetchSettings();
   fetchBookings();
 });
 </script>
@@ -788,6 +856,39 @@ onMounted(() => {
   font-size: 0.775rem;
   color: var(--color-primary);
   font-weight: 600;
+}
+
+.deposit-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #E0F2FE;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.client-price-sub {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: -4px;
+  margin-bottom: 4px;
+}
+
+.text-success { color: #16A34A !important; }
+.text-warning { color: #D97706 !important; }
+
+.status-badge.partial {
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FCD34D;
 }
 
 @media (max-width: 900px) {

@@ -17,6 +17,15 @@ const routes = [
                 component: () => import('../pages/Fleet/index.vue'),
             },
             {
+                path: 'fleet/:id',
+                name: 'CarDetail',
+                component: () => import('../pages/Fleet/CarDetail.vue'),
+            },
+            {
+                path: 'car/:id',
+                redirect: to => `/fleet/${to.params.id}`,
+            },
+            {
                 path: 'process',
                 name: 'Process',
                 component: () => import('../pages/Process/index.vue'),
@@ -60,6 +69,11 @@ const routes = [
                 path: 'register',
                 name: 'Register',
                 component: () => import('../pages/Auth/Register.vue'),
+            },
+            {
+                path: 'reset-password',
+                name: 'ResetPassword',
+                component: () => import('../pages/Auth/ResetPassword.vue'),
             }
         ]
     },
@@ -79,6 +93,11 @@ const routes = [
                 component: () => import('../pages/Admin/Cars/index.vue'),
             },
             {
+                path: 'calendar',
+                name: 'AdminCalendar',
+                component: () => import('../pages/Admin/Calendar/index.vue'),
+            },
+            {
                 path: 'bookings',
                 name: 'AdminBookings',
                 component: () => import('../pages/Admin/Bookings/index.vue'),
@@ -92,6 +111,16 @@ const routes = [
                 path: 'permissions',
                 name: 'AdminPermissions',
                 component: () => import('../pages/Admin/Permissions/index.vue'),
+            },
+            {
+                path: 'contacts',
+                name: 'AdminContacts',
+                component: () => import('../pages/Admin/Contacts/index.vue'),
+            },
+            {
+                path: 'settings',
+                name: 'AdminSettings',
+                component: () => import('../pages/Admin/Settings/index.vue'),
             }
         ]
     }

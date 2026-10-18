@@ -11,104 +11,190 @@
           </div>
           <span class="logo-text">Drive<span>Rent</span></span>
         </router-link>
-        <h1>{{ isLogin ? 'Chào Mừng Trở Lại' : 'Tạo Tài Khoản Mới' }}</h1>
-        <p>{{ isLogin ? 'Đăng nhập để tiếp tục hành trình và quản lý các chuyến đi' : 'Bắt đầu trải nghiệm thuê xe điện xanh cùng DriveRent' }}</p>
+        <h1 v-if="isForgot">Khôi Phục Mật Khẩu</h1>
+        <h1 v-else>{{ isLogin ? 'Chào Mừng Trở Lại' : 'Tạo Tài Khoản Mới' }}</h1>
+        <p v-if="isForgot">Nhập địa chỉ email để nhận liên kết khôi phục mật khẩu bảo mật (có hiệu lực trong 60 phút).</p>
+        <p v-else>{{ isLogin ? 'Đăng nhập để tiếp tục hành trình và quản lý các chuyến đi' : 'Bắt đầu trải nghiệm thuê xe điện xanh cùng DriveRent' }}</p>
       </div>
 
-      <!-- Form -->
-      <form @submit.prevent="handleSubmit" class="auth-form">
-        <!-- Full Name (Only in Register mode) -->
-        <div class="form-group" v-if="!isLogin">
-          <label for="register-name">Họ và tên</label>
-          <div class="input-wrap">
-            <i class="fa-regular fa-user"></i>
-            <input 
-              id="register-name"
-              type="text" 
-              v-model="registerForm.ho_ten" 
-              placeholder="Nguyễn Văn A" 
-              autocomplete="name"
-              class="form-control"
-              required 
-            />
+      <!-- FORGOT PASSWORD VIEW -->
+      <div v-if="isForgot" class="forgot-wrapper animate-in">
+        <!-- Success Notice (Non-revealing) -->
+        <div v-if="forgotSubmitted" class="forgot-success-box text-center">
+          <div class="success-icon-badge">
+            <i class="fa-solid fa-envelope-circle-check"></i>
           </div>
+          <h3>Yêu cầu đã được ghi nhận!</h3>
+          <p>
+            Nếu địa chỉ email <strong>{{ forgotForm.email }}</strong> khớp với tài khoản 
+            <strong>{{ forgotForm.account_type === 'admin' ? 'Quản trị viên' : 'Khách hàng' }}</strong> 
+            hợp lệ trên hệ thống, một hướng dẫn đặt lại mật khẩu với token một lần đã được gửi đến hộp thư của bạn.
+          </p>
+          <div class="forgot-tip">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>Liên kết có hiệu lực trong 60 phút và chỉ sử dụng được 01 lần.</span>
+          </div>
+          <button type="button" class="btn-primary w-full mt-3" @click="resetForgotFlow">
+            <i class="fa-solid fa-arrow-left"></i> Quay lại Đăng nhập
+          </button>
         </div>
 
-        <!-- Email -->
-        <div class="form-group">
-          <label for="auth-email">Địa chỉ Email</label>
-          <div class="input-wrap">
-            <i class="fa-regular fa-envelope"></i>
-            <input 
-              id="auth-email"
-              type="email" 
-              v-model="activeEmail" 
-              placeholder="email@example.com" 
-              autocomplete="email"
-              class="form-control"
-              required 
-            />
+        <!-- Forgot Form -->
+        <form v-else @submit.prevent="handleForgotPassword" class="auth-form">
+          <!-- Account Type Selector -->
+          <div class="form-group">
+            <label>Loại tài khoản khôi phục</label>
+            <div class="account-type-tabs">
+              <button 
+                type="button" 
+                class="type-tab-btn" 
+                :class="{ active: forgotForm.account_type === 'customer' }" 
+                @click="forgotForm.account_type = 'customer'"
+              >
+                <i class="fa-solid fa-user"></i> Khách hàng
+              </button>
+              <button 
+                type="button" 
+                class="type-tab-btn" 
+                :class="{ active: forgotForm.account_type === 'admin' }" 
+                @click="forgotForm.account_type = 'admin'"
+              >
+                <i class="fa-solid fa-shield-halved"></i> Quản trị viên
+              </button>
+            </div>
+            <span class="type-hint">Chọn đúng loại tài khoản để hệ thống xác thực độc lập, tránh nhầm lẫn.</span>
           </div>
-        </div>
 
-        <!-- Password -->
-        <div class="form-group">
-          <div class="label-row flex-between">
-            <label for="auth-password">Mật khẩu</label>
+          <!-- Email Input -->
+          <div class="form-group">
+            <label for="forgot-email">Địa chỉ Email đăng ký</label>
+            <div class="input-wrap">
+              <i class="fa-regular fa-envelope"></i>
+              <input 
+                id="forgot-email"
+                type="email" 
+                v-model="forgotForm.email" 
+                placeholder="email@example.com" 
+                autocomplete="email"
+                class="form-control"
+                required 
+              />
+            </div>
           </div>
-          <div class="input-wrap">
-            <i class="fa-solid fa-lock"></i>
-            <input 
-              id="auth-password"
-              :type="showPassword ? 'text' : 'password'" 
-              v-model="activePassword" 
-              placeholder="••••••••" 
-              :autocomplete="isLogin ? 'current-password' : 'new-password'"
-              class="form-control"
-              required 
-            />
-            <button 
-              type="button" 
-              class="toggle-pass-btn" 
-              @click="showPassword = !showPassword"
-              :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
-            >
-              <i :class="showPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn-primary w-full mt-2" :disabled="forgotLoading">
+            <i v-if="forgotLoading" class="fa-solid fa-spinner fa-spin"></i>
+            <span v-else><i class="fa-regular fa-paper-plane"></i> Gửi liên kết đặt lại mật khẩu</span>
+          </button>
+
+          <!-- Back to Login -->
+          <div class="text-center mt-3">
+            <a role="button" class="back-link" @click="isForgot = false">
+              <i class="fa-solid fa-arrow-left"></i> Quay lại Đăng nhập
+            </a>
+          </div>
+        </form>
+      </div>
+
+      <!-- LOGIN / REGISTER FORMS -->
+      <template v-else>
+        <!-- Form -->
+        <form @submit.prevent="handleSubmit" class="auth-form">
+          <!-- Full Name (Only in Register mode) -->
+          <div class="form-group" v-if="!isLogin">
+            <label for="register-name">Họ và tên</label>
+            <div class="input-wrap">
+              <i class="fa-regular fa-user"></i>
+              <input 
+                id="register-name"
+                type="text" 
+                v-model="registerForm.ho_ten" 
+                placeholder="Nguyễn Văn A" 
+                autocomplete="name"
+                class="form-control"
+                required 
+              />
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label for="auth-email">Địa chỉ Email</label>
+            <div class="input-wrap">
+              <i class="fa-regular fa-envelope"></i>
+              <input 
+                id="auth-email"
+                type="email" 
+                v-model="activeEmail" 
+                placeholder="email@example.com" 
+                autocomplete="email"
+                class="form-control"
+                required 
+              />
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="form-group">
+            <div class="label-row flex-between">
+              <label for="auth-password">Mật khẩu</label>
+              <a v-if="isLogin" role="button" class="forgot-link" @click="openForgot">Quên mật khẩu?</a>
+            </div>
+            <div class="input-wrap">
+              <i class="fa-solid fa-lock"></i>
+              <input 
+                id="auth-password"
+                :type="showPassword ? 'text' : 'password'" 
+                v-model="activePassword" 
+                placeholder="••••••••" 
+                :autocomplete="isLogin ? 'current-password' : 'new-password'"
+                class="form-control"
+                required 
+              />
+              <button 
+                type="button" 
+                class="toggle-pass-btn" 
+                @click="showPassword = !showPassword"
+                :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+              >
+                <i :class="showPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn-primary w-full mt-2" :disabled="loading">
+            <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
+            <span v-else>{{ isLogin ? 'Đăng Nhập' : 'Tạo Tài Khoản' }}</span>
+          </button>
+        </form>
+
+        <!-- Footer -->
+        <div class="auth-footer text-center">
+          <p class="toggle-mode-text">
+            {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
+            <a role="button" class="toggle-link" @click="toggleMode">
+              {{ isLogin ? 'Đăng ký ngay' : 'Đăng nhập tại đây' }}
+            </a>
+          </p>
+          
+          <div class="social-divider">
+            <span>Hoặc tiếp tục với</span>
+          </div>
+          
+          <div class="social-auth-grid">
+            <button type="button" class="btn-social google" @click="handleSocialLogin('google')">
+              <i class="fa-brands fa-google"></i>
+              <span>Google</span>
+            </button>
+            <button type="button" class="btn-social facebook" @click="handleSocialLogin('facebook')">
+              <i class="fa-brands fa-facebook-f"></i>
+              <span>Facebook</span>
             </button>
           </div>
         </div>
-
-        <!-- Submit Button -->
-        <button type="submit" class="btn-primary w-full mt-2" :disabled="loading">
-          <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
-          <span v-else>{{ isLogin ? 'Đăng Nhập' : 'Tạo Tài Khoản' }}</span>
-        </button>
-      </form>
-
-      <!-- Footer -->
-      <div class="auth-footer text-center">
-        <p class="toggle-mode-text">
-          {{ isLogin ? 'Chưa có tài khoản?' : 'Đã có tài khoản?' }}
-          <a role="button" class="toggle-link" @click="toggleMode">
-            {{ isLogin ? 'Đăng ký ngay' : 'Đăng nhập tại đây' }}
-          </a>
-        </p>
-        
-        <div class="social-divider">
-          <span>Hoặc tiếp tục với</span>
-        </div>
-        
-        <div class="social-auth-grid">
-          <button type="button" class="btn-social google" @click="handleSocialLogin('google')">
-            <i class="fa-brands fa-google"></i>
-            <span>Google</span>
-          </button>
-          <button type="button" class="btn-social facebook" @click="handleSocialLogin('facebook')">
-            <i class="fa-brands fa-facebook-f"></i>
-            <span>Facebook</span>
-          </button>
-        </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -122,6 +208,9 @@ import { createToaster } from "@meforma/vue-toaster";
 const toaster = createToaster({ position: "top-right" });
 const router = useRouter();
 const isLogin = ref(true);
+const isForgot = ref(false);
+const forgotSubmitted = ref(false);
+const forgotLoading = ref(false);
 const showPassword = ref(false);
 const loading = ref(false);
 
@@ -137,6 +226,24 @@ const registerForm = reactive({
   so_dien_thoai: '',
   dia_chi: ''
 });
+
+const forgotForm = reactive({
+  email: '',
+  account_type: 'customer'
+});
+
+const openForgot = () => {
+  isForgot.value = true;
+  forgotSubmitted.value = false;
+  if (loginForm.email) {
+    forgotForm.email = loginForm.email;
+  }
+};
+
+const resetForgotFlow = () => {
+  isForgot.value = false;
+  forgotSubmitted.value = false;
+};
 
 const activeEmail = computed({
   get: () => isLogin.value ? loginForm.email : registerForm.email,
@@ -156,6 +263,34 @@ const activePassword = computed({
 
 const toggleMode = () => {
   isLogin.value = !isLogin.value;
+};
+
+const handleForgotPassword = async () => {
+  if (!forgotForm.email) {
+    toaster.error('Vui lòng nhập địa chỉ email!');
+    return;
+  }
+
+  forgotLoading.value = true;
+  try {
+    const res = await baseRequest.post('forgot-password', {
+      email: forgotForm.email,
+      account_type: forgotForm.account_type
+    });
+
+    // Luôn hiển thị thông báo thành công thống nhất (chống enumeration email)
+    forgotSubmitted.value = true;
+    toaster.info(res.data.message || 'Yêu cầu khôi phục mật khẩu đã được tiếp nhận.');
+  } catch (error) {
+    if (error.response?.status === 429) {
+      toaster.error('Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi 1 phút trước khi thử lại!');
+    } else {
+      // Ngay cả khi có lỗi mạng/lỗi khác, giữ phản hồi thân thiện
+      toaster.error(error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau!');
+    }
+  } finally {
+    forgotLoading.value = false;
+  }
 };
 
 const handleSubmit = async () => {
@@ -381,7 +516,132 @@ const handleSocialLogin = (provider) => {
   margin-top: 8px;
 }
 
+.mt-3 {
+  margin-top: 16px;
+}
+
 .text-center {
   text-align: center;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.forgot-link {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: opacity var(--duration-fast);
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.account-type-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--bg-surface-sub);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+}
+
+.type-tab-btn {
+  padding: 8px 12px;
+  border-radius: calc(var(--radius-md) - 2px);
+  border: none;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--duration-fast);
+}
+
+.type-tab-btn.active {
+  background: #ffffff;
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.type-hint {
+  font-size: 0.775rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  display: block;
+}
+
+.forgot-success-box {
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+}
+
+.success-icon-badge {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+}
+
+.forgot-success-box h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 8px;
+}
+
+.forgot-success-box p {
+  font-size: 0.885rem;
+  color: #047857;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.forgot-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #059669;
+  background: #ffffff;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.back-link {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--duration-fast);
+}
+
+.back-link:hover {
+  color: var(--color-primary);
 }
 </style>

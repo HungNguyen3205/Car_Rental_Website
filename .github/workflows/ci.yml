@@ -1,0 +1,72 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  backend-test:
+    name: Backend Tests (PHP 8.2 & Laravel 12)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_sqlite, bcmath, curl
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: BE/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('BE/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install Composer Dependencies
+        working-directory: ./BE
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare Environment & SQLite DB
+        working-directory: ./BE
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+          sed -i 's/DB_CONNECTION=mysql/DB_CONNECTION=sqlite/' .env
+          sed -i 's/DB_DATABASE=web_thue_xe/DB_DATABASE=database\/database.sqlite/' .env
+
+      - name: Run Migrations & Tests
+        working-directory: ./BE
+        run: |
+          php artisan migrate --force
+          php artisan test
+
+  frontend-build:
+    name: Frontend Build (Node.js & Vite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: FE/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./FE
+        run: npm install
+
+      - name: Build Frontend Bundle
+        working-directory: ./FE
+        run: npm run build

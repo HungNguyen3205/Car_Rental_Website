@@ -193,36 +193,86 @@
         <p>Những mẫu xe điện hiện đại, bền bỉ và sẵn sàng cho chuyến đi của bạn</p>
       </div>
 
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tìm kiếm phương tiện phù hợp...</p>
+      </div>
+
+      <!-- API Error State with Retry -->
+      <div v-else-if="fetchError" class="empty-state-card card animate-in" style="border: 1px dashed #fca5a5; background: #fff5f5;">
+        <div class="empty-layout">
+          <div class="empty-icon-wrap" style="color: #ef4444; background: #fee2e2;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="empty-text">
+            <h3 style="color: #b91c1c;">Không thể tải danh sách phương tiện</h3>
+            <p>{{ fetchError }}</p>
+            <div class="empty-actions">
+              <button class="btn-primary" @click="handleSearch" style="display: inline-flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-rotate-right"></i> Thử lại
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="cars.length === 0" class="empty-state-card card animate-in">
+        <div class="empty-layout">
+          <div class="empty-icon-wrap">
+            <i class="fa-solid fa-car-burst"></i>
+          </div>
+          <div class="empty-text">
+            <h3>Chưa có xe khả dụng tại {{ provinces.find(p => p.id === searchData.city)?.name || 'khu vực này' }}</h3>
+            <p>Hiện tại xe tại khu vực này đã được đặt kín hoặc đang bảo dưỡng. Quý khách vui lòng chọn thành phố khác hoặc liên hệ hotline để được hỗ trợ điều xe.</p>
+            <div class="empty-actions">
+              <button class="btn-primary" @click="handleResetSearch">
+                <i class="fa-solid fa-rotate-left"></i> Đặt lại tìm kiếm
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Cars Grid -->
-      <div class="car-grid" v-if="!loading && cars.length > 0">
+      <div class="car-grid" v-else>
         <div class="car-card card-interactive card" v-for="car in cars" :key="car.id">
           <!-- Car Image -->
           <div class="car-img-container">
-            <img :src="car.image" :alt="car.name" loading="lazy" />
+            <router-link :to="'/fleet/' + car.id" class="img-link-wrap">
+              <img :src="car.image" :alt="car.name" loading="lazy" @error="handleImgError($event)" />
+            </router-link>
             <span class="car-category-pill">{{ car.category_name || car.type || 'SUV' }}</span>
           </div>
 
           <!-- Car Details -->
           <div class="car-info">
             <div class="car-header">
-              <h3 class="car-name">{{ car.name }}</h3>
+              <h3 class="car-name">
+                <router-link :to="'/fleet/' + car.id" class="home-car-name-link">{{ car.name }}</router-link>
+              </h3>
               <span class="city-badge">
                 <i class="fa-solid fa-location-dot"></i> {{ car.cityDisplay || car.city }}
               </span>
             </div>
             
             <div class="car-specs-minimal">
-              <div class="spec-item" title="Dung lượng pin">
+              <div class="spec-item" v-if="car.fuel_type === 'gasoline' || car.fuel_type === 'diesel'">
+                <i class="fa-solid fa-gas-pump"></i>
+                <span>{{ car.fuel_type === 'gasoline' ? 'Động cơ Xăng' : 'Động cơ Dầu' }}</span>
+              </div>
+              <div class="spec-item" v-else title="Dung lượng pin">
                 <i class="fa-solid fa-battery-full"></i>
-                <span>{{ car.battery || 'Pin EV chuẩn' }}</span>
+                <span>{{ car.battery_capacity || car.battery || 'Pin EV chuẩn' }}</span>
               </div>
               <div class="spec-item" title="Số chỗ ngồi">
                 <i class="fa-solid fa-users"></i>
-                <span>{{ car.seats || 5 }} chỗ</span>
+                <span>{{ car.seats ? car.seats + ' chỗ' : 'Đang cập nhật' }}</span>
               </div>
-              <div class="spec-item" title="Động cơ điện">
-                <i class="fa-solid fa-bolt"></i>
-                <span>Thuần điện 100%</span>
+              <div class="spec-item" title="Nhiên liệu">
+                <i :class="car.fuel_type === 'gasoline' || car.fuel_type === 'diesel' ? 'fa-solid fa-car-side' : 'fa-solid fa-bolt'"></i>
+                <span>{{ car.fuel_type === 'gasoline' ? 'Số tự động' : (car.fuel_type === 'diesel' ? 'Dầu diesel' : 'Thuần điện 100%') }}</span>
               </div>
             </div>
             
@@ -232,13 +282,18 @@
                 <span class="price">{{ Number(car.price_per_day).toLocaleString('vi-VN') }}đ</span>
                 <span class="unit">/ ngày</span>
               </div>
-              <button 
-                type="button" 
-                class="btn-vinfast" 
-                @click="toggleInlineBooking(car)"
-              >
-                {{ expandingCarId === car.id ? 'Thu gọn' : 'Đặt xe ngay' }}
-              </button>
+              <div class="btn-group-home" style="display: flex; gap: 8px; align-items: center;">
+                <router-link :to="'/fleet/' + car.id" class="btn-outline-sm" title="Xem chi tiết kỹ thuật">
+                  <i class="fa-solid fa-circle-info"></i> Chi tiết
+                </router-link>
+                <button 
+                  type="button" 
+                  class="btn-vinfast" 
+                  @click="toggleInlineBooking(car)"
+                >
+                  {{ expandingCarId === car.id ? 'Thu gọn' : 'Đặt xe ngay' }}
+                </button>
+              </div>
             </div>
 
             <!-- Inline Booking Card -->
@@ -281,30 +336,6 @@
             </Transition>
           </div>
         </div>
-      </div>
-      
-      <!-- Empty State -->
-      <div v-else-if="!loading && cars.length === 0" class="empty-state-card card animate-in">
-        <div class="empty-layout">
-          <div class="empty-icon-wrap">
-            <i class="fa-solid fa-car-burst"></i>
-          </div>
-          <div class="empty-text">
-            <h3>Chưa có xe khả dụng tại {{ provinces.find(p => p.id === searchData.city)?.name || 'khu vực này' }}</h3>
-            <p>Hiện tại xe tại khu vực này đã được đặt kín hoặc đang bảo dưỡng. Quý khách vui lòng chọn thành phố khác hoặc liên hệ hotline để được hỗ trợ điều xe.</p>
-            <div class="empty-actions">
-              <button class="btn-primary" @click="handleResetSearch">
-                <i class="fa-solid fa-rotate-left"></i> Đặt lại tìm kiếm
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Loading State -->
-      <div v-else class="loading-state">
-        <div class="spinner"></div>
-        <p>Đang tải danh sách phương tiện...</p>
       </div>
     </section>
 
@@ -474,9 +505,14 @@ import axios from 'axios';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 import { createToaster } from "@meforma/vue-toaster";
+import { resolveCarImage, handleCarImgError } from '../../core/carImageHelper';
 
 const toaster = createToaster({ position: "top-right" });
 const route = useRoute();
+
+const handleImgError = (event) => {
+  handleCarImgError(event);
+};
 
 // Custom directive for clicking outside
 const vClickOutside = {
@@ -493,25 +529,10 @@ const vClickOutside = {
   },
 };
 
-// Accurate Image Mapping
-const CAR_IMAGE_MAP = {
-    'xpander': '/assets/images/cars/xpander.png',
-    'camry': '/assets/images/cars/camry.png',
-    'audi a6': '/assets/images/cars/audi_a6.png',
-    'mercedes': '/assets/images/cars/mercedes_c200.png',
-    'santafe': '/assets/images/cars/santafe.png',
-    'mazda cx-5': '/assets/images/cars/cx5.png',
-    'vf8': '/assets/images/cars/vf8.png',
-    'vf7': '/assets/images/cars/vf7.png',
-    'vf9': '/assets/images/vf9.png',
-    'vf 7': '/assets/images/cars/vf7.png',
-    'vf 8': '/assets/images/cars/vf8.png',
-    'vf 9': '/assets/images/vf9.png'
-};
-
 const cars = ref([]);
 const hasSearched = ref(false);
 const loading = ref(false);
+const fetchError = ref(null);
 const dateError = ref('');
 const suggestions = ref([]);
 const loadingSuggestions = ref(false);
@@ -697,27 +718,18 @@ const scrollResults = () => {
 
 const fetchCars = async (params = {}) => {
   loading.value = true;
+  fetchError.value = null;
   try {
     const response = await baseRequest.get('client/car/data', { params });
     if (response.data && response.data.status) {
       const backendCars = response.data.data;
       if (backendCars && backendCars.length > 0) {
         cars.value = backendCars.map(car => {
-          const modelName = (car.ten_xe || car.name || '').toLowerCase();
-          let premiumImage = car.hinh_anh;
-          
-          for (const [key, path] of Object.entries(CAR_IMAGE_MAP)) {
-            if (modelName.includes(key)) {
-              premiumImage = path;
-              break;
-            }
-          }
-
           return {
             ...car,
-            name: car.ten_xe || car.name || 'VinFast Electric',
-            price_per_day: car.gia_thue || car.price_per_day || 1000000,
-            image: premiumImage ? (premiumImage.startsWith('/') ? premiumImage : `/assets/images/${premiumImage}`) : '/assets/images/vf9.png',
+            name: car.name || car.ten_xe || 'VinFast Electric',
+            price_per_day: car.price_per_day || car.gia_thue || 1000000,
+            image: resolveCarImage(car),
             cityDisplay: (() => {
               const c = (car.city || '').toLowerCase();
               if (c === 'sg') return 'TP. Hồ Chí Minh';
@@ -731,9 +743,12 @@ const fetchCars = async (params = {}) => {
       } else {
         cars.value = [];
       }
+    } else {
+      fetchError.value = response.data?.message || "Không thể tải danh sách xe từ máy chủ.";
     }
   } catch (error) {
     console.error("Error fetching cars:", error);
+    fetchError.value = "Không thể kết nối máy chủ để tìm kiếm xe. Vui lòng thử lại.";
     toaster.error("Không thể tải danh sách xe từ máy chủ!");
   } finally {
     loading.value = false;

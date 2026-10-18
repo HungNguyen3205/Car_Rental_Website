@@ -111,14 +111,25 @@
           </div>
           <div>
             <h3>Nâng cấp quyền Quản trị</h3>
-            <p class="modal-sub">Tài khoản này sẽ có toàn quyền truy cập cổng Quản trị viên</p>
+            <p class="modal-sub">Cấp vai trò quản trị mà vẫn bảo toàn tài khoản và lịch sử đơn khách hàng</p>
           </div>
         </div>
         <div class="modal-body">
-          <p>Bạn có chắc muốn nâng cấp tài khoản sau thành <strong>Admin</strong>?</p>
+          <p>Tài khoản khách hàng sau sẽ được cấp quyền truy cập hệ thống quản trị:</p>
           <div class="highlight-box blue-box">
             <strong>{{ userToPromote.ho_ten }}</strong>
             <span>Email: {{ userToPromote.email }} | ID: #USR-{{ userToPromote.id }}</span>
+          </div>
+
+          <div style="margin-top: 16px; text-align: left;">
+            <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; color: var(--color-text-main);">
+              Vai trò chỉ định:
+            </label>
+            <select v-model="promoteRole" class="form-select" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--color-border); font-size: 0.9rem;">
+              <option value="dispatcher">Điều phối viên (Quản lý xe, giao nhận & xem đơn)</option>
+              <option value="accountant">Kế toán viên (Thu chi, đối soát & báo cáo)</option>
+              <option value="owner">Chủ hệ thống (Toàn quyền quản trị)</option>
+            </select>
           </div>
         </div>
         <div class="modal-footer">
@@ -146,6 +157,7 @@ const promoting = ref(false);
 const searchQuery = ref('');
 const filterRole = ref('');
 const userToPromote = ref(null);
+const promoteRole = ref('dispatcher');
 
 const fetchUsers = async () => {
     loading.value = true;
@@ -180,22 +192,26 @@ const formatDate = (date) => {
 
 const requestPromote = (user) => {
     userToPromote.value = user;
+    promoteRole.value = 'dispatcher';
 };
 
 const confirmPromote = async () => {
     if (!userToPromote.value) return;
     promoting.value = true;
     try {
-        const res = await baseRequest.post('admin/users/promote', { id: userToPromote.value.id });
+        const res = await baseRequest.post('admin/users/promote', { 
+            id: userToPromote.value.id,
+            role: promoteRole.value
+        });
         if (res.data && res.data.status) {
-            toaster.success(res.data.message || "Đã nâng cấp người dùng thành Admin!");
+            toaster.success(res.data.message || "Đã cấp quyền Quản trị viên thành công!");
             userToPromote.value = null;
             await fetchUsers();
         } else {
-            toaster.error(res.data?.message || "Không thể nâng cấp tài khoản này!");
+            toaster.error(res.data?.message || "Không thể cấp quyền quản trị!");
         }
     } catch (err) {
-        toaster.error("Lỗi khi kết nối với máy chủ!");
+        toaster.error(err.response?.data?.message || "Lỗi khi kết nối với máy chủ!");
     } finally {
         promoting.value = false;
     }

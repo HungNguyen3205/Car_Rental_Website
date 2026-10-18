@@ -113,7 +113,7 @@ class CarController extends Controller
 
     public function getDetailClient($id)
     {
-        $car = Car::join('car_categories', 'cars.category_id', '=', 'car_categories.id')
+        $car = Car::leftJoin('car_categories', 'cars.category_id', '=', 'car_categories.id')
             ->where('cars.id', $id)
             ->select('cars.*', 'car_categories.name as category_name')
             ->first();
@@ -129,5 +129,47 @@ class CarController extends Controller
                 'message' => 'Không tìm thấy xe phù hợp'
             ], 404);
         }
+    }
+
+    public function checkAvailabilityAndQuote(Request $request, \App\Services\Booking\BookingService $bookingService)
+    {
+        $request->validate([
+            'car_id'     => 'required|integer|exists:cars,id',
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after:start_date',
+        ], [
+            'car_id.required'     => 'Mã xe là bắt buộc!',
+            'car_id.exists'       => 'Xe không tồn tại trong hệ thống!',
+            'start_date.required' => 'Thời gian bắt đầu thuê là bắt buộc!',
+            'end_date.required'   => 'Thời gian trả xe là bắt buộc!',
+            'end_date.after'      => 'Thời gian trả xe phải diễn ra sau thời gian nhận xe!',
+        ]);
+
+        $car = Car::find($request->car_id);
+        if (!$car->is_active || $car->status === 'maintenance') {
+            return response()->json([
+                'status'       => 1,
+                'is_available' => false,
+                'days'         => 0,
+                'price_per_day'=> (float) $car->price_per_day,
+                'total_price'  => 0,
+                'message'      => $car->status === 'maintenance' ? 'Xe hiện đang trong kế hoạch bảo trì định kỳ.' : 'Phương tiện hiện đang tạm ngừng phục vụ.',
+            ]);
+        }
+
+        $start = \Carbon\Carbon::parse($request->start_date);
+        $end = \Carbon\Carbon::parse($request->end_date);
+
+        $isAvailable = $bookingService->isCarAvailable($car->id, $request->start_date, $request->end_date);
+        $quote = $bookingService->calculatePrice($car, $start, $end);
+
+        return response()->json([
+            'status'         => 1,
+            'is_available'   => $isAvailable,
+            'days'           => $quote['days'],
+            'price_per_day'  => $quote['price_per_day'],
+            'total_price'    => $quote['total_price'],
+            'message'        => $isAvailable ? 'Xe sẵn sàng phục vụ trong khung giờ này.' : 'Xe đã được khách hàng khác giữ chỗ trong khung giờ này.',
+        ]);
     }
 }

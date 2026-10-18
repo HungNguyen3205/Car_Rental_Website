@@ -36,6 +36,18 @@ class AdminCreateRequest extends BaseApiRequest
                 'string',
                 'max:255',
             ],
+            'role' => [
+                'nullable',
+                'string',
+                'in:owner,dispatcher,accountant',
+            ],
+            'permissions' => [
+                'nullable',
+                'array',
+            ],
+            'permissions.*' => [
+                'string',
+            ],
             'tinh_trang' => [
                 'nullable',
                 'integer',

@@ -39,7 +39,7 @@
                     </div>
                     <div class="profile-info">
                         <span class="name">{{ user?.ho_ten || 'Quản trị viên' }}</span>
-                        <span class="role">Admin Hệ thống</span>
+                        <span class="role">{{ roleLabel }}</span>
                     </div>
                     <i class="fa-solid fa-chevron-down dropdown-icon" :class="{ 'rotate': showMenu }"></i>
                 </div>
@@ -90,6 +90,14 @@ const userInitial = computed(() => {
     return 'A';
 });
 
+const roleLabel = computed(() => {
+    const role = user.value?.admin_role;
+    if (role === 'owner') return 'Chủ hệ thống';
+    if (role === 'dispatcher') return 'Điều phối viên';
+    if (role === 'accountant') return 'Kế toán viên';
+    return 'Quản trị viên';
+});
+
 const handleClickOutside = (e) => {
     if (profileWrapperRef.value && !profileWrapperRef.value.contains(e.target)) {
         showMenu.value = false;
@@ -135,6 +143,7 @@ const pageTitle = computed(() => {
     switch (route.name) {
         case 'AdminDashboard': return 'Tổng quan';
         case 'AdminCars': return 'Quản lý kho xe';
+        case 'AdminCalendar': return 'Lịch xe & Trạng thái';
         case 'AdminBookings': return 'Quản lý đơn đặt xe';
         case 'AdminUsers': return 'Quản lý khách hàng';
         case 'AdminPermissions': return 'Tài khoản quản trị';

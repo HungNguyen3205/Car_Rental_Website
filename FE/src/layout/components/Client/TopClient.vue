@@ -32,7 +32,75 @@
         </template>
 
         <!-- Authenticated State -->
-        <div v-else class="user-pill-wrapper" v-click-outside="closeMenu">
+        <template v-else>
+          <!-- In-App Notification Bell -->
+          <div class="notification-wrapper" v-click-outside="closeNotificationMenu">
+            <button 
+              type="button" 
+              class="notification-bell-btn glass" 
+              @click="toggleNotificationMenu"
+              :aria-expanded="showNotifications"
+              aria-label="Thông báo"
+              :title="unreadNotifCount > 0 ? `${unreadNotifCount} thông báo mới` : 'Thông báo'"
+            >
+              <i class="fa-solid fa-bell"></i>
+              <span v-if="unreadNotifCount > 0" class="notif-badge">
+                {{ unreadNotifCount > 99 ? '99+' : unreadNotifCount }}
+              </span>
+            </button>
+
+            <!-- Notification Dropdown Menu -->
+            <Transition name="fade-slide">
+              <div v-if="showNotifications" class="notification-dropdown card">
+                <div class="notif-header">
+                  <div class="notif-title-group">
+                    <h4>Thông Báo</h4>
+                    <span v-if="unreadNotifCount > 0" class="notif-counter">{{ unreadNotifCount }} mới</span>
+                  </div>
+                  <button 
+                    v-if="unreadNotifCount > 0" 
+                    type="button"
+                    class="btn-mark-all" 
+                    @click="markAllNotificationsAsRead"
+                    :disabled="markingAllRead"
+                  >
+                    <i class="fa-solid fa-check-double"></i> Đã đọc tất cả
+                  </button>
+                </div>
+                
+                <div class="notif-divider"></div>
+
+                <!-- Notification List -->
+                <div class="notif-list" v-if="notifications.length > 0">
+                  <div 
+                    v-for="item in notifications" 
+                    :key="item.id" 
+                    class="notif-item" 
+                    :class="{ 'unread': !item.is_read }"
+                    @click="handleClickNotification(item)"
+                  >
+                    <div class="notif-icon-box" :class="item.type">
+                      <i class="fa-solid" :class="getNotifIcon(item.type)"></i>
+                    </div>
+                    <div class="notif-content-box">
+                      <div class="notif-item-title">{{ item.title }}</div>
+                      <div class="notif-item-text">{{ item.content }}</div>
+                      <div class="notif-item-time">{{ formatNotifTime(item.created_at) }}</div>
+                    </div>
+                    <div v-if="!item.is_read" class="unread-dot" title="Chưa đọc"></div>
+                  </div>
+                </div>
+
+                <!-- Empty State -->
+                <div v-else class="notif-empty">
+                  <div class="empty-icon"><i class="fa-solid fa-bell-slash"></i></div>
+                  <p>Bạn chưa có thông báo nào</p>
+                </div>
+              </div>
+            </Transition>
+          </div>
+
+          <div class="user-pill-wrapper" v-click-outside="closeMenu">
           <button 
             type="button" 
             class="user-pill glass" 
@@ -83,6 +151,7 @@
             </div>
           </Transition>
         </div>
+      </template>
 
         <!-- Mobile Hamburger Button -->
         <button 
@@ -200,6 +269,101 @@ const user = ref(null);
 const pendingCount = ref(0);
 let pollInterval = null;
 
+// Notification state
+const notifications = ref([]);
+const unreadNotifCount = ref(0);
+const showNotifications = ref(false);
+const markingAllRead = ref(false);
+
+const toggleNotificationMenu = () => {
+  showNotifications.value = !showNotifications.value;
+  if (showNotifications.value) {
+    showMenu.value = false;
+    fetchNotifications();
+  }
+};
+
+const closeNotificationMenu = () => {
+  showNotifications.value = false;
+};
+
+const fetchNotifications = async () => {
+  if (!user.value) return;
+  try {
+    const res = await baseRequest.get('user/notifications?per_page=10');
+    if (res.data && res.data.status) {
+      notifications.value = res.data.data?.data || [];
+      unreadNotifCount.value = res.data.unread_count || 0;
+    }
+  } catch (e) {
+    // Silent catch
+  }
+};
+
+const markNotificationAsRead = async (item) => {
+  if (item.is_read) return;
+  try {
+    const res = await baseRequest.put(`user/notifications/${item.id}/read`);
+    if (res.data && res.data.status) {
+      item.is_read = true;
+      item.read_at = new Date().toISOString();
+      if (unreadNotifCount.value > 0) unreadNotifCount.value--;
+    }
+  } catch (e) {
+    // Silent catch
+  }
+};
+
+const handleClickNotification = async (item) => {
+  await markNotificationAsRead(item);
+  showNotifications.value = false;
+  if (item.action_url) {
+    router.push(item.action_url);
+  }
+};
+
+const markAllNotificationsAsRead = async () => {
+  markingAllRead.value = true;
+  try {
+    const res = await baseRequest.put('user/notifications/read-all');
+    if (res.data && res.data.status) {
+      notifications.value.forEach(n => {
+        n.is_read = true;
+        n.read_at = new Date().toISOString();
+      });
+      unreadNotifCount.value = 0;
+    }
+  } catch (e) {
+    // Silent catch
+  } finally {
+    markingAllRead.value = false;
+  }
+};
+
+const formatNotifTime = (dt) => {
+  if (!dt) return '';
+  const date = new Date(dt);
+  const now = new Date();
+  const diffSec = Math.floor((now - date) / 1000);
+
+  if (diffSec < 60) return 'Vừa xong';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
+
+const getNotifIcon = (type) => {
+  switch (type) {
+    case 'booking_created': return 'fa-car';
+    case 'booking_confirmed': return 'fa-circle-check';
+    case 'booking_cancelled': return 'fa-ban';
+    case 'payment_confirmed': return 'fa-credit-card';
+    case 'upcoming_pickup': return 'fa-key';
+    case 'upcoming_return': return 'fa-clock-rotate-left';
+    default: return 'fa-bell';
+  }
+};
+
 // v-click-outside directive
 const vClickOutside = {
   mounted(el, binding) {
@@ -276,15 +440,25 @@ const checkAuth = () => {
   if (token && userData) {
     try {
       user.value = JSON.parse(userData);
+      fetchNotifications();
       if (user.value.role === 'admin') {
         fetchPending();
-        if (!pollInterval) pollInterval = setInterval(fetchPending, 30000);
+      }
+      if (!pollInterval) {
+        pollInterval = setInterval(() => {
+          fetchNotifications();
+          if (user.value?.role === 'admin') {
+            fetchPending();
+          }
+        }, 30000);
       }
     } catch (e) {
       user.value = null;
     }
   } else {
     user.value = null;
+    notifications.value = [];
+    unreadNotifCount.value = 0;
     if (pollInterval) {
       clearInterval(pollInterval);
       pollInterval = null;
@@ -459,6 +633,260 @@ onUnmounted(() => {
 .register-btn {
   padding: 10px 20px;
   font-size: 0.925rem;
+}
+
+/* Notification Bell & Dropdown */
+.notification-wrapper {
+  position: relative;
+}
+
+.notification-bell-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-main);
+  font-size: 1.05rem;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--duration-fast) var(--ease-smooth);
+  box-shadow: var(--shadow-xs);
+}
+
+.notification-bell-btn:hover,
+.notification-bell-btn.active {
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--color-danger, #ef4444);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+  animation: pulseGlow 2s infinite;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: -60px;
+  width: 360px;
+  max-width: 90vw;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px -8px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  z-index: var(--z-dropdown);
+  transform-origin: top right;
+  overflow: hidden;
+}
+
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: #fafbfc;
+}
+
+.notif-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-title-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.notif-count-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.btn-mark-all {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  transition: background var(--duration-fast);
+}
+
+.btn-mark-all:hover:not(:disabled) {
+  background: var(--color-primary-light);
+}
+
+.btn-mark-all:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notif-divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+}
+
+.notif-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--duration-fast) var(--ease-smooth);
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item:hover {
+  background: #f8fafc;
+}
+
+.notif-item.unread {
+  background: rgba(0, 102, 255, 0.035);
+}
+
+.notif-item.unread:hover {
+  background: rgba(0, 102, 255, 0.07);
+}
+
+.notif-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notif-icon-box.booking_created {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.notif-icon-box.booking_confirmed {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.notif-icon-box.booking_cancelled {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.notif-icon-box.payment_confirmed {
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+}
+
+.notif-icon-box.upcoming_pickup,
+.notif-icon-box.upcoming_return {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.notif-content-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-item-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin-bottom: 2px;
+  line-height: 1.35;
+}
+
+.notif-item.unread .notif-item-title {
+  color: #0f172a;
+}
+
+.notif-item-text {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.notif-item-time {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary, #0066ff);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.notif-empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.notif-empty .empty-icon {
+  font-size: 2rem;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+}
+
+.notif-empty p {
+  font-size: 0.85rem;
+  margin: 0;
 }
 
 /* User Pill */

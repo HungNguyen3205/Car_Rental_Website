@@ -44,6 +44,64 @@ class AdminCarCreateRequest extends BaseApiRequest
                 'string',
                 'max:500',
             ],
+            'fuel_type' => [
+                'nullable',
+                'string',
+                'in:electric,gasoline,diesel,hybrid',
+            ],
+            'seats' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:50',
+            ],
+            'battery_capacity' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'range_per_charge' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'transmission' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            'year_of_manufacture' => [
+                'nullable',
+                'integer',
+                'min:1990',
+                'max:2030',
+            ],
+            'gallery' => [
+                'nullable',
+                'array',
+            ],
+            'gallery.*' => [
+                'nullable',
+                'string',
+                'max:500',
+            ],
+            'rental_conditions' => [
+                'nullable',
+                'array',
+            ],
+            'extra_fees_info' => [
+                'nullable',
+                'array',
+            ],
+            'description' => [
+                'nullable',
+                'string',
+                'max:2000',
+            ],
+            'is_active' => [
+                'nullable',
+                'boolean',
+            ],
         ];
     }
 

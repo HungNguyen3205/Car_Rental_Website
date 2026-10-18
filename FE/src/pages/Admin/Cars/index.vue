@@ -51,9 +51,9 @@
               <td>
                 <div class="car-cell">
                   <img 
-                    :src="car.image || '/assets/images/vf9.png'" 
+                    :src="resolveCarImage(car)" 
                     class="car-thumb" 
-                    @error="$event.target.src = '/assets/images/vf9.png'"
+                    @error="handleCarImgError($event)"
                     alt="car"
                   />
                   <div class="car-details">
@@ -98,11 +98,21 @@
           </tbody>
         </table>
 
+        <!-- API Error State with Retry -->
+        <div v-else-if="fetchCarsError && !loading" class="empty-state-box error-box">
+          <i class="fa-solid fa-triangle-exclamation text-danger" style="font-size: 2.2rem; color: #dc2626; margin-bottom: 12px;"></i>
+          <h4>Không thể tải kho xe</h4>
+          <p>{{ fetchCarsError }}</p>
+          <button class="btn-primary" @click="fetchCars" style="margin-top: 14px; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-rotate-right"></i> Thử lại
+          </button>
+        </div>
+
         <!-- Empty State -->
         <div v-else-if="!loading" class="empty-state-box">
           <i class="fa-solid fa-car-side"></i>
-          <h4>Không tìm thấy phương tiện phù hợp</h4>
-          <p>Thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc trạng thái xe.</p>
+          <h4>{{ searchQuery.trim() || filterStatus ? 'Không tìm thấy phương tiện phù hợp' : 'Chưa có phương tiện nào trong kho xe' }}</h4>
+          <p>{{ searchQuery.trim() || filterStatus ? 'Thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc trạng thái xe.' : 'Bấm nút "Thêm xe mới" ở trên để đưa phương tiện vào hệ thống.' }}</p>
         </div>
 
         <!-- Loading Overlay -->
@@ -158,13 +168,48 @@
               <input type="text" v-model="editingCar.type" placeholder="VD: SUV 7 chỗ, Sedan" />
             </div>
 
+            <div class="form-group">
+              <label>Loại nhiên liệu / Động cơ</label>
+              <select v-model="editingCar.fuel_type">
+                <option value="electric">Điện 100% (EV)</option>
+                <option value="gasoline">Xăng</option>
+                <option value="diesel">Dầu Diesel</option>
+                <option value="hybrid">Động cơ Hybrid</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Số chỗ ngồi (để trống nếu chưa xác định)</label>
+              <input type="number" v-model.number="editingCar.seats" placeholder="VD: 5 hoặc 7" min="2" max="50" />
+            </div>
+
+            <div class="form-group" v-if="editingCar.fuel_type === 'electric'">
+              <label>Dung lượng Pin</label>
+              <input type="text" v-model="editingCar.battery_capacity" placeholder="VD: 87.7 kWh, 123 kWh" />
+            </div>
+
+            <div class="form-group">
+              <label>Tầm hoạt động / Tiêu hao</label>
+              <input type="text" v-model="editingCar.range_per_charge" placeholder="VD: 438 km (NEDC) hoặc 6.5L/100km" />
+            </div>
+
+            <div class="form-group">
+              <label>Hộp số</label>
+              <input type="text" v-model="editingCar.transmission" placeholder="VD: Tự động, Tự động 1 cấp, Số sàn" />
+            </div>
+
+            <div class="form-group">
+              <label>Năm sản xuất</label>
+              <input type="number" v-model.number="editingCar.year_of_manufacture" placeholder="VD: 2024" min="2000" max="2030" />
+            </div>
+
             <div class="form-group full">
-              <label>Đường dẫn hình ảnh xe (URL) <span class="required">*</span></label>
+              <label>Đường dẫn hình ảnh đại diện (URL) <span class="required">*</span></label>
               <input type="text" v-model="editingCar.image" placeholder="https://... hoặc /assets/images/vf9.png" />
               
               <!-- Image Preview Box -->
               <div class="img-preview-container">
-                <span class="preview-label">Xem trước hình ảnh xe:</span>
+                <span class="preview-label">Xem trước hình ảnh đại diện:</span>
                 <div class="preview-box">
                   <img 
                     :src="editingCar.image || '/assets/images/vf9.png'" 
@@ -173,6 +218,34 @@
                   />
                 </div>
               </div>
+            </div>
+
+            <div class="form-group full">
+              <label>Bộ ảnh chi tiết (Thư viện ảnh, nhập mỗi URL một dòng)</label>
+              <textarea 
+                v-model="galleryInput" 
+                rows="3" 
+                placeholder="/assets/images/cars/vf9.png&#10;/assets/images/cars/vf8.png"
+                class="form-textarea"
+              ></textarea>
+              <small class="helper-text">Mỗi dòng là một đường dẫn ảnh chi tiết phục vụ trang chi tiết xe.</small>
+            </div>
+
+            <div class="form-group full">
+              <label>Mô tả chi tiết phương tiện & điều kiện thuê</label>
+              <textarea 
+                v-model="editingCar.description" 
+                rows="3" 
+                placeholder="Mô tả ưu điểm nổi bật, trang bị tiện nghi, tính năng an toàn thực tế của xe..."
+                class="form-textarea"
+              ></textarea>
+            </div>
+
+            <div class="form-group full">
+              <label class="form-check-label">
+                <input type="checkbox" v-model="editingCar.is_active" />
+                <span><strong>Đang phục vụ khách hàng</strong> (Bỏ chọn nếu xe tạm ngừng kinh doanh/ngừng phục vụ)</span>
+              </label>
             </div>
           </div>
         </div>
@@ -450,12 +523,14 @@
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import baseRequest from '../../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
+import { resolveCarImage, handleCarImgError } from '../../../core/carImageHelper';
 
 const toaster = createToaster({ position: "top-right" });
 
 const cars = ref([]);
 const categories = ref([]);
 const loading = ref(true);
+const fetchCarsError = ref(null);
 const saving = ref(false);
 const deleting = ref(false);
 const searchQuery = ref('');
@@ -464,6 +539,7 @@ const filterStatus = ref('');
 const showModal = ref(false);
 const editingCar = ref({});
 const formErrors = ref({});
+const galleryInput = ref('');
 
 // Delete Confirmation
 const showDeleteModal = ref(false);
@@ -537,12 +613,16 @@ const filteredCars = computed(() => {
 
 const fetchCars = async () => {
   loading.value = true;
+  fetchCarsError.value = null;
   try {
     const res = await baseRequest.get('admin/cars/data');
-    if (res.data && res.data.status) {
+    if (res.data && res.data.status && Array.isArray(res.data.data)) {
       cars.value = res.data.data;
+    } else {
+      fetchCarsError.value = res.data?.message || "Không thể tải danh sách xe từ máy chủ.";
     }
   } catch (err) {
+    fetchCarsError.value = "Lỗi kết nối máy chủ khi tải danh sách phương tiện.";
     toaster.error("Không thể tải danh sách xe từ máy chủ!");
   } finally {
     loading.value = false;
@@ -570,16 +650,32 @@ const onCategoryChange = () => {
 const openModal = (car = null) => {
   formErrors.value = {};
   if (car) {
-    editingCar.value = { ...car };
+    editingCar.value = { 
+      ...car,
+      fuel_type: car.fuel_type || 'electric',
+      is_active: car.is_active !== undefined ? Boolean(car.is_active) : true
+    };
+    galleryInput.value = Array.isArray(car.gallery) 
+      ? car.gallery.join('\n') 
+      : (typeof car.gallery === 'string' ? car.gallery : '');
   } else {
     editingCar.value = {
       name: '',
       price_per_day: 1200000,
       city: 'sg',
       type: 'SUV Điện',
+      fuel_type: 'electric',
       category_id: categories.value[0]?.id || 1,
-      image: '/assets/images/vf9.png'
+      image: '/assets/images/vf9.png',
+      seats: null,
+      battery_capacity: '',
+      range_per_charge: '',
+      transmission: 'Tự động',
+      year_of_manufacture: 2024,
+      description: '',
+      is_active: true
     };
+    galleryInput.value = '';
   }
   showModal.value = true;
 };
@@ -594,6 +690,13 @@ const saveCar = async () => {
     toaster.error("Giá thuê phải lớn hơn 0 VNĐ.");
     return;
   }
+
+  // Parse galleryInput into array
+  const lines = (galleryInput.value || '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+  editingCar.value.gallery = lines;
 
   saving.value = true;
   const url = editingCar.value.id ? 'admin/cars/update' : 'admin/cars/create';

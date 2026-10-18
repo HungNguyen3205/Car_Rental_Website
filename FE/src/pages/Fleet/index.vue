@@ -60,6 +60,18 @@
         <p>Đang chuẩn bị danh sách phương tiện...</p>
       </div>
 
+      <!-- API Error State with Retry -->
+      <div v-else-if="fetchError" class="empty-fleet card text-center animate-in" style="border: 1px dashed #fca5a5; background: #fff5f5;">
+        <div class="empty-icon" style="color: #ef4444; background: #fee2e2;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h3>Không thể tải danh sách phương tiện</h3>
+        <p>{{ fetchError }}</p>
+        <button class="btn-primary" @click="fetchAllCars" style="margin-top: 14px; display: inline-flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-rotate-right"></i> Thử lại
+        </button>
+      </div>
+
       <!-- Empty State -->
       <div v-else-if="filteredCars.length === 0" class="empty-fleet card text-center animate-in">
         <div class="empty-icon">
@@ -80,12 +92,14 @@
           :key="car.id"
         >
           <div class="car-img-box">
-            <img 
-              :src="car.image" 
-              :alt="car.name" 
-              loading="lazy" 
-              @error="handleImgError($event)"
-            />
+            <router-link :to="'/fleet/' + car.id" class="img-link">
+              <img 
+                :src="car.image" 
+                :alt="car.name" 
+                loading="lazy" 
+                @error="handleImgError($event)"
+              />
+            </router-link>
             <span class="type-tag">{{ car.type }}</span>
             <span class="status-indicator" :class="car.status === 'available' ? 'available' : 'maintenance'">
               {{ car.status === 'available' ? 'Sẵn sàng' : 'Bảo trì' }}
@@ -94,7 +108,9 @@
           
           <div class="car-content">
             <div class="car-headline">
-              <h3 class="car-name">{{ car.name }}</h3>
+              <h3 class="car-name">
+                <router-link :to="'/fleet/' + car.id" class="car-name-link">{{ car.name }}</router-link>
+              </h3>
               <span class="city-label">
                 <i class="fa-solid fa-location-dot"></i> {{ car.cityDisplay }}
               </span>
@@ -102,24 +118,24 @@
             
             <div class="car-specs-grid">
               <div class="spec-col">
-                <i class="fa-solid fa-bolt"></i>
+                <i :class="car.fuel_type === 'gasoline' || car.fuel_type === 'diesel' ? 'fa-solid fa-gas-pump' : 'fa-solid fa-bolt'"></i>
                 <div>
                   <span class="label">Nhiên liệu</span>
-                  <strong>Điện 100%</strong>
+                  <strong>{{ car.fuel_type === 'gasoline' ? 'Xăng' : (car.fuel_type === 'diesel' ? 'Dầu Diesel' : (car.fuel_type === 'hybrid' ? 'Hybrid' : 'Điện 100%')) }}</strong>
                 </div>
               </div>
               <div class="spec-col">
                 <i class="fa-solid fa-users"></i>
                 <div>
                   <span class="label">Sức chứa</span>
-                  <strong>{{ car.seats || 5 }} Chỗ ngồi</strong>
+                  <strong>{{ car.seats ? car.seats + ' Chỗ ngồi' : 'Đang cập nhật' }}</strong>
                 </div>
               </div>
               <div class="spec-col">
                 <i class="fa-solid fa-gauge"></i>
                 <div>
-                  <span class="label">Quãng đường</span>
-                  <strong>{{ car.range || 'Chuẩn EV' }}</strong>
+                  <span class="label">Tầm hoạt động</span>
+                  <strong>{{ car.range_per_charge || car.range || (car.fuel_type === 'gasoline' ? 'Chuẩn' : 'Đang cập nhật') }}</strong>
                 </div>
               </div>
               <div class="spec-col">
@@ -138,9 +154,9 @@
               </div>
               
               <div class="btn-group">
-                <button type="button" class="btn-secondary-sm" @click="openQuickView(car)">
-                  <i class="fa-solid fa-eye"></i> Chi tiết
-                </button>
+                <router-link :to="'/fleet/' + car.id" class="btn-secondary-sm">
+                  <i class="fa-solid fa-circle-info"></i> Chi tiết
+                </router-link>
                 <router-link 
                   :to="{ path: '/', query: { car_id: car.id, city: car.city } }" 
                   class="btn-primary-sm"
@@ -190,13 +206,23 @@
                 <span class="label">Đơn giá thuê tiêu chuẩn</span>
                 <h3>{{ Number(selectedQuickView.price_per_day).toLocaleString('vi-VN') }} đ <small>/ ngày</small></h3>
               </div>
-              <router-link 
-                :to="{ path: '/', query: { car_id: selectedQuickView.id, city: selectedQuickView.city } }"
-                class="btn-primary"
-                @click="selectedQuickView = null"
-              >
-                Đặt xe ngay
-              </router-link>
+              <div class="modal-actions" style="display: flex; gap: 8px;">
+                <router-link 
+                  :to="'/fleet/' + selectedQuickView.id"
+                  class="btn-outline"
+                  @click="selectedQuickView = null"
+                  style="display: inline-flex; align-items: center; gap: 6px;"
+                >
+                  <i class="fa-solid fa-circle-info"></i> Xem chi tiết
+                </router-link>
+                <router-link 
+                  :to="{ path: '/', query: { car_id: selectedQuickView.id, city: selectedQuickView.city } }"
+                  class="btn-primary"
+                  @click="selectedQuickView = null"
+                >
+                  Đặt xe ngay
+                </router-link>
+              </div>
             </div>
           </div>
         </div>
@@ -208,31 +234,18 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import baseRequest from '../../core/baseRequest';
+import { resolveCarImage, handleCarImgError } from '../../core/carImageHelper';
 
 const loading = ref(true);
+const fetchError = ref(null);
 const cars = ref([]);
 const selectedType = ref('Tất cả');
 const sortBy = ref('default');
 const searchQuery = ref('');
 const selectedQuickView = ref(null);
 
-const CAR_IMAGE_MAP = {
-    'xpander': '/assets/images/cars/xpander.png',
-    'camry': '/assets/images/cars/camry.png',
-    'audi a6': '/assets/images/cars/audi_a6.png',
-    'mercedes': '/assets/images/cars/mercedes_c200.png',
-    'santafe': '/assets/images/cars/santafe.png',
-    'mazda cx-5': '/assets/images/cars/cx5.png',
-    'vf8': '/assets/images/cars/vf8.png',
-    'vf7': '/assets/images/cars/vf7.png',
-    'vf9': '/assets/images/vf9.png',
-    'vf 7': '/assets/images/cars/vf7.png',
-    'vf 8': '/assets/images/cars/vf8.png',
-    'vf 9': '/assets/images/vf9.png'
-};
-
 const handleImgError = (event) => {
-  event.target.src = '/assets/images/vf9.png';
+  handleCarImgError(event);
 };
 
 const openQuickView = (car) => {
@@ -241,25 +254,16 @@ const openQuickView = (car) => {
 
 const fetchAllCars = async () => {
   loading.value = true;
+  fetchError.value = null;
   try {
     const response = await baseRequest.get('client/car/data');
-    if (response.data && response.data.status) {
+    if (response.data && response.data.status && Array.isArray(response.data.data)) {
       cars.value = response.data.data.map(car => {
-        const modelName = (car.ten_xe || car.name || '').toLowerCase();
-        let premiumImage = car.hinh_anh;
-        
-        for (const [key, path] of Object.entries(CAR_IMAGE_MAP)) {
-          if (modelName.includes(key)) {
-            premiumImage = path;
-            break;
-          }
-        }
-        
         return {
           ...car,
-          name: car.ten_xe || car.name || 'VinFast Model',
-          price_per_day: car.gia_thue || car.price_per_day || 1000000,
-          image: premiumImage ? (premiumImage.startsWith('/') ? premiumImage : `/assets/images/${premiumImage}`) : '/assets/images/vf9.png',
+          name: car.name || car.ten_xe || 'VinFast Model',
+          price_per_day: car.price_per_day || car.gia_thue || 1000000,
+          image: resolveCarImage(car),
           type: car.category_name || car.type || 'SUV',
           cityDisplay: (() => {
             const c = (car.city || '').toLowerCase();
@@ -271,9 +275,12 @@ const fetchAllCars = async () => {
           })()
         };
       });
+    } else {
+      fetchError.value = response.data?.message || "Không thể tải danh sách phương tiện từ máy chủ.";
     }
   } catch (error) {
     console.error("Lỗi khi tải danh sách xe:", error);
+    fetchError.value = "Không thể kết nối máy chủ để tải danh mục xe. Vui lòng thử lại.";
   } finally {
     loading.value = false;
   }

@@ -136,7 +136,7 @@ class ChatbotController extends Controller
         }
 
         // Chỉ đọc trạng thái thông qua Service, không thay đổi bất kỳ bản ghi nào trong database
-        $paymentService = new \App\Services\Payment\BookingPaymentService();
+        $paymentService = app(\App\Services\Payment\BookingPaymentService::class);
         $statusInfo = $paymentService->getPaymentStatusInfo($booking);
 
         return response()->json([

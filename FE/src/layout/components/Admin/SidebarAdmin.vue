@@ -20,15 +20,19 @@
             <nav class="sidebar-nav">
                 <div class="nav-group">
                     <span class="group-title">Menu Chính</span>
-                    <router-link to="/admin" class="nav-link" exact-active-class="active" @click="$emit('close')">
+                    <router-link v-if="canAny('reports.view')" to="/admin" class="nav-link" exact-active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-chart-pie"></i></div>
                         <span>Tổng quan</span>
                     </router-link>
-                    <router-link to="/admin/cars" class="nav-link" active-class="active" @click="$emit('close')">
+                    <router-link v-if="canAny('cars.manage')" to="/admin/cars" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-car"></i></div>
                         <span>Quản lý xe</span>
                     </router-link>
-                    <router-link to="/admin/bookings" class="nav-link" active-class="active" @click="$emit('close')">
+                    <router-link v-if="canAny('cars.manage', 'bookings.view')" to="/admin/calendar" class="nav-link" active-class="active" @click="$emit('close')">
+                        <div class="icon-box"><i class="fa-solid fa-calendar-days"></i></div>
+                        <span>Lịch xe</span>
+                    </router-link>
+                    <router-link v-if="canAny('bookings.view')" to="/admin/bookings" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-calendar-check"></i></div>
                         <span class="nav-text-container">
                             Đơn đặt xe
@@ -39,15 +43,23 @@
                     </router-link>
                 </div>
 
-                <div class="nav-group">
+                <div v-if="canAny('admins.manage', 'bookings.view', 'audit_logs.view', 'settings.manage')" class="nav-group">
                     <span class="group-title">Hệ Thống</span>
-                    <router-link to="/admin/users" class="nav-link" active-class="active" @click="$emit('close')">
+                    <router-link v-if="canAny('admins.manage', 'bookings.view')" to="/admin/users" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-users-gear"></i></div>
                         <span>Khách hàng</span>
                     </router-link>
-                    <router-link to="/admin/permissions" class="nav-link" active-class="active" @click="$emit('close')">
+                    <router-link v-if="canAny('admins.manage', 'bookings.view')" to="/admin/contacts" class="nav-link" active-class="active" @click="$emit('close')">
+                        <div class="icon-box"><i class="fa-solid fa-headset"></i></div>
+                        <span>Hỗ trợ & Liên hệ</span>
+                    </router-link>
+                    <router-link v-if="canAny('admins.manage', 'audit_logs.view')" to="/admin/permissions" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-shield-halved"></i></div>
                         <span>Tài khoản Admin</span>
+                    </router-link>
+                    <router-link v-if="canAny('settings.manage', 'admins.manage')" to="/admin/settings" class="nav-link" active-class="active" @click="$emit('close')">
+                        <div class="icon-box"><i class="fa-solid fa-sliders"></i></div>
+                        <span>Cấu hình & Danh mục</span>
                     </router-link>
                 </div>
             </nav>
@@ -77,9 +89,21 @@ defineProps({
 const emit = defineEmits(['close']);
 const router = useRouter();
 const pendingBookingsCount = ref(0);
+const user = ref(null);
 let intervalId = null;
 
+const canAny = (...perms) => {
+    if (!user.value) return true;
+    if (user.value.admin_role === 'owner') return true;
+    if (Array.isArray(user.value.permissions)) {
+        return perms.some(p => user.value.permissions.includes(p));
+    }
+    return true;
+};
+
 const fetchPendingBookings = async () => {
+    // Only dispatchers, accountants, or owners can view bookings
+    if (!canAny('bookings.view')) return;
     try {
         const res = await baseRequest.get('admin/bookings/data');
         if (res.data && res.data.status === 1) {
@@ -98,6 +122,14 @@ const handleKeyDown = (e) => {
 };
 
 onMounted(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+        try {
+            user.value = JSON.parse(userData);
+        } catch (e) {
+            user.value = null;
+        }
+    }
     fetchPendingBookings();
     intervalId = setInterval(fetchPendingBookings, 30000);
     window.addEventListener('keydown', handleKeyDown);

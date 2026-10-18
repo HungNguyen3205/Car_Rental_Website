@@ -15,19 +15,26 @@ class StatusBookingRequest extends BaseApiRequest
                 'exists:bookings,id',
             ],
             'tinh_trang' => [
-                'nullable',
+                'required',
                 'integer',
-                'in:0,1,2',
+                'in:0,1,2,3,4,5',
             ],
-            'is_thanh_toan' => [
-                'nullable',
-                'integer',
-                'in:0,1',
-            ],
-            'payment_note' => [
+            'cancel_reason' => [
                 'nullable',
                 'string',
-                'max:255',
+                'max:1000',
+                'required_if:tinh_trang,2',
+            ],
+            'status_note' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+            'is_thanh_toan' => [
+                'prohibited',
+            ],
+            'payment_note' => [
+                'prohibited',
             ],
         ];
     }
@@ -35,11 +42,15 @@ class StatusBookingRequest extends BaseApiRequest
     public function messages(): array
     {
         return [
-            'id.required'            => 'Mã định danh đơn đặt xe là bắt buộc!',
-            'id.exists'              => 'Đơn đặt xe không tồn tại!',
-            'tinh_trang.in'          => 'Trạng thái đơn hàng không hợp lệ (chỉ chấp nhận 0: Chờ duyệt, 1: Đã duyệt, 2: Đã hủy)!',
-            'is_thanh_toan.in'       => 'Trạng thái thanh toán không hợp lệ (chỉ chấp nhận 0: Chưa thanh toán, 1: Đã thanh toán)!',
-            'payment_note.max'       => 'Ghi chú thanh toán không được vượt quá 255 ký tự!',
+            'id.required'              => 'Mã định danh đơn đặt xe là bắt buộc!',
+            'id.exists'                => 'Đơn đặt xe không tồn tại!',
+            'tinh_trang.required'      => 'Trạng thái đơn thuê xe là bắt buộc!',
+            'tinh_trang.in'            => 'Trạng thái đơn thuê xe không hợp lệ (hỗ trợ: 0: Chờ duyệt, 1: Đã duyệt, 2: Đã hủy, 3: Đang thuê, 4: Đã nhận trả, 5: Hoàn tất)!',
+            'cancel_reason.required_if'=> 'Vui lòng cung cấp lý do hủy đơn đặt xe!',
+            'cancel_reason.max'        => 'Lý do hủy đơn không được vượt quá 1000 ký tự!',
+            'status_note.max'          => 'Ghi chú nghiệp vụ không được vượt quá 1000 ký tự!',
+            'is_thanh_toan.prohibited' => 'Endpoint cập nhật trạng thái đơn thuê không được phép thay đổi trạng thái tài chính! Vui lòng dùng tính năng Xác nhận thanh toán chuyên dụng.',
+            'payment_note.prohibited'  => 'Endpoint cập nhật trạng thái đơn thuê không nhận thông tin thanh toán!',
         ];
     }
 }
