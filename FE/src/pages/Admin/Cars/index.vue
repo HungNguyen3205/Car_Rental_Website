@@ -6,7 +6,7 @@
         <div class="header-icon"><i class="fa-solid fa-car-rear"></i></div>
         <div>
           <h1 class="page-title">Quản Lý <span>Kho Xe</span></h1>
-          <p class="page-subtitle">Theo dõi, điều chỉnh trạng thái và thông tin xe trong toàn hệ thống.</p>
+          <p class="page-subtitle">Theo dõi, điều chỉnh trạng thái vận hành, xuất bản nội dung và kiểm soát đội xe toàn hệ thống.</p>
         </div>
       </div>
       <button class="btn-primary" @click="openModal()">
@@ -16,38 +16,130 @@
 
     <!-- Content Card -->
     <div class="content-card card">
+      <!-- Tabs Bar with Counters -->
+      <div class="tabs-bar">
+        <button 
+          class="tab-item" 
+          :class="{ active: currentTab === 'all' }" 
+          @click="switchTab('all')"
+        >
+          <i class="fa-solid fa-layer-group"></i>
+          <span>Tất cả xe</span>
+          <span class="tab-badge">{{ counts.all || 0 }}</span>
+        </button>
+
+        <button 
+          class="tab-item" 
+          :class="{ active: currentTab === 'published' }" 
+          @click="switchTab('published')"
+        >
+          <i class="fa-solid fa-circle-check text-success"></i>
+          <span>Đã đăng (Công khai)</span>
+          <span class="tab-badge badge-success">{{ counts.published || 0 }}</span>
+        </button>
+
+        <button 
+          class="tab-item" 
+          :class="{ active: currentTab === 'draft' }" 
+          @click="switchTab('draft')"
+        >
+          <i class="fa-solid fa-file-pen text-amber"></i>
+          <span>Bản nháp</span>
+          <span class="tab-badge badge-warning">{{ counts.draft || 0 }}</span>
+        </button>
+
+        <button 
+          class="tab-item" 
+          :class="{ active: currentTab === 'archived' }" 
+          @click="switchTab('archived')"
+        >
+          <i class="fa-solid fa-box-archive text-muted"></i>
+          <span>Lưu trữ</span>
+          <span class="tab-badge badge-muted">{{ counts.archived || 0 }}</span>
+        </button>
+
+        <button 
+          class="tab-item tab-trash" 
+          :class="{ active: currentTab === 'trash' }" 
+          @click="switchTab('trash')"
+        >
+          <i class="fa-solid fa-trash-can text-danger"></i>
+          <span>Thùng rác</span>
+          <span class="tab-badge badge-danger">{{ counts.trash || 0 }}</span>
+        </button>
+      </div>
+
       <!-- Search & Filters -->
       <div class="table-tools">
         <div class="search-input">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input type="text" placeholder="Tìm theo tên xe, loại xe..." v-model="searchQuery" />
+          <input 
+            type="text" 
+            placeholder="Tìm theo tên xe, mã #CAR-ID, loại xe..." 
+            v-model="searchQuery" 
+            @input="onSearchInput"
+          />
+          <button v-if="searchQuery" class="clear-search-btn" @click="clearSearch" title="Xóa tìm kiếm">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
+
         <div class="filter-group">
-          <select v-model="filterStatus" class="form-select">
-            <option value="">Tất cả trạng thái</option>
+          <!-- Filter Vận hành (chỉ dùng khi không ở thùng rác) -->
+          <select v-if="currentTab !== 'trash'" v-model="filterStatus" class="form-select" @change="fetchCars(1)">
+            <option value="">Tất cả vận hành</option>
             <option value="available">Sẵn sàng (Hoạt động)</option>
             <option value="maintenance">Bảo trì (Tạm ngưng)</option>
           </select>
+
+          <!-- Filter Danh mục -->
+          <select v-model="filterCategory" class="form-select" @change="fetchCars(1)">
+            <option value="">Tất cả phân hạng</option>
+            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+          </select>
+
+          <!-- Filter Khu vực -->
+          <select v-model="filterCity" class="form-select" @change="fetchCars(1)">
+            <option value="">Tất cả khu vực</option>
+            <option value="sg">TP. Hồ Chí Minh</option>
+            <option value="hn">Hà Nội</option>
+            <option value="dn">Đà Nẵng</option>
+            <option value="all">Toàn quốc</option>
+          </select>
+
+          <!-- Reset Filter Button -->
+          <button 
+            v-if="searchQuery || filterStatus || filterCategory || filterCity" 
+            class="btn-reset-filters" 
+            @click="resetFilters" 
+            title="Đặt lại các bộ lọc"
+          >
+            <i class="fa-solid fa-rotate-left"></i> Đặt lại
+          </button>
         </div>
       </div>
 
       <!-- Professional Table -->
       <div class="table-responsive">
-        <table class="data-table" v-if="filteredCars.length > 0">
+        <table class="data-table" v-if="cars.length > 0">
           <thead>
             <tr>
               <th width="60">STT</th>
               <th>Thông tin xe</th>
-              <th>Loại xe</th>
+              <th>Phân hạng</th>
               <th>Giá thuê / ngày</th>
               <th>Khu vực</th>
-              <th>Trạng thái</th>
-              <th width="180" class="text-center">Thao tác</th>
+              <th v-if="currentTab !== 'trash'">Vận hành</th>
+              <th v-if="currentTab !== 'trash'">Xuất bản</th>
+              <th v-if="currentTab === 'trash'">Thời điểm xóa</th>
+              <th width="190" class="text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(car, index) in filteredCars" :key="car.id">
-              <td><span class="stt-badge">{{ index + 1 }}</span></td>
+            <tr v-for="(car, index) in cars" :key="car.id">
+              <td>
+                <span class="stt-badge">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</span>
+              </td>
               <td>
                 <div class="car-cell">
                   <img 
@@ -74,25 +166,88 @@
                   <i class="fa-solid fa-location-dot"></i> {{ getCityLabel(car.city) }}
                 </span>
               </td>
-              <td>
-                <span class="status-badge" :class="car.status === 'available' ? 'status-ok' : 'status-warn'">
-                  <i class="fa-solid" :class="car.status === 'available' ? 'fa-circle-check' : 'fa-wrench'"></i>
-                  {{ car.status === 'available' ? 'Sẵn sàng' : 'Bảo trì' }}
-                </span>
+
+              <!-- Vận hành (Sẵn sàng / Bảo trì) -->
+              <td v-if="currentTab !== 'trash'">
+                <div class="status-cell">
+                  <span 
+                    class="status-badge" 
+                    :class="car.status === 'available' ? 'status-ok' : 'status-warn'"
+                  >
+                    <i class="fa-solid" :class="car.status === 'available' ? 'fa-circle-check' : 'fa-screwdriver-wrench'"></i>
+                    {{ car.status === 'available' ? 'Sẵn sàng' : 'Bảo trì' }}
+                  </span>
+                </div>
               </td>
+
+              <!-- Trạng thái nội dung / xuất bản -->
+              <td v-if="currentTab !== 'trash'">
+                <div class="publication-select-wrapper">
+                  <select 
+                    class="pub-select" 
+                    :class="'pub-' + (car.publication_status || 'published')"
+                    :value="car.publication_status || 'published'"
+                    @change="changePublicationStatus(car, $event.target.value)"
+                  >
+                    <option value="published">Đã đăng</option>
+                    <option value="draft">Bản nháp</option>
+                    <option value="archived">Lưu trữ</option>
+                  </select>
+                </div>
+              </td>
+
+              <!-- Thời điểm xóa khi ở tab thùng rác -->
+              <td v-if="currentTab === 'trash'">
+                <div class="deleted-time-cell">
+                  <i class="fa-regular fa-clock text-muted"></i>
+                  <span>{{ formatDateTime(car.deleted_at) }}</span>
+                </div>
+              </td>
+
+              <!-- Actions Cell -->
               <td class="actions-cell">
-                <button class="btn-icon" @click="openBookingModal(car)" title="Tạo đơn nhanh">
-                  <i class="fa-solid fa-calendar-plus"></i>
-                </button>
-                <button class="btn-icon" @click="openModal(car)" title="Chỉnh sửa">
-                  <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-                <button class="btn-icon" @click="toggleStatus(car)" title="Đổi trạng thái bảo trì/sẵn sàng">
-                  <i class="fa-solid fa-repeat"></i>
-                </button>
-                <button class="btn-icon text-danger" @click="requestDelete(car)" title="Xóa xe">
-                  <i class="fa-solid fa-trash-can"></i>
-                </button>
+                <!-- Chế độ kho xe thông thường -->
+                <template v-if="currentTab !== 'trash'">
+                  <button 
+                    class="btn-icon" 
+                    :class="{ 'btn-disabled': car.status !== 'available' || car.publication_status !== 'published' }"
+                    @click="onQuickBookingClick(car)" 
+                    :title="car.status === 'available' && car.publication_status === 'published' ? 'Tạo đơn nhanh hộ khách' : 'Xe phải sẵn sàng và đã đăng mới có thể tạo đơn'"
+                  >
+                    <i class="fa-solid fa-calendar-plus"></i>
+                  </button>
+                  <button class="btn-icon" @click="openModal(car)" title="Chỉnh sửa thông số xe">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button 
+                    class="btn-icon" 
+                    @click="toggleStatus(car)" 
+                    :title="car.status === 'available' ? 'Chuyển sang trạng thái bảo trì' : 'Chuyển sang trạng thái sẵn sàng'"
+                  >
+                    <i class="fa-solid fa-repeat"></i>
+                  </button>
+                  <button class="btn-icon text-danger" @click="requestDelete(car)" title="Chuyển vào thùng rác">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </template>
+
+                <!-- Chế độ thùng rác -->
+                <template v-else>
+                  <button 
+                    class="btn-action-restore" 
+                    @click="requestRestore(car)" 
+                    title="Khôi phục xe này vào kho xe hoạt động"
+                  >
+                    <i class="fa-solid fa-rotate-left"></i> Khôi phục
+                  </button>
+                  <button 
+                    class="btn-icon text-danger" 
+                    @click="requestForceDelete(car)" 
+                    title="Xóa vĩnh viễn khỏi hệ thống (Chỉ nếu chưa từng phát sinh đơn)"
+                  >
+                    <i class="fa-solid fa-ban"></i>
+                  </button>
+                </template>
               </td>
             </tr>
           </tbody>
@@ -103,21 +258,72 @@
           <i class="fa-solid fa-triangle-exclamation text-danger" style="font-size: 2.2rem; color: #dc2626; margin-bottom: 12px;"></i>
           <h4>Không thể tải kho xe</h4>
           <p>{{ fetchCarsError }}</p>
-          <button class="btn-primary" @click="fetchCars" style="margin-top: 14px; display: inline-flex; align-items: center; gap: 8px;">
+          <button class="btn-primary" @click="fetchCars(1)" style="margin-top: 14px; display: inline-flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-rotate-right"></i> Thử lại
           </button>
         </div>
 
         <!-- Empty State -->
         <div v-else-if="!loading" class="empty-state-box">
-          <i class="fa-solid fa-car-side"></i>
-          <h4>{{ searchQuery.trim() || filterStatus ? 'Không tìm thấy phương tiện phù hợp' : 'Chưa có phương tiện nào trong kho xe' }}</h4>
-          <p>{{ searchQuery.trim() || filterStatus ? 'Thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc trạng thái xe.' : 'Bấm nút "Thêm xe mới" ở trên để đưa phương tiện vào hệ thống.' }}</p>
+          <i class="fa-solid" :class="currentTab === 'trash' ? 'fa-trash-arrow-up' : 'fa-car-side'"></i>
+          <h4 v-if="currentTab === 'trash'">Thùng rác trống</h4>
+          <h4 v-else>{{ searchQuery.trim() || filterStatus || filterCategory || filterCity ? 'Không tìm thấy phương tiện phù hợp' : 'Chưa có phương tiện nào trong danh mục này' }}</h4>
+          <p v-if="currentTab === 'trash'">Hiện tại không có phương tiện nào trong thùng rác.</p>
+          <p v-else>{{ searchQuery.trim() || filterStatus || filterCategory || filterCity ? 'Thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc trạng thái xe.' : 'Bấm nút "Thêm xe mới" ở trên để đưa phương tiện vào hệ thống.' }}</p>
         </div>
 
         <!-- Loading Overlay -->
         <div v-if="loading" class="loading-overlay">
           <div class="spinner"></div>
+        </div>
+      </div>
+
+      <!-- Server Pagination Bar -->
+      <div class="pagination-footer" v-if="!loading && pagination.total > 0">
+        <div class="pagination-info">
+          Hiển thị từ <strong>{{ pagination.from || 0 }}</strong> đến <strong>{{ pagination.to || 0 }}</strong> trong tổng số <strong>{{ pagination.total }}</strong> xe
+        </div>
+
+        <div class="pagination-controls">
+          <div class="per-page-selector">
+            <span>Hiển thị:</span>
+            <select v-model.number="perPage" @change="changePerPage" class="per-page-select">
+              <option :value="10">10 / trang</option>
+              <option :value="20">20 / trang</option>
+              <option :value="50">50 / trang</option>
+            </select>
+          </div>
+
+          <div class="page-nav">
+            <button 
+              class="page-btn nav-btn" 
+              :disabled="pagination.current_page <= 1" 
+              @click="goToPage(pagination.current_page - 1)"
+              aria-label="Trang trước"
+            >
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <button 
+              v-for="(p, idx) in visiblePages" 
+              :key="idx" 
+              class="page-btn" 
+              :class="{ active: p === pagination.current_page, dots: p === '...' }" 
+              :disabled="p === '...'"
+              @click="p !== '...' && goToPage(p)"
+            >
+              {{ p }}
+            </button>
+
+            <button 
+              class="page-btn nav-btn" 
+              :disabled="pagination.current_page >= pagination.last_page" 
+              @click="goToPage(pagination.current_page + 1)"
+              aria-label="Trang sau"
+            >
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -128,7 +334,7 @@
         <div class="modal-header">
           <div>
             <h3>{{ editingCar.id ? 'Cập nhật thông tin xe' : 'Thêm phương tiện mới' }}</h3>
-            <p class="modal-sub">Điền đầy đủ thông tin kỹ thuật và giá thuê theo quy định</p>
+            <p class="modal-sub">Điền đầy đủ thông tin kỹ thuật, tình trạng vận hành và trạng thái nội dung xuất bản</p>
           </div>
           <button class="btn-close" @click="showModal = false" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
         </div>
@@ -150,6 +356,24 @@
               <label>Phân hạng xe <span class="required">*</span></label>
               <select v-model="editingCar.category_id" @change="onCategoryChange">
                 <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+              </select>
+            </div>
+
+            <!-- Tách riêng Vận hành và Trạng thái xuất bản -->
+            <div class="form-group">
+              <label>Trạng thái vận hành <span class="required">*</span></label>
+              <select v-model="editingCar.status">
+                <option value="available">Sẵn sàng vận hành (Khách có thể nhận xe)</option>
+                <option value="maintenance">Đang bảo trì / Kỹ thuật (Tạm ngưng phục vụ)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Trạng thái xuất bản nội dung <span class="required">*</span></label>
+              <select v-model="editingCar.publication_status">
+                <option value="published">Đã xuất bản (Công khai hiển thị và nhận khách)</option>
+                <option value="draft">Bản nháp (Đang cập nhật, ẩn khỏi trang khách)</option>
+                <option value="archived">Lưu trữ (Tạm ngưng kinh doanh, ẩn khỏi trang khách)</option>
               </select>
             </div>
 
@@ -240,13 +464,6 @@
                 class="form-textarea"
               ></textarea>
             </div>
-
-            <div class="form-group full">
-              <label class="form-check-label">
-                <input type="checkbox" v-model="editingCar.is_active" />
-                <span><strong>Đang phục vụ khách hàng</strong> (Bỏ chọn nếu xe tạm ngừng kinh doanh/ngừng phục vụ)</span>
-              </label>
-            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -259,24 +476,30 @@
       </div>
     </div>
 
-    <!-- Delete Confirmation Modal (shows exact car name) -->
+    <!-- Soft Delete Confirmation Modal (Chuyển vào thùng rác) -->
     <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
       <div class="modal-content card delete-modal animate-in">
         <div class="modal-header">
-          <div class="delete-icon-wrapper">
-            <i class="fa-solid fa-triangle-exclamation"></i>
+          <div class="delete-icon-wrapper warn-icon">
+            <i class="fa-solid fa-trash-can"></i>
           </div>
           <div>
-            <h3>Xác nhận xóa xe</h3>
-            <p class="modal-sub">Hành động này sẽ xóa dữ liệu phương tiện vĩnh viễn khỏi danh sách</p>
+            <h3>Chuyển xe vào Thùng rác</h3>
+            <p class="modal-sub">Xe sẽ tạm ẩn khỏi danh sách cho thuê và khách hàng</p>
           </div>
         </div>
         <div class="modal-body">
           <div class="delete-car-info">
-            <p>Bạn có chắc chắn muốn xóa phương tiện sau?</p>
+            <p>Bạn có chắc chắn muốn đưa phương tiện này vào thùng rác?</p>
             <div class="highlight-box">
-              <strong>{{ carToDelete?.name }}</strong>
-              <span>Mã định danh: #CAR-{{ carToDelete?.id }}</span>
+              <div class="hl-name">{{ carToDelete?.name }}</div>
+              <div class="hl-meta">Mã định danh: <code>#CAR-{{ carToDelete?.id }}</code> | Phân hạng: {{ carToDelete?.category_name || carToDelete?.type || 'Tiêu chuẩn' }}</div>
+            </div>
+            <div class="integrity-notice">
+              <i class="fa-solid fa-shield-halved text-success"></i>
+              <div>
+                <strong>Bảo toàn dữ liệu:</strong> Toàn bộ lịch sử đơn đặt xe, hợp đồng và hóa đơn phát sinh trước đây của xe này sẽ được giữ nguyên vẹn 100%. Bạn có thể khôi phục lại bất cứ lúc nào từ tab Thùng rác.
+              </div>
             </div>
           </div>
         </div>
@@ -284,7 +507,78 @@
           <button class="btn-outline" @click="showDeleteModal = false">Hủy</button>
           <button class="btn-danger" @click="confirmDelete" :disabled="deleting">
             <i v-if="deleting" class="fa-solid fa-spinner fa-spin"></i>
-            {{ deleting ? 'Đang xóa...' : 'Đồng ý xóa' }}
+            {{ deleting ? 'Đang chuyển...' : 'Đưa vào thùng rác' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Restore Confirmation Modal (Khôi phục xe) -->
+    <div v-if="showRestoreModal" class="modal-overlay" @click.self="showRestoreModal = false">
+      <div class="modal-content card restore-modal animate-in">
+        <div class="modal-header">
+          <div class="restore-icon-wrapper">
+            <i class="fa-solid fa-rotate-left"></i>
+          </div>
+          <div>
+            <h3>Khôi phục phương tiện</h3>
+            <p class="modal-sub">Đưa xe trở lại kho xe hoạt động</p>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="delete-car-info">
+            <p>Khôi phục phương tiện sau vào hệ thống quản lý?</p>
+            <div class="highlight-box">
+              <div class="hl-name">{{ carToRestore?.name }}</div>
+              <div class="hl-meta">Mã định danh: <code>#CAR-{{ carToRestore?.id }}</code></div>
+            </div>
+            <p class="helper-text-box">
+              Sau khi khôi phục, phương tiện sẽ xuất hiện trở lại trong danh sách xe theo trạng thái nội dung trước đó.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline" @click="showRestoreModal = false">Hủy</button>
+          <button class="btn-primary" @click="confirmRestore" :disabled="restoring">
+            <i v-if="restoring" class="fa-solid fa-spinner fa-spin"></i>
+            {{ restoring ? 'Đang khôi phục...' : 'Đồng ý khôi phục' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Force Delete Confirmation Modal (Xóa vĩnh viễn) -->
+    <div v-if="showForceDeleteModal" class="modal-overlay" @click.self="showForceDeleteModal = false">
+      <div class="modal-content card delete-modal animate-in">
+        <div class="modal-header">
+          <div class="delete-icon-wrapper danger-icon">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <h3 class="text-danger">Xóa Vĩnh Viễn Xe</h3>
+            <p class="modal-sub">Hành động này không thể hoàn tác</p>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="delete-car-info">
+            <p>Bạn có chắc chắn muốn xóa vĩnh viễn phương tiện này khỏi cơ sở dữ liệu?</p>
+            <div class="highlight-box highlight-danger">
+              <div class="hl-name">{{ carToForceDelete?.name }}</div>
+              <div class="hl-meta">Mã định danh: <code>#CAR-{{ carToForceDelete?.id }}</code></div>
+            </div>
+            <div class="integrity-alert">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <div>
+                <strong>Quy tắc bảo vệ sổ sách:</strong> Hệ thống sẽ kiểm tra và từ chối xóa vĩnh viễn nếu phương tiện đã từng có lịch sử phát sinh bất kỳ đơn đặt xe hoặc giao dịch nào.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline" @click="showForceDeleteModal = false">Hủy</button>
+          <button class="btn-danger" @click="confirmForceDelete" :disabled="forceDeleting">
+            <i v-if="forceDeleting" class="fa-solid fa-spinner fa-spin"></i>
+            {{ forceDeleting ? 'Đang xóa...' : 'Xóa vĩnh viễn' }}
           </button>
         </div>
       </div>
@@ -448,57 +742,55 @@
             </div>
             <div class="form-group">
               <label>Địa điểm trả xe</label>
-              <input type="text" v-model="adminBookingForm.dia_chi_tra_xe" placeholder="Mặc định tại địa điểm nhận hoặc chỉ định..." />
-            </div>
-            <div class="form-group full">
-              <label>Ghi chú / Yêu cầu đặc biệt</label>
-              <input type="text" v-model="adminBookingForm.ly_do_thue" placeholder="VD: Khách yêu cầu giao xe sạch sẽ, sạc đầy pin 100%..." />
+              <input type="text" v-model="adminBookingForm.dia_chi_tra_xe" placeholder="Để trống nếu trùng địa điểm nhận..." />
             </div>
           </div>
 
-          <!-- Status & Payment Privileges -->
+          <!-- Purpose of Renting -->
+          <div class="form-group full mt-2">
+            <label>Mục đích thuê xe</label>
+            <input type="text" v-model="adminBookingForm.ly_do_thue" placeholder="VD: Đi công tác tỉnh, du lịch gia đình..." />
+          </div>
+
+          <!-- Status & Payment Privileges for Admin -->
           <div class="section-title mt-4">
-            <i class="fa-solid fa-shield-halved"></i> Thiết lập trạng thái & Thu tiền (Đặc quyền Admin)
+            <i class="fa-solid fa-sliders"></i> Trạng thái & Quyền hạn xử lý của Admin
           </div>
 
           <div class="privilege-grid">
             <div class="privilege-card">
               <label class="form-check-label">
                 <input type="checkbox" v-model="adminBookingForm.autoApprove" />
-                <span><strong>Duyệt lịch hẹn ngay</strong> (Trạng thái: Đã xác nhận)</span>
+                <span><strong>Duyệt đơn ngay lập tức</strong> (Chuyển sang trạng thái "Đã duyệt/Chờ giao xe")</span>
               </label>
-              <small class="helper-text">Nếu không chọn, đơn sẽ ở trạng thái Chờ xác nhận.</small>
             </div>
-
             <div class="privilege-card">
               <label class="form-check-label">
                 <input type="checkbox" v-model="adminBookingForm.isPaid" />
-                <span><strong>Đã thu tiền trực tiếp</strong> (Trạng thái: Đã thanh toán)</span>
+                <span><strong>Xác nhận đã thanh toán</strong> (Khách đã chuyển khoản hoặc trả tiền mặt trực tiếp)</span>
               </label>
-              <input 
-                v-if="adminBookingForm.isPaid" 
-                type="text" 
-                v-model="adminBookingForm.paymentNote" 
-                placeholder="Ghi chú thu tiền (VD: Tiền mặt tại quầy / Chuyển khoản QR)"
-                class="form-control-sm mt-2"
-              />
             </div>
           </div>
 
-          <!-- Price Summary Card -->
+          <div class="form-group full" v-if="adminBookingForm.isPaid">
+            <label>Ghi chú thanh toán / Mã giao dịch</label>
+            <input type="text" v-model="adminBookingForm.paymentNote" placeholder="VD: Khách chuyển khoản VCB mã GD 987123" />
+          </div>
+
+          <!-- Price Calculation Box -->
           <div class="rental-price-summary-card">
+            <div class="summary-row">
+              <span>Đơn giá thuê mỗi ngày:</span>
+              <strong>{{ formatCurrency(selectedCar.price_per_day) }}</strong>
+            </div>
             <div class="summary-row">
               <span>Thời gian thuê tính toán:</span>
               <strong>{{ rentalSummary.days }} ngày</strong>
             </div>
-            <div class="summary-row">
-              <span>Đơn giá niêm yết xe:</span>
-              <span>{{ formatCurrency(selectedCar.price_per_day) }} / ngày</span>
-            </div>
             <div class="summary-divider"></div>
             <div class="summary-row total-row">
-              <span>Tổng tiền thuê xe (Snapshot server):</span>
-              <strong class="total-price-tag">{{ formatCurrency(rentalSummary.totalPrice) }}</strong>
+              <span>Tổng tiền thuê dự kiến:</span>
+              <span class="total-price-tag">{{ formatCurrency(rentalSummary.totalPrice) }}</span>
             </div>
           </div>
 
@@ -511,7 +803,7 @@
           <button class="btn-outline" @click="showBookingModal = false">Hủy</button>
           <button class="btn-primary" @click="submitAdminBooking" :disabled="submittingBooking">
             <i v-if="submittingBooking" class="fa-solid fa-spinner fa-spin"></i>
-            {{ submittingBooking ? 'Đang tạo đơn...' : 'Xác Nhận Đặt Xe Hộ' }}
+            {{ submittingBooking ? 'Đang tạo đơn...' : 'Xác nhận tạo đơn' }}
           </button>
         </div>
       </div>
@@ -527,23 +819,61 @@ import { resolveCarImage, handleCarImgError } from '../../../core/carImageHelper
 
 const toaster = createToaster({ position: "top-right" });
 
+// Cars data & categories
 const cars = ref([]);
 const categories = ref([]);
 const loading = ref(true);
 const fetchCarsError = ref(null);
 const saving = ref(false);
 const deleting = ref(false);
-const searchQuery = ref('');
-const filterStatus = ref('');
+const restoring = ref(false);
+const forceDeleting = ref(false);
 
+// Tabs & Counters
+const currentTab = ref('all'); // 'all' | 'published' | 'draft' | 'archived' | 'trash'
+const counts = ref({
+  all: 0,
+  published: 0,
+  draft: 0,
+  archived: 0,
+  trash: 0
+});
+
+// Server Search & Filters
+const searchQuery = ref('');
+const filterStatus = ref(''); // available | maintenance
+const filterCategory = ref('');
+const filterCity = ref('');
+let searchDebounceTimer = null;
+
+// Server Pagination
+const perPage = ref(10);
+const pagination = ref({
+  current_page: 1,
+  last_page: 1,
+  per_page: 10,
+  total: 0,
+  from: 0,
+  to: 0
+});
+
+// Edit/Add Modal
 const showModal = ref(false);
 const editingCar = ref({});
 const formErrors = ref({});
 const galleryInput = ref('');
 
-// Delete Confirmation
+// Soft Delete Confirmation Modal
 const showDeleteModal = ref(false);
 const carToDelete = ref(null);
+
+// Restore Confirmation Modal
+const showRestoreModal = ref(false);
+const carToRestore = ref(null);
+
+// Force Delete Confirmation Modal
+const showForceDeleteModal = ref(false);
+const carToForceDelete = ref(null);
 
 // Admin Booking for Customer State
 const showBookingModal = ref(false);
@@ -553,7 +883,7 @@ const customerSearchQuery = ref('');
 const customerSearchResults = ref([]);
 const searchingCustomer = ref(false);
 const selectedCustomer = ref(null);
-let searchDebounceTimer = null;
+let customerSearchDebounceTimer = null;
 
 const newCustomer = ref({
   ho_ten: '',
@@ -593,6 +923,7 @@ const rentalSummary = ref({
 const submittingBooking = ref(false);
 const adminBookingError = ref('');
 
+// Helper Labels
 const getCityLabel = (code) => {
   if (!code) return 'Toàn quốc';
   const c = code.toLowerCase();
@@ -602,22 +933,79 @@ const getCityLabel = (code) => {
   return code.toUpperCase();
 };
 
-const filteredCars = computed(() => {
-  return cars.value.filter(car => {
-    const matchSearch = car.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-                        (car.type && car.type.toLowerCase().includes(searchQuery.value.toLowerCase()));
-    const matchStatus = filterStatus.value === '' || car.status === filterStatus.value;
-    return matchSearch && matchStatus;
+const formatCurrency = (val) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
+};
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
   });
+};
+
+// Visible page numbers for pagination
+const visiblePages = computed(() => {
+  const total = pagination.value.last_page || 1;
+  const current = pagination.value.current_page || 1;
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (current > 3) {
+    pages.push('...');
+  }
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (current < total - 2) {
+    pages.push('...');
+  }
+  pages.push(total);
+  return pages;
 });
 
-const fetchCars = async () => {
+// Fetch Cars with Server-side Search, Filters, Tabs & Pagination
+const fetchCars = async (page = 1) => {
   loading.value = true;
   fetchCarsError.value = null;
   try {
-    const res = await baseRequest.get('admin/cars/data');
+    const params = {
+      page,
+      per_page: perPage.value,
+      tab: currentTab.value,
+      search: searchQuery.value.trim() || undefined,
+      status: filterStatus.value || undefined,
+      category_id: filterCategory.value || undefined,
+      city: filterCity.value || undefined,
+    };
+
+    const res = await baseRequest.get('admin/cars/data', { params });
     if (res.data && res.data.status && Array.isArray(res.data.data)) {
       cars.value = res.data.data;
+      if (res.data.meta) {
+        pagination.value = res.data.meta;
+      } else {
+        pagination.value = {
+          current_page: 1,
+          last_page: 1,
+          per_page: cars.value.length,
+          total: cars.value.length,
+          from: 1,
+          to: cars.value.length
+        };
+      }
+      if (res.data.counts) {
+        counts.value = res.data.counts;
+      }
     } else {
       fetchCarsError.value = res.data?.message || "Không thể tải danh sách xe từ máy chủ.";
     }
@@ -629,6 +1017,41 @@ const fetchCars = async () => {
   }
 };
 
+const onSearchInput = () => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    fetchCars(1);
+  }, 350);
+};
+
+const clearSearch = () => {
+  searchQuery.value = '';
+  fetchCars(1);
+};
+
+const switchTab = (tab) => {
+  currentTab.value = tab;
+  fetchCars(1);
+};
+
+const resetFilters = () => {
+  searchQuery.value = '';
+  filterStatus.value = '';
+  filterCategory.value = '';
+  filterCity.value = '';
+  fetchCars(1);
+};
+
+const changePerPage = () => {
+  fetchCars(1);
+};
+
+const goToPage = (page) => {
+  if (page < 1 || page > pagination.value.last_page || page === pagination.value.current_page) return;
+  fetchCars(page);
+};
+
+// Fetch Categories for Dropdown
 const fetchCategories = async () => {
   try {
     const res = await baseRequest.get('client/categories');
@@ -647,13 +1070,16 @@ const onCategoryChange = () => {
   }
 };
 
+// Modal Open
 const openModal = (car = null) => {
   formErrors.value = {};
   if (car) {
     editingCar.value = { 
       ...car,
+      status: car.status || 'available',
+      publication_status: car.publication_status || 'published',
       fuel_type: car.fuel_type || 'electric',
-      is_active: car.is_active !== undefined ? Boolean(car.is_active) : true
+      is_active: car.is_active !== undefined ? Boolean(car.is_active) : (car.publication_status === 'published')
     };
     galleryInput.value = Array.isArray(car.gallery) 
       ? car.gallery.join('\n') 
@@ -665,6 +1091,8 @@ const openModal = (car = null) => {
       city: 'sg',
       type: 'SUV Điện',
       fuel_type: 'electric',
+      status: 'available',
+      publication_status: 'published',
       category_id: categories.value[0]?.id || 1,
       image: '/assets/images/vf9.png',
       seats: null,
@@ -680,6 +1108,7 @@ const openModal = (car = null) => {
   showModal.value = true;
 };
 
+// Save Car
 const saveCar = async () => {
   formErrors.value = {};
   if (!editingCar.value.name?.trim()) {
@@ -705,32 +1134,70 @@ const saveCar = async () => {
     if (res.data && res.data.status) {
       toaster.success(res.data.message || "Lưu thông tin xe thành công!");
       showModal.value = false;
-      await fetchCars();
+      await fetchCars(pagination.value.current_page);
     } else {
       toaster.error(res.data?.message || "Không thể lưu thông tin xe.");
     }
   } catch (err) {
-    toaster.error("Lỗi khi kết nối với máy chủ!");
+    toaster.error(err.response?.data?.message || "Lỗi khi kết nối với máy chủ!");
   } finally {
     saving.value = false;
   }
 };
 
+// Toggle Operational Status
 const toggleStatus = async (car) => {
   try {
     const res = await baseRequest.post('admin/cars/status', { id: car.id });
     if (res.data && res.data.status) {
-      toaster.success(res.data.message || "Đã đổi trạng thái xe!");
-      // Update locally to avoid jump
+      toaster.success(res.data.message || "Đã đổi trạng thái vận hành xe!");
       car.status = (car.status === 'available' ? 'maintenance' : 'available');
     } else {
       toaster.error(res.data?.message || "Không thể cập nhật trạng thái!");
     }
   } catch (err) {
-    toaster.error("Lỗi hệ thống khi cập nhật trạng thái.");
+    toaster.error(err.response?.data?.message || "Lỗi hệ thống khi cập nhật trạng thái.");
   }
 };
 
+// Change Publication Status
+const changePublicationStatus = async (car, newStatus) => {
+  if (car.publication_status === newStatus) return;
+  try {
+    const res = await baseRequest.post('admin/cars/publication-status', {
+      id: car.id,
+      publication_status: newStatus
+    });
+    if (res.data && res.data.status) {
+      toaster.success(res.data.message || "Đã cập nhật trạng thái xuất bản!");
+      car.publication_status = newStatus;
+      car.is_active = (newStatus === 'published');
+      await fetchCars(pagination.value.current_page);
+    } else {
+      toaster.error(res.data?.message || "Không thể cập nhật trạng thái xuất bản!");
+      // Revert UI select value by fetching
+      await fetchCars(pagination.value.current_page);
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || "Lỗi khi cập nhật trạng thái xuất bản!");
+    await fetchCars(pagination.value.current_page);
+  }
+};
+
+// Quick Booking Click validation
+const onQuickBookingClick = (car) => {
+  if (car.status !== 'available') {
+    toaster.warning("Xe đang trong trạng thái Bảo trì, không thể tạo đơn đặt xe!");
+    return;
+  }
+  if (car.publication_status !== 'published') {
+    toaster.warning("Xe chưa được Xuất bản công khai, không thể tạo đơn đặt xe!");
+    return;
+  }
+  openBookingModal(car);
+};
+
+// Soft Delete (Chuyển thùng rác)
 const requestDelete = (car) => {
   carToDelete.value = car;
   showDeleteModal.value = true;
@@ -742,24 +1209,73 @@ const confirmDelete = async () => {
   try {
     const res = await baseRequest.post('admin/cars/delete', { id: carToDelete.value.id });
     if (res.data && res.data.status) {
-      toaster.success(res.data.message || "Đã xóa xe khỏi hệ thống!");
+      toaster.success(res.data.message || "Đã chuyển xe vào thùng rác thành công!");
       showDeleteModal.value = false;
       carToDelete.value = null;
-      await fetchCars();
+      await fetchCars(pagination.value.current_page);
     } else {
-      toaster.error(res.data?.message || "Không thể xóa phương tiện này.");
+      toaster.error(res.data?.message || "Không thể chuyển phương tiện này vào thùng rác.");
     }
   } catch (err) {
-    toaster.error("Lỗi khi xóa phương tiện.");
+    toaster.error(err.response?.data?.message || "Lỗi khi chuyển phương tiện vào thùng rác.");
   } finally {
     deleting.value = false;
   }
 };
 
-const formatCurrency = (val) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
+// Restore from Trash
+const requestRestore = (car) => {
+  carToRestore.value = car;
+  showRestoreModal.value = true;
 };
 
+const confirmRestore = async () => {
+  if (!carToRestore.value) return;
+  restoring.value = true;
+  try {
+    const res = await baseRequest.post('admin/cars/restore', { id: carToRestore.value.id });
+    if (res.data && res.data.status) {
+      toaster.success(res.data.message || "Đã khôi phục xe thành công!");
+      showRestoreModal.value = false;
+      carToRestore.value = null;
+      await fetchCars(pagination.value.current_page);
+    } else {
+      toaster.error(res.data?.message || "Không thể khôi phục xe.");
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || "Lỗi khi khôi phục xe.");
+  } finally {
+    restoring.value = false;
+  }
+};
+
+// Force Delete
+const requestForceDelete = (car) => {
+  carToForceDelete.value = car;
+  showForceDeleteModal.value = true;
+};
+
+const confirmForceDelete = async () => {
+  if (!carToForceDelete.value) return;
+  forceDeleting.value = true;
+  try {
+    const res = await baseRequest.post('admin/cars/force-delete', { id: carToForceDelete.value.id });
+    if (res.data && res.data.status) {
+      toaster.success(res.data.message || "Đã xóa vĩnh viễn xe khỏi hệ thống!");
+      showForceDeleteModal.value = false;
+      carToForceDelete.value = null;
+      await fetchCars(pagination.value.current_page);
+    } else {
+      toaster.error(res.data?.message || "Không thể xóa vĩnh viễn xe.");
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || "Lỗi khi xóa vĩnh viễn phương tiện.");
+  } finally {
+    forceDeleting.value = false;
+  }
+};
+
+// Booking Modal Logic
 const openBookingModal = (car) => {
   selectedCar.value = car;
   selectedCustomer.value = null;
@@ -783,14 +1299,14 @@ const openBookingModal = (car) => {
 };
 
 const onSearchCustomer = () => {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  if (customerSearchDebounceTimer) clearTimeout(customerSearchDebounceTimer);
   const q = customerSearchQuery.value.trim();
   if (!q) {
     customerSearchResults.value = [];
     return;
   }
   
-  searchDebounceTimer = setTimeout(async () => {
+  customerSearchDebounceTimer = setTimeout(async () => {
     searchingCustomer.value = true;
     try {
       const res = await baseRequest.get('admin/users/search', { params: { q, per_page: 10 } });
@@ -910,7 +1426,7 @@ const submitAdminBooking = async () => {
     if (res.data && res.data.status) {
       toaster.success(res.data.message || "Tạo đơn đặt xe hộ thành công!");
       showBookingModal.value = false;
-      await fetchCars();
+      await fetchCars(pagination.value.current_page);
     } else {
       adminBookingError.value = res.data?.message || "Không thể tạo đơn đặt xe.";
       toaster.error(adminBookingError.value);
@@ -932,12 +1448,14 @@ const handleKeyDown = (e) => {
   if (e.key === 'Escape') {
     showModal.value = false;
     showDeleteModal.value = false;
+    showRestoreModal.value = false;
+    showForceDeleteModal.value = false;
     showBookingModal.value = false;
   }
 };
 
 onMounted(() => {
-  fetchCars();
+  fetchCars(1);
   fetchCategories();
   window.addEventListener('keydown', handleKeyDown);
 });
@@ -996,20 +1514,87 @@ onUnmounted(() => {
   position: relative;
 }
 
+/* Tabs Bar */
+.tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px 0;
+  background: #F8FAFC;
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab-item:hover {
+  color: var(--color-text-main);
+  background: rgba(241, 245, 249, 0.8);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.tab-item.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: white;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.tab-trash.active {
+  color: #DC2626;
+  border-bottom-color: #DC2626;
+}
+
+.tab-badge {
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #E2E8F0;
+  color: #475569;
+}
+
+.tab-item.active .tab-badge {
+  background: #EFF6FF;
+  color: var(--color-primary);
+}
+
+.badge-success { background: #DCFCE7 !important; color: #15803D !important; }
+.badge-warning { background: #FEF3C7 !important; color: #B45309 !important; }
+.badge-muted { background: #F1F5F9 !important; color: #64748B !important; }
+.badge-danger { background: #FEE2E2 !important; color: #B91C1C !important; }
+
 /* Tools */
 .table-tools {
-  padding: 20px 24px;
+  padding: 16px 20px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 16px;
   border-bottom: 1px solid var(--color-border);
   background: white;
+  flex-wrap: wrap;
 }
 
 .search-input {
   position: relative;
   flex: 1;
-  max-width: 380px;
+  min-width: 260px;
+  max-width: 400px;
 }
 
 .search-input i {
@@ -1022,7 +1607,7 @@ onUnmounted(() => {
 
 .search-input input {
   width: 100%;
-  padding: 10px 14px 10px 40px;
+  padding: 9px 36px 9px 38px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--bg-surface-alt);
@@ -1037,15 +1622,54 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+.clear-search-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .form-select {
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: white;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 600;
   color: var(--color-text-main);
   outline: none;
+}
+
+.btn-reset-filters {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--color-border);
+  background: var(--bg-surface-alt);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-reset-filters:hover {
+  background: #E2E8F0;
+  color: var(--color-text-main);
 }
 
 /* Table */
@@ -1056,18 +1680,19 @@ onUnmounted(() => {
 
 .data-table th {
   background: var(--bg-surface-alt);
-  padding: 14px 20px;
+  padding: 13px 18px;
   text-align: left;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
 }
 
 .data-table td {
-  padding: 14px 20px;
+  padding: 13px 18px;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-main);
   vertical-align: middle;
@@ -1076,18 +1701,18 @@ onUnmounted(() => {
 .stt-badge {
   font-weight: 700;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
 }
 
 .car-cell {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .car-thumb {
-  width: 76px;
-  height: 48px;
+  width: 72px;
+  height: 46px;
   object-fit: cover;
   border-radius: var(--radius-sm);
   background: var(--bg-surface-alt);
@@ -1095,55 +1720,102 @@ onUnmounted(() => {
 }
 
 .car-details { display: flex; flex-direction: column; }
-.car-name { font-weight: 700; color: var(--color-text-main); font-size: 0.95rem; }
+.car-name { font-weight: 700; color: var(--color-text-main); font-size: 0.92rem; }
 .car-id { font-size: 0.72rem; color: var(--color-text-muted); font-family: monospace; }
-
-.price-box {
-  display: flex;
-  flex-direction: column;
-}
-
-.price-text { font-weight: 800; color: var(--color-primary); font-size: 0.95rem; }
-.price-box small { font-size: 0.75rem; color: var(--color-text-muted); }
 
 .tag-outline {
   display: inline-block;
   padding: 4px 10px;
-  border: 1px solid var(--color-border-dark);
-  border-radius: var(--radius-sm);
-  font-size: 0.78rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  background: var(--bg-surface-alt);
+  font-size: 0.76rem;
   font-weight: 600;
-  background: white;
+  color: var(--color-text-main);
+  white-space: nowrap;
+}
+
+.price-box {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.price-text {
+  font-weight: 700;
+  color: var(--color-primary);
+  font-size: 0.92rem;
 }
 
 .city-badge {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
-.city-badge i { color: var(--color-primary); font-size: 0.8rem; }
+.city-badge i { color: #EF4444; }
 
+/* Status Badges */
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
-  border-radius: 100px;
-  font-size: 0.75rem;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .status-ok { background: #DCFCE7; color: #15803D; }
 .status-warn { background: #FEF3C7; color: #B45309; }
 
-.actions-cell {
+/* Publication Status Selector */
+.pub-select {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.pub-select.pub-published {
+  background: #DCFCE7;
+  color: #15803D;
+  border-color: #86EFAC;
+}
+
+.pub-select.pub-draft {
+  background: #FEF3C7;
+  color: #B45309;
+  border-color: #FCD34D;
+}
+
+.pub-select.pub-archived {
+  background: #F1F5F9;
+  color: #64748B;
+  border-color: #CBD5E1;
+}
+
+.deleted-time-cell {
   display: flex;
+  align-items: center;
   gap: 6px;
-  justify-content: center;
+  font-size: 0.8rem;
+  color: #64748B;
+  white-space: nowrap;
+}
+
+/* Actions */
+.actions-cell {
+  text-align: center;
+  white-space: nowrap;
 }
 
 .btn-icon {
@@ -1154,10 +1826,11 @@ onUnmounted(() => {
   background: white;
   color: var(--color-text-muted);
   cursor: pointer;
+  margin: 0 3px;
+  transition: all 0.2s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
 }
 
 .btn-icon:hover {
@@ -1167,16 +1840,133 @@ onUnmounted(() => {
 }
 
 .btn-icon.text-danger:hover {
+  background: #FEE2E2;
   color: #DC2626;
-  border-color: #DC2626;
-  background: #FEF2F2;
+  border-color: #F87171;
 }
 
-/* Modal */
+.btn-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-action-restore {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #10B981;
+  background: #ECFDF5;
+  color: #047857;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  margin-right: 6px;
+}
+
+.btn-action-restore:hover {
+  background: #10B981;
+  color: white;
+}
+
+/* Server Pagination Bar */
+.pagination-footer {
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--color-border);
+  background: #F8FAFC;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 0.84rem;
+  color: var(--color-text-muted);
+}
+
+.pagination-info strong { color: var(--color-text-main); }
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.per-page-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.per-page-select {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: white;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  outline: none;
+}
+
+.page-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-main);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled):not(.dots) {
+  background: var(--bg-surface-alt);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.page-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-btn.dots {
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+/* Modals */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(11, 18, 32, 0.65);
+  background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
@@ -1186,199 +1976,251 @@ onUnmounted(() => {
 }
 
 .modal-content {
-  width: 100%;
-  max-width: 600px;
-  padding: 0;
-  max-height: 90vh;
-  overflow-y: auto;
   background: white;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-border);
+}
+
+.modal-content.delete-modal,
+.modal-content.restore-modal {
+  max-width: 520px;
+}
+
+.modal-content.admin-booking-modal {
+  max-width: 760px;
 }
 
 .modal-header {
-  padding: 24px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  border-bottom: 1px solid var(--color-border);
+  align-items: center;
+  background: var(--bg-surface-alt);
 }
 
 .modal-header h3 {
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--color-text-main);
-  font-family: var(--font-heading);
+  margin-bottom: 2px;
 }
 
 .modal-sub {
+  font-size: 0.82rem;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
-  margin-top: 4px;
 }
 
 .btn-close {
-  background: none;
+  background: transparent;
   border: none;
   font-size: 1.2rem;
   color: var(--color-text-muted);
   cursor: pointer;
-  padding: 4px;
 }
 
-.modal-body { padding: 24px; }
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
 
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: var(--bg-surface-alt);
+}
+
+/* Delete / Restore Highlights */
+.delete-icon-wrapper,
+.restore-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.delete-icon-wrapper.warn-icon {
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.delete-icon-wrapper.danger-icon {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.restore-icon-wrapper {
+  background: #DCFCE7;
+  color: #16A34A;
+}
+
+.highlight-box {
+  padding: 12px 16px;
+  background: var(--bg-surface-alt);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  margin: 14px 0;
+}
+
+.highlight-box.highlight-danger {
+  background: #FEF2F2;
+  border-color: #FECACA;
+}
+
+.hl-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-text-main);
+}
+
+.hl-meta {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.integrity-notice {
+  padding: 12px 14px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: #166534;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+
+.integrity-alert {
+  padding: 12px 14px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: #991B1B;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+
+.helper-text-box {
+  font-size: 0.84rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+/* Form Styles */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-.form-group.full { grid-column: span 2; }
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.full {
+  grid-column: span 2;
+}
 
 .form-group label {
-  display: block;
   font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.form-group input,
+.form-group select,
+.form-textarea {
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: white;
+  font-size: 0.88rem;
+  color: var(--color-text-main);
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.required { color: #DC2626; }
+.field-error { font-size: 0.78rem; color: #DC2626; }
+.helper-text { font-size: 0.78rem; color: var(--color-text-muted); }
+
+/* Image Preview */
+.img-preview-container {
+  margin-top: 8px;
+}
+
+.preview-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.preview-box {
+  width: 140px;
+  height: 80px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--bg-surface-alt);
+}
+
+.preview-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Empty State & Errors */
+.empty-state-box {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.empty-state-box i {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.empty-state-box h4 {
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--color-text-main);
   margin-bottom: 6px;
 }
 
-.form-group input, .form-group select {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  outline: none;
-  font-size: 0.9rem;
-  font-family: inherit;
-  transition: border-color 0.2s;
-}
-
-.form-group input:focus, .form-group select:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.helper-text {
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  margin-top: 4px;
-  display: block;
-}
-
-.required { color: #DC2626; }
-.field-error { color: #DC2626; font-size: 0.78rem; margin-top: 4px; display: block; }
-
-.img-preview-container {
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--bg-surface-alt);
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--color-border);
-}
-
-.preview-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  display: block;
-  margin-bottom: 8px;
-}
-
-.preview-box {
-  width: 100%;
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.preview-box img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.modal-footer {
-  padding: 16px 24px;
-  background: var(--bg-surface-alt);
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-/* Delete Modal */
-.delete-modal { max-width: 480px; }
-.delete-icon-wrapper {
-  width: 44px;
-  height: 44px;
-  background: #FEE2E2;
-  color: #DC2626;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  margin-right: 12px;
-  flex-shrink: 0;
-}
-
-.delete-modal .modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.highlight-box {
-  margin-top: 12px;
-  padding: 12px 16px;
-  background: var(--bg-surface-alt);
-  border-radius: var(--radius-sm);
-  border-left: 4px solid #DC2626;
-  display: flex;
-  flex-direction: column;
-}
-
-.highlight-box strong { font-size: 1rem; color: var(--color-text-main); }
-.highlight-box span { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 2px; }
-
-.btn-danger {
-  background: #DC2626;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: var(--radius-sm);
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-danger:hover {
-  background: #B91C1C;
-}
-
-.selected-car-badge {
-  background: rgba(37, 99, 235, 0.08);
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  color: var(--color-primary);
+.empty-state-box p {
   font-size: 0.88rem;
-  border: 1px solid rgba(37, 99, 235, 0.2);
 }
-
-.empty-state-box {
-  padding: 48px 24px;
-  text-align: center;
-  color: var(--color-text-muted);
-}
-
-.empty-state-box i { font-size: 2.4rem; opacity: 0.4; margin-bottom: 12px; }
-.empty-state-box h4 { font-weight: 700; color: var(--color-text-main); margin-bottom: 4px; }
 
 .loading-overlay {
   position: absolute;
@@ -1387,12 +2229,13 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10;
 }
 
 .spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(37, 99, 235, 0.2);
+  width: 38px;
+  height: 38px;
+  border: 3px solid #E2E8F0;
   border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -1402,62 +2245,44 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-.admin-booking-modal {
-  max-width: 720px;
-}
-
+/* Admin Booking Modal Elements */
 .selected-car-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 18px;
+  gap: 14px;
+  padding: 12px 16px;
   background: var(--bg-surface-alt);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .selected-car-card .car-thumb {
-  width: 80px;
-  height: 52px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  background: white;
-  border: 1px solid var(--color-border);
+  width: 90px;
+  height: 56px;
 }
 
-.selected-car-card .car-meta h4 {
-  font-size: 1.05rem;
+.car-meta h4 {
+  font-size: 1rem;
   font-weight: 700;
-  margin: 2px 0 4px 0;
   color: var(--color-text-main);
+  margin: 3px 0;
 }
 
-.selected-car-card .car-rate {
+.car-rate {
   font-size: 0.85rem;
   color: var(--color-text-muted);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.selected-car-card .car-rate strong {
-  color: var(--color-primary);
-  font-size: 0.95rem;
 }
 
 .city-tag {
+  margin-left: 8px;
   font-size: 0.78rem;
-  background: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
+  color: #475569;
 }
 
 .section-title {
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 800;
   color: var(--color-text-main);
   margin-bottom: 12px;
   display: flex;
@@ -1467,137 +2292,96 @@ onUnmounted(() => {
 
 .customer-mode-switch {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
 .mode-btn {
   flex: 1;
-  padding: 9px 14px;
+  padding: 8px 14px;
   border: 1px solid var(--color-border);
   background: white;
   border-radius: var(--radius-sm);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 600;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.2s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  transition: all 0.2s;
 }
 
 .mode-btn.active {
-  background: var(--color-primary);
-  color: white;
+  background: #EFF6FF;
   border-color: var(--color-primary);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
-}
-
-.search-input-wrapper {
-  position: relative;
+  color: var(--color-primary);
 }
 
 .input-with-icon {
   position: relative;
-  display: flex;
-  align-items: center;
 }
 
 .input-with-icon i {
   position: absolute;
-  left: 14px;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--color-text-muted);
-  font-size: 0.9rem;
 }
 
 .input-with-icon input {
-  padding-left: 38px;
+  padding-left: 36px;
   width: 100%;
 }
 
-.spinner-small {
-  position: absolute;
-  right: 14px;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(37, 99, 235, 0.2);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
 .search-results-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
-  background: white;
+  margin-top: 6px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  max-height: 220px;
+  border-radius: var(--radius-sm);
+  background: white;
+  max-height: 180px;
   overflow-y: auto;
-  z-index: 50;
+  box-shadow: var(--shadow-md);
 }
 
 .customer-result-item {
+  padding: 10px 14px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
+  justify-content: space-between;
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: background 0.15s;
 }
 
-.customer-result-item:last-child { border-bottom: none; }
-.customer-result-item:hover { background: var(--bg-surface-alt); }
-
-.cust-avatar {
-  width: 34px;
-  height: 34px;
-  background: rgba(37, 99, 235, 0.1);
-  color: var(--color-primary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.88rem;
-  flex-shrink: 0;
+.customer-result-item:hover {
+  background: var(--bg-surface-alt);
 }
 
-.cust-info { flex: 1; }
-.cust-name { font-weight: 700; font-size: 0.9rem; color: var(--color-text-main); }
-.cust-contact {
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  display: flex;
-  gap: 12px;
-  margin-top: 2px;
-}
+.cust-name { font-weight: 700; font-size: 0.88rem; color: var(--color-text-main); }
+.cust-contact { font-size: 0.78rem; color: var(--color-text-muted); display: flex; gap: 12px; margin-top: 2px; }
 
 .btn-select-customer {
-  padding: 5px 12px;
-  background: var(--bg-surface-alt);
-  border: 1px solid var(--color-border);
-  color: var(--color-primary);
+  padding: 4px 10px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
   border-radius: var(--radius-sm);
-  font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .selected-customer-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 12px 16px;
-  background: rgba(16, 185, 129, 0.06);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
   border-radius: var(--radius-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .cust-badge-left {
@@ -1669,12 +2453,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  font-size: 0.88rem;
-}
-
-.privilege-card .form-check-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  font-size: 0.84rem;
 }
 
 .rental-price-summary-card {
@@ -1725,12 +2504,17 @@ onUnmounted(() => {
   gap: 8px;
 }
 
+.mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
+.mt-4 { margin-top: 16px; }
+
 @media (max-width: 768px) {
   .header-main { gap: 12px; }
   .page-title { font-size: 1.3rem; }
-  .table-tools { flex-direction: column; }
+  .table-tools { flex-direction: column; align-items: stretch; }
   .search-input { max-width: 100%; }
   .form-grid { grid-template-columns: 1fr; }
   .form-group.full { grid-column: span 1; }
+  .privilege-grid { grid-template-columns: 1fr; }
 }
 </style>

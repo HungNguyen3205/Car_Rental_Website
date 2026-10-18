@@ -39,6 +39,11 @@ class AdminCarCreateRequest extends BaseApiRequest
                 'string',
                 'in:available,rented,maintenance',
             ],
+            'publication_status' => [
+                'nullable',
+                'string',
+                'in:draft,published,archived',
+            ],
             'image' => [
                 'nullable',
                 'string',

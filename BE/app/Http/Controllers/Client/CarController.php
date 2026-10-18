@@ -20,7 +20,8 @@ class CarController extends Controller
 
     public function getDataClient(Request $request)
     {
-        $query = Car::join('car_categories', 'cars.category_id', '=', 'car_categories.id')
+        $query = Car::publiclyAvailable()
+            ->join('car_categories', 'cars.category_id', '=', 'car_categories.id')
             ->select('cars.*', 'car_categories.name as category_name');
 
         if ($request->has('city') && $request->city != '') {
@@ -113,7 +114,8 @@ class CarController extends Controller
 
     public function getDetailClient($id)
     {
-        $car = Car::leftJoin('car_categories', 'cars.category_id', '=', 'car_categories.id')
+        $car = Car::publiclyAvailable()
+            ->leftJoin('car_categories', 'cars.category_id', '=', 'car_categories.id')
             ->where('cars.id', $id)
             ->select('cars.*', 'car_categories.name as category_name')
             ->first();
@@ -126,7 +128,7 @@ class CarController extends Controller
         } else {
             return response()->json([
                 'status'  => 0,
-                'message' => 'Không tìm thấy xe phù hợp'
+                'message' => 'Không tìm thấy xe phù hợp',
             ], 404);
         }
     }
@@ -146,14 +148,25 @@ class CarController extends Controller
         ]);
 
         $car = Car::find($request->car_id);
-        if (!$car->is_active || $car->status === 'maintenance') {
+        if (!$car || $car->publication_status !== Car::PUB_STATUS_PUBLISHED || !$car->is_active) {
+            return response()->json([
+                'status'       => 0,
+                'is_available' => false,
+                'days'         => 0,
+                'price_per_day'=> 0,
+                'total_price'  => 0,
+                'message'      => 'Phương tiện không tồn tại hoặc chưa được công khai trên hệ thống.',
+            ], 404);
+        }
+
+        if ($car->status === 'maintenance') {
             return response()->json([
                 'status'       => 1,
                 'is_available' => false,
                 'days'         => 0,
                 'price_per_day'=> (float) $car->price_per_day,
                 'total_price'  => 0,
-                'message'      => $car->status === 'maintenance' ? 'Xe hiện đang trong kế hoạch bảo trì định kỳ.' : 'Phương tiện hiện đang tạm ngừng phục vụ.',
+                'message'      => 'Xe hiện đang trong kế hoạch bảo trì định kỳ.',
             ]);
         }
 

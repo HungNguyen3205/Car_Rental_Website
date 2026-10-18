@@ -9,20 +9,122 @@ use App\Http\Requests\Car\AdminCarUpdateRequest;
 use App\Models\Car;
 use App\Models\CarCategory;
 use App\Services\Audit\AuditService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class CarController extends Controller
 {
-    public function getData()
+    /**
+     * Lấy danh sách xe với tìm kiếm, lọc, phân trang phía máy chủ và đếm số lượng theo tab.
+     * Duy trì tính tương thích ngược tuyệt đối: res.data.data luôn là mảng đối tượng xe.
+     */
+    public function getData(Request $request)
     {
-        $data = Car::join('car_categories', 'cars.category_id', '=', 'car_categories.id')
-            ->select('cars.*', 'car_categories.name as category_name')
-            ->orderByDesc('cars.id')
-            ->get();
-            
+        // 1. Thống kê số lượng xe theo các tab trạng thái
+        $countAll = Car::count();
+        $countPublished = Car::where('publication_status', Car::PUB_STATUS_PUBLISHED)->count();
+        $countDraft = Car::where('publication_status', Car::PUB_STATUS_DRAFT)->count();
+        $countArchived = Car::where('publication_status', Car::PUB_STATUS_ARCHIVED)->count();
+        $countTrash = Car::onlyTrashed()->count();
+
+        $tab = $request->get('tab', 'all');
+
+        // 2. Khởi tạo query tùy thuộc tab thùng rác hay tab thông thường
+        if ($tab === 'trash' || $request->get('status') === 'trash') {
+            $query = Car::onlyTrashed();
+        } else {
+            $query = Car::query();
+
+            if ($tab === 'published') {
+                $query->where('cars.publication_status', Car::PUB_STATUS_PUBLISHED);
+            } elseif ($tab === 'draft') {
+                $query->where('cars.publication_status', Car::PUB_STATUS_DRAFT);
+            } elseif ($tab === 'archived') {
+                $query->where('cars.publication_status', Car::PUB_STATUS_ARCHIVED);
+            }
+        }
+
+        // 3. Join bảng danh mục để lấy tên danh mục
+        $query->leftJoin('car_categories', 'cars.category_id', '=', 'car_categories.id')
+            ->select('cars.*', 'car_categories.name as category_name');
+
+        // 4. Tìm kiếm từ khóa (tên xe, mã xe #CAR-ID, loại xe, danh mục)
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            // Hỗ trợ tìm kiếm theo format "#CAR-12" hoặc "12"
+            $cleanedId = preg_replace('/[^0-9]/', '', $search);
+
+            $query->where(function ($q) use ($search, $cleanedId) {
+                $q->where('cars.name', 'like', "%{$search}%")
+                  ->orWhere('cars.type', 'like', "%{$search}%")
+                  ->orWhere('car_categories.name', 'like', "%{$search}%");
+
+                if (!empty($cleanedId)) {
+                    $q->orWhere('cars.id', $cleanedId);
+                }
+            });
+        }
+
+        // 5. Lọc theo trạng thái vận hành (available / maintenance)
+        if ($request->filled('status') && !in_array($request->status, ['all', 'trash'])) {
+            $query->where('cars.status', $request->status);
+        }
+
+        // 6. Lọc theo trạng thái xuất bản
+        if ($request->filled('publication_status') && $request->publication_status !== 'all') {
+            $query->where('cars.publication_status', $request->publication_status);
+        }
+
+        // 7. Lọc theo danh mục
+        if ($request->filled('category_id') && $request->category_id !== 'all') {
+            $query->where('cars.category_id', $request->category_id);
+        }
+
+        // 8. Lọc theo thành phố
+        if ($request->filled('city') && $request->city !== 'all') {
+            $query->where('cars.city', $request->city);
+        }
+
+        // Sắp xếp
+        $query->orderByDesc('cars.id');
+
+        // 9. Kiểm tra xem caller có yêu cầu lấy toàn bộ danh sách không (không phân trang)
+        $noPagination = $request->boolean('all') || 
+                        $request->get('paginate') === 'false' || 
+                        $request->get('per_page') === 'all';
+
+        $counts = [
+            'all'       => $countAll,
+            'published' => $countPublished,
+            'draft'     => $countDraft,
+            'archived'  => $countArchived,
+            'trash'     => $countTrash,
+        ];
+
+        if ($noPagination) {
+            $data = $query->get();
+            return response()->json([
+                'status' => 1,
+                'data'   => $data,
+                'counts' => $counts,
+            ]);
+        }
+
+        $perPage = (int) $request->get('per_page', 10);
+        $paginated = $query->paginate($perPage);
+
         return response()->json([
             'status' => 1,
-            'data'   => $data
+            'data'   => $paginated->items(), // Luôn là mảng array chuẩn
+            'meta'   => [
+                'current_page' => $paginated->currentPage(),
+                'last_page'    => $paginated->lastPage(),
+                'per_page'     => $paginated->perPage(),
+                'total'        => $paginated->total(),
+                'from'         => $paginated->firstItem(),
+                'to'           => $paginated->lastItem(),
+            ],
+            'counts' => $counts,
         ]);
     }
 
@@ -30,12 +132,15 @@ class CarController extends Controller
     {
         try {
             $validated = $request->validated();
+            $pubStatus = $validated['publication_status'] ?? Car::PUB_STATUS_PUBLISHED;
+
             $car = Car::create([
                 'name'                => $validated['name'],
                 'price_per_day'       => $validated['price_per_day'],
                 'type'                => $validated['type'] ?? 'Sedan',
                 'city'                => $validated['city'] ?? 'sg',
                 'status'              => $validated['status'] ?? 'available',
+                'publication_status'  => $pubStatus,
                 'image'               => $validated['image'] ?? '/assets/images/cars/vf9.png',
                 'category_id'         => $validated['category_id'] ?? 1,
                 'fuel_type'           => $validated['fuel_type'] ?? 'electric',
@@ -48,7 +153,7 @@ class CarController extends Controller
                 'rental_conditions'   => $validated['rental_conditions'] ?? null,
                 'extra_fees_info'     => $validated['extra_fees_info'] ?? null,
                 'description'         => $validated['description'] ?? null,
-                'is_active'           => $validated['is_active'] ?? true,
+                'is_active'           => $validated['is_active'] ?? ($pubStatus === Car::PUB_STATUS_PUBLISHED),
             ]);
 
             AuditService::log(
@@ -57,10 +162,11 @@ class CarController extends Controller
                 $car->id,
                 "Xe {$car->name} (#CAR-{$car->id})",
                 [
-                    'name'          => $car->name,
-                    'price_per_day' => $car->price_per_day,
-                    'city'          => $car->city,
-                    'status'        => $car->status,
+                    'name'               => $car->name,
+                    'price_per_day'      => $car->price_per_day,
+                    'city'               => $car->city,
+                    'status'             => $car->status,
+                    'publication_status' => $car->publication_status,
                 ]
             );
 
@@ -90,13 +196,23 @@ class CarController extends Controller
                 ], 404);
             }
 
-            // Whitelist updated fields, no uncontrolled mass assignment
+            // Kiểm tra quy tắc: Không được chuyển sang nháp hoặc lưu trữ nếu xe đang có đơn đặt xe hoạt động
+            if (isset($validated['publication_status']) && $validated['publication_status'] !== Car::PUB_STATUS_PUBLISHED && $car->publication_status === Car::PUB_STATUS_PUBLISHED) {
+                if ($car->hasActiveBookings()) {
+                    return response()->json([
+                        'status'  => 0,
+                        'message' => 'Không thể chuyển xe về trạng thái "' . $validated['publication_status'] . '" vì xe đang có lịch thuê hoạt động hoặc chờ duyệt!',
+                    ], 422);
+                }
+            }
+
             $fields = [
                 'name',
                 'price_per_day',
                 'type',
                 'city',
                 'status',
+                'publication_status',
                 'image',
                 'category_id',
                 'fuel_type',
@@ -119,11 +235,16 @@ class CarController extends Controller
                 }
             }
 
+            if (isset($updateData['publication_status']) && !isset($updateData['is_active'])) {
+                $updateData['is_active'] = ($updateData['publication_status'] === Car::PUB_STATUS_PUBLISHED);
+            }
+
             $oldData = [
-                'name'          => $car->name,
-                'price_per_day' => $car->price_per_day,
-                'status'        => $car->status,
-                'city'          => $car->city,
+                'name'               => $car->name,
+                'price_per_day'      => $car->price_per_day,
+                'status'             => $car->status,
+                'publication_status' => $car->publication_status,
+                'city'               => $car->city,
             ];
 
             $car->update($updateData);
@@ -151,6 +272,11 @@ class CarController extends Controller
         }
     }
 
+    /**
+     * Soft delete xe: Chuyển xe vào thùng rác.
+     * Chặn xóa nếu xe đang có đơn đặt xe hoạt động.
+     * Không xóa dây chuyền đơn hoặc giao dịch, bảo toàn 100% dữ liệu lịch sử.
+     */
     public function deleteData(AdminCarActionRequest $request)
     {
         try {
@@ -162,12 +288,106 @@ class CarController extends Controller
                 ], 404);
             }
 
+            // Quy tắc chặn thao tác ảnh hưởng xe có booking đang hoạt động
+            if ($car->hasActiveBookings()) {
+                return response()->json([
+                    'status'  => 0,
+                    'message' => 'Không thể xóa xe này vì đang có đơn đặt xe hoạt động hoặc chờ phục vụ!',
+                ], 422);
+            }
+
             $carName = $car->name;
             $carId = $car->id;
-            $car->delete();
+            $car->delete(); // Soft delete: row remains in database with deleted_at set
 
             AuditService::log(
                 'car.deleted',
+                'Car',
+                $carId,
+                "Xe {$carName} (#CAR-{$carId})",
+                ['deleted_at' => now()],
+                ['name' => $carName]
+            );
+
+            return response()->json([
+                'status'  => 1,
+                'message' => 'Đã chuyển xe vào thùng rác thành công!',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Car deleteData error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra khi chuyển xe vào thùng rác!',
+            ], 500);
+        }
+    }
+
+    /**
+     * Khôi phục xe từ thùng rác.
+     */
+    public function restoreData(AdminCarActionRequest $request)
+    {
+        try {
+            $car = Car::onlyTrashed()->find($request->id);
+            if (!$car) {
+                return response()->json([
+                    'status'  => 0,
+                    'message' => 'Không tìm thấy xe trong thùng rác hoặc xe chưa từng bị xóa!',
+                ], 404);
+            }
+
+            $car->restore();
+
+            AuditService::log(
+                'car.restored',
+                'Car',
+                $car->id,
+                "Xe {$car->name} (#CAR-{$car->id})",
+                ['deleted_at' => null],
+                ['name' => $car->name]
+            );
+
+            return response()->json([
+                'status'  => 1,
+                'message' => 'Đã khôi phục xe thành công!',
+                'data'    => $car,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Car restoreData error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra khi khôi phục xe!',
+            ], 500);
+        }
+    }
+
+    /**
+     * Xóa vĩnh viễn xe (chỉ cho phép nếu xe chưa từng phát sinh bất kỳ đơn hay giao dịch nào).
+     */
+    public function forceDeleteData(AdminCarActionRequest $request)
+    {
+        try {
+            $car = Car::onlyTrashed()->find($request->id);
+            if (!$car) {
+                return response()->json([
+                    'status'  => 0,
+                    'message' => 'Không tìm thấy xe trong thùng rác!',
+                ], 404);
+            }
+
+            if ($car->bookings()->exists()) {
+                return response()->json([
+                    'status'  => 0,
+                    'message' => 'Không thể xóa vĩnh viễn xe này do đã có lịch sử đơn đặt xe trong hệ thống. Vui lòng giữ trong thùng rác để bảo toàn lịch sử sổ sách!',
+                ], 422);
+            }
+
+            $carName = $car->name;
+            $carId = $car->id;
+            $car->forceDelete();
+
+            AuditService::log(
+                'car.force_deleted',
                 'Car',
                 $carId,
                 "Xe {$carName} (#CAR-{$carId})",
@@ -177,17 +397,20 @@ class CarController extends Controller
 
             return response()->json([
                 'status'  => 1,
-                'message' => 'Xóa xe thành công!',
+                'message' => 'Đã xóa vĩnh viễn xe khỏi hệ thống!',
             ]);
         } catch (\Exception $e) {
-            Log::error('Admin Car deleteData error: ' . $e->getMessage());
+            Log::error('Admin Car forceDeleteData error: ' . $e->getMessage());
             return response()->json([
                 'status'  => 0,
-                'message' => 'Không thể xóa xe lúc này do có ràng buộc dữ liệu!',
+                'message' => 'Có lỗi xảy ra khi xóa vĩnh viễn xe!',
             ], 500);
         }
     }
 
+    /**
+     * Đổi trạng thái vận hành xe: Sẵn sàng (available) <-> Bảo trì (maintenance).
+     */
     public function statusData(AdminCarActionRequest $request)
     {
         try {
@@ -214,7 +437,7 @@ class CarController extends Controller
 
             return response()->json([
                 'status'  => 1,
-                'message' => 'Cập nhật trạng thái thành công!',
+                'message' => 'Cập nhật trạng thái vận hành thành công!',
                 'data'    => [
                     'id'     => $car->id,
                     'status' => $car->status,
@@ -225,6 +448,71 @@ class CarController extends Controller
             return response()->json([
                 'status'  => 0,
                 'message' => 'Có lỗi xảy ra khi cập nhật trạng thái xe!',
+            ], 500);
+        }
+    }
+
+    /**
+     * Cập nhật trạng thái xuất bản / nội dung: draft, published, archived.
+     */
+    public function publicationStatusData(Request $request)
+    {
+        $request->validate([
+            'id'                 => 'required|integer',
+            'publication_status' => 'required|in:draft,published,archived',
+        ], [
+            'id.required'                 => 'Mã định danh xe là bắt buộc!',
+            'publication_status.required' => 'Trạng thái nội dung là bắt buộc!',
+            'publication_status.in'       => 'Trạng thái nội dung chỉ chấp nhận: draft, published, archived!',
+        ]);
+
+        try {
+            $car = Car::find($request->id);
+            if (!$car) {
+                return response()->json([
+                    'status'  => 0,
+                    'message' => 'Xe không tồn tại trong hệ thống!',
+                ], 404);
+            }
+
+            $newStatus = $request->publication_status;
+
+            // Chặn chuyển về nháp hoặc lưu trữ nếu xe có đơn đặt xe đang hoạt động
+            if ($newStatus !== Car::PUB_STATUS_PUBLISHED && $car->hasActiveBookings()) {
+                return response()->json([
+                    'status'  => 0,
+                    'message' => 'Không thể chuyển xe về trạng thái "' . $newStatus . '" vì xe đang có lịch thuê hoạt động hoặc chờ duyệt!',
+                ], 422);
+            }
+
+            $oldStatus = $car->publication_status;
+            $car->publication_status = $newStatus;
+            $car->is_active = ($newStatus === Car::PUB_STATUS_PUBLISHED);
+            $car->save();
+
+            AuditService::log(
+                'car.publication_status_changed',
+                'Car',
+                $car->id,
+                "Xe {$car->name} (#CAR-{$car->id})",
+                ['publication_status' => $newStatus, 'is_active' => $car->is_active],
+                ['publication_status' => $oldStatus]
+            );
+
+            return response()->json([
+                'status'  => 1,
+                'message' => 'Cập nhật trạng thái xuất bản thành công!',
+                'data'    => [
+                    'id'                 => $car->id,
+                    'publication_status' => $car->publication_status,
+                    'is_active'          => $car->is_active,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Car publicationStatusData error: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra khi cập nhật trạng thái xuất bản!',
             ], 500);
         }
     }

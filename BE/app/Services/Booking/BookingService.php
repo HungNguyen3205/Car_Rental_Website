@@ -24,7 +24,7 @@ class BookingService
     public function isCarAvailable(int $carId, $startDate, $endDate, ?int $excludeBookingId = null): bool
     {
         $car = Car::find($carId);
-        if (!$car || $car->status === 'maintenance') {
+        if (!$car || $car->status === 'maintenance' || $car->publication_status !== Car::PUB_STATUS_PUBLISHED || !$car->is_active) {
             return false;
         }
 
@@ -92,6 +92,11 @@ class BookingService
             $car = Car::where('id', $carId)->lockForUpdate()->first();
             if (!$car) {
                 throw new CarBookingValidationException('Xe không tồn tại trong hệ thống!', 404);
+            }
+
+            // BƯỚC 1.1: Kiểm tra trạng thái xuất bản và hoạt động
+            if ($car->publication_status !== Car::PUB_STATUS_PUBLISHED || !$car->is_active) {
+                throw new CarBookingValidationException('Xe hiện không ở trạng thái mở cho thuê công khai!', 400);
             }
 
             // BƯỚC 2: Kiểm tra trạng thái xe bảo trì

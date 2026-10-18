@@ -66,7 +66,13 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
                 ->middleware('permission:cars.manage');
             Route::post('/delete', [AdminCarController::class, 'deleteData'])
                 ->middleware('permission:cars.manage');
+            Route::post('/restore', [AdminCarController::class, 'restoreData'])
+                ->middleware('permission:cars.manage');
+            Route::post('/force-delete', [AdminCarController::class, 'forceDeleteData'])
+                ->middleware('permission:cars.manage');
             Route::post('/status', [AdminCarController::class, 'statusData'])
+                ->middleware('permission:cars.manage');
+            Route::post('/publication-status', [AdminCarController::class, 'publicationStatusData'])
                 ->middleware('permission:cars.manage');
         });
 

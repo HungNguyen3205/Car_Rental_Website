@@ -4,10 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Car extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    // Trạng thái vận hành
+    public const STATUS_AVAILABLE = 'available';
+    public const STATUS_MAINTENANCE = 'maintenance';
+
+    // Trạng thái nội dung / công khai
+    public const PUB_STATUS_DRAFT = 'draft';
+    public const PUB_STATUS_PUBLISHED = 'published';
+    public const PUB_STATUS_ARCHIVED = 'archived';
 
     protected $fillable = [
         'name',
@@ -17,6 +27,7 @@ class Car extends Model
         'fuel_type',
         'city',
         'status',
+        'publication_status',
         'image',
         'category_id',
         'seats',
@@ -50,5 +61,31 @@ class Car extends Model
     public function bookings()
     {
         return $this->hasMany(Booking::class, 'car_id');
+    }
+
+    /**
+     * Kiểm tra xem xe có đơn đặt xe đang hoạt động (chờ duyệt hoặc đã duyệt chưa kết thúc) hay không.
+     */
+    public function hasActiveBookings(): bool
+    {
+        return $this->bookings()
+            ->whereIn('tinh_trang', [0, 1]) // 0: chờ duyệt, 1: đã xác nhận / đang thực hiện
+            ->where('end_date', '>=', now())
+            ->exists();
+    }
+
+    /**
+     * Lấy danh sách các đơn đặt xe đang hoạt động của xe.
+     */
+    public function activeBookings()
+    {
+        return $this->bookings()
+            ->whereIn('tinh_trang', [0, 1])
+            ->where('end_date', '>=', now());
+    }
+
+    public function scopePubliclyAvailable($query)
+    {
+        return $query->where('cars.publication_status', self::PUB_STATUS_PUBLISHED);
     }
 }
