@@ -65,6 +65,10 @@
                         <div class="icon-box"><i class="fa-solid fa-calendar-check"></i></div>
                         <span>Lịch hẹn tư vấn</span>
                     </router-link>
+                    <router-link v-if="canAny('posts.view', 'posts.create', 'posts.review', 'posts.publish', 'admins.manage')" to="/admin/posts" class="nav-link" active-class="active" @click="$emit('close')">
+                        <div class="icon-box"><i class="fa-solid fa-newspaper"></i></div>
+                        <span>Quản lý bài viết</span>
+                    </router-link>
                     <router-link v-if="canAny('admins.manage', 'audit_logs.view')" to="/admin/permissions" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-shield-halved"></i></div>
                         <span>Tài khoản Admin</span>

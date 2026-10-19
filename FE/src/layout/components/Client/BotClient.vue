@@ -51,6 +51,7 @@
             <h4 class="col-title">Dịch Vụ</h4>
             <ul class="footer-links">
               <li><router-link to="/fleet">Khám phá đội xe</router-link></li>
+              <li><router-link to="/blog">Bài viết & Cẩm nang</router-link></li>
               <li><router-link to="/process">Quy trình thuê xe</router-link></li>
               <li><router-link to="/about">Về DriveRent</router-link></li>
               <li><router-link to="/contact">Trung tâm hỗ trợ</router-link></li>

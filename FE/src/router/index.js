@@ -33,6 +33,16 @@ const routes = [
                 component: () => import('../pages/Process/index.vue'),
             },
             {
+                path: 'blog',
+                name: 'BlogList',
+                component: () => import('../pages/Blog/index.vue'),
+            },
+            {
+                path: 'blog/:slug',
+                name: 'BlogDetail',
+                component: () => import('../pages/Blog/BlogDetail.vue'),
+            },
+            {
                 path: 'about',
                 name: 'About',
                 component: () => import('../pages/About/index.vue'),
@@ -148,6 +158,11 @@ const routes = [
                 path: 'media',
                 name: 'AdminMedia',
                 component: () => import('../pages/Admin/Media/index.vue'),
+            },
+            {
+                path: 'posts',
+                name: 'AdminPosts',
+                component: () => import('../pages/Admin/Posts/index.vue'),
             }
         ]
     }

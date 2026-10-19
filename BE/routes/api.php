@@ -25,6 +25,11 @@ Route::get('/settings/public', [\App\Http\Controllers\Public\SettingController::
 Route::get('/car-categories', [\App\Http\Controllers\Client\CarCategoryController::class, 'index']);
 Route::get('/admin/media/{id}/stream', [\App\Http\Controllers\Admin\MediaController::class, 'stream']);
 
+// Bài viết & Tin tức công khai (Public Blog/Articles)
+Route::get('/posts', [\App\Http\Controllers\Client\PostController::class, 'index']);
+Route::get('/posts/categories', [\App\Http\Controllers\Client\PostController::class, 'categories']);
+Route::get('/posts/{slug}', [\App\Http\Controllers\Client\PostController::class, 'show']);
+
 Route::group(['prefix' => 'client'], function () {
     Route::get('/car/data', [ClientCarController::class, 'getDataClient']);
     Route::get('/car/detail/{id}', [ClientCarController::class, 'getDetailClient']);
@@ -198,6 +203,35 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             Route::get('/{id}/references', [\App\Http\Controllers\Admin\MediaController::class, 'references']);
             Route::put('/{id}', [\App\Http\Controllers\Admin\MediaController::class, 'update']);
             Route::delete('/{id}', [\App\Http\Controllers\Admin\MediaController::class, 'destroy']);
+        });
+
+        // Quản lý bài viết & Tin tức (Posts & Editorial Management)
+        Route::group(['prefix' => 'posts', 'middleware' => 'permission:posts.view,posts.create,posts.review,posts.publish,admins.manage'], function () {
+            Route::get('/', [\App\Http\Controllers\Admin\PostController::class, 'index']);
+            Route::get('/categories', [\App\Http\Controllers\Admin\PostController::class, 'getCategories']);
+            Route::post('/categories', [\App\Http\Controllers\Admin\PostController::class, 'storeCategory'])
+                ->middleware('permission:posts.create,posts.publish,admins.manage');
+            Route::put('/categories/{id}', [\App\Http\Controllers\Admin\PostController::class, 'updateCategory'])
+                ->middleware('permission:posts.publish,admins.manage');
+            Route::delete('/categories/{id}', [\App\Http\Controllers\Admin\PostController::class, 'destroyCategory'])
+                ->middleware('permission:posts.publish,admins.manage');
+            Route::get('/{id}', [\App\Http\Controllers\Admin\PostController::class, 'show']);
+            Route::post('/', [\App\Http\Controllers\Admin\PostController::class, 'store'])
+                ->middleware('permission:posts.create,posts.publish,admins.manage');
+            Route::put('/{id}', [\App\Http\Controllers\Admin\PostController::class, 'update'])
+                ->middleware('permission:posts.create,posts.review,posts.publish,admins.manage');
+            Route::post('/{id}/review', [\App\Http\Controllers\Admin\PostController::class, 'submitOrReview'])
+                ->middleware('permission:posts.create,posts.review,posts.publish,admins.manage');
+            Route::post('/{id}/publish', [\App\Http\Controllers\Admin\PostController::class, 'publish'])
+                ->middleware('permission:posts.publish,admins.manage');
+            Route::post('/{id}/archive', [\App\Http\Controllers\Admin\PostController::class, 'archive'])
+                ->middleware('permission:posts.publish,admins.manage');
+            Route::delete('/{id}', [\App\Http\Controllers\Admin\PostController::class, 'destroy'])
+                ->middleware('permission:posts.delete,posts.publish,admins.manage');
+            Route::post('/{id}/restore', [\App\Http\Controllers\Admin\PostController::class, 'restore'])
+                ->middleware('permission:posts.delete,posts.publish,admins.manage');
+            Route::delete('/{id}/force', [\App\Http\Controllers\Admin\PostController::class, 'forceDelete'])
+                ->middleware('permission:posts.delete,posts.publish,admins.manage');
         });
 
         // Xuất dữ liệu (CSV Export)

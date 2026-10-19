@@ -15,6 +15,7 @@
       <nav class="nav-links" aria-label="Chính">
         <router-link to="/" exact-active-class="active">Trang chủ</router-link>
         <router-link to="/fleet" active-class="active">Đội xe</router-link>
+        <router-link to="/blog" active-class="active">Bài viết</router-link>
         <router-link to="/process" active-class="active">Quy trình</router-link>
         <router-link to="/about" active-class="active">Về chúng tôi</router-link>
         <router-link to="/contact" active-class="active">Liên hệ</router-link>
@@ -196,6 +197,10 @@
           <router-link to="/fleet" class="drawer-link" @click="closeMobileMenu">
             <i class="fa-solid fa-car-side"></i>
             <span>Đội xe điện</span>
+          </router-link>
+          <router-link to="/blog" class="drawer-link" @click="closeMobileMenu">
+            <i class="fa-solid fa-newspaper"></i>
+            <span>Bài viết & Cẩm nang</span>
           </router-link>
           <router-link to="/process" class="drawer-link" @click="closeMobileMenu">
             <i class="fa-solid fa-list-check"></i>

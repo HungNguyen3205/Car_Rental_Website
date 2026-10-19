@@ -19,6 +19,11 @@ class PermissionMatrix
     public const PERM_ADMINS_MANAGE    = 'admins.manage';
     public const PERM_SETTINGS_MANAGE  = 'settings.manage';
     public const PERM_AUDIT_LOGS_VIEW  = 'audit_logs.view';
+    public const PERM_POSTS_VIEW       = 'posts.view';
+    public const PERM_POSTS_CREATE     = 'posts.create';
+    public const PERM_POSTS_REVIEW     = 'posts.review';
+    public const PERM_POSTS_PUBLISH    = 'posts.publish';
+    public const PERM_POSTS_DELETE     = 'posts.delete';
 
     /**
      * Danh mục toàn bộ các vai trò trong hệ thống
@@ -107,6 +112,36 @@ class PermissionMatrix
                 'group'       => 'Hệ thống & Phân quyền',
                 'description' => 'Cài đặt tham số hệ thống, giá thuê mặc định và chính sách cọc',
             ],
+            self::PERM_POSTS_VIEW => [
+                'code'        => self::PERM_POSTS_VIEW,
+                'name'        => 'Xem bài viết',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Xem danh sách bài viết nội bộ, bộ lọc chuyên mục và lịch sử biên tập',
+            ],
+            self::PERM_POSTS_CREATE => [
+                'code'        => self::PERM_POSTS_CREATE,
+                'name'        => 'Soạn thảo bài viết',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Tạo bài viết mới, lưu nháp, chỉnh sửa bài của mình và gửi yêu cầu duyệt',
+            ],
+            self::PERM_POSTS_REVIEW => [
+                'code'        => self::PERM_POSTS_REVIEW,
+                'name'        => 'Kiểm duyệt bài viết',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Duyệt bài chờ xuất bản, yêu cầu chỉnh sửa hoặc phản hồi lý do từ chối',
+            ],
+            self::PERM_POSTS_PUBLISH => [
+                'code'        => self::PERM_POSTS_PUBLISH,
+                'name'        => 'Xuất bản bài viết',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Xuất bản bài ra công khai, gỡ bài, chuyển lưu trữ và duyệt bản sửa đổi của bài đã đăng',
+            ],
+            self::PERM_POSTS_DELETE => [
+                'code'        => self::PERM_POSTS_DELETE,
+                'name'        => 'Xóa & Thùng rác',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Đưa bài viết vào thùng rác, khôi phục bài viết hoặc xóa vĩnh viễn',
+            ],
         ];
     }
 
@@ -126,6 +161,11 @@ class PermissionMatrix
                 self::PERM_ADMINS_MANAGE,
                 self::PERM_SETTINGS_MANAGE,
                 self::PERM_AUDIT_LOGS_VIEW,
+                self::PERM_POSTS_VIEW,
+                self::PERM_POSTS_CREATE,
+                self::PERM_POSTS_REVIEW,
+                self::PERM_POSTS_PUBLISH,
+                self::PERM_POSTS_DELETE,
             ],
             self::ROLE_DISPATCHER => [
                 self::PERM_CARS_MANAGE,

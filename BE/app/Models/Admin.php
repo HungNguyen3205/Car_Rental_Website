@@ -127,4 +127,20 @@ class Admin extends Authenticatable
     {
         return $this->hasMany(Appointment::class, 'assigned_to')->orderByDesc('start_time');
     }
+
+    /**
+     * Danh sách bài viết do Admin tạo
+     */
+    public function posts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Post::class, 'author_id');
+    }
+
+    /**
+     * Danh sách bài viết do Admin duyệt
+     */
+    public function reviewedPosts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Post::class, 'reviewer_id');
+    }
 }
