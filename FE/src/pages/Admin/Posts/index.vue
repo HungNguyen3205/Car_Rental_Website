@@ -378,216 +378,17 @@
     <!-- ==========================================
          MODAL 1: SOẠN THẢO / CHỈNH SỬA BÀI VIẾT
          ========================================== -->
-    <div v-if="showEditorModal" class="modal-overlay" @click.self="closeEditorModal">
-      <div class="modal-content card editor-modal animate-in">
-        <div class="modal-header">
-          <div class="header-icon-badge">
-            <i class="fa-solid fa-pen-nib"></i>
-          </div>
-          <div class="header-title-wrap">
-            <h3>{{ isEditing ? 'Chỉnh sửa bài viết #' + editingPostId : 'Viết bài mới' }}</h3>
-            <p class="modal-sub">
-              {{ isEditing ? 'Cập nhật nội dung, chuyên mục và thông tin xuất bản' : 'Tạo bài viết cẩm nang hoặc tin tức truyền thông' }}
-            </p>
-          </div>
-          <button class="btn-close-modal" @click="closeEditorModal" title="Đóng">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-
-        <!-- Post Form Body -->
-        <div class="modal-body editor-body">
-          <!-- Warning banner if editing published post without publish permission -->
-          <div v-if="isEditingPublishedWithoutPublishPerm" class="revision-warning-banner">
-            <div class="banner-icon"><i class="fa-solid fa-shield-halved"></i></div>
-            <div class="banner-content">
-              <strong>Quy tắc an toàn xuất bản:</strong>
-              <p>Bài viết này đang công khai trên website. Các thay đổi bạn gửi sẽ được lưu trữ dưới dạng <em>bản sửa đổi đề xuất</em> và không thay đổi nội dung ngoài trang chủ cho đến khi có sự phê duyệt từ ban biên tập.</p>
-            </div>
-          </div>
-
-          <div class="form-grid-layout">
-            <!-- Left Main Column: Title, Excerpt, Content -->
-            <div class="form-main-col">
-              <div class="form-group">
-                <label class="form-label required">Tiêu đề bài viết:</label>
-                <input 
-                  type="text" 
-                  v-model="editorForm.title" 
-                  class="form-input title-input" 
-                  placeholder="VD: Cẩm nang lái xe điện VinFast an toàn đường đèo..."
-                  @input="autoGenerateSlug"
-                  maxlength="255"
-                />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Đường dẫn tĩnh (Slug duy nhất):</label>
-                <div class="slug-input-wrapper">
-                  <span class="slug-prefix">/blog/</span>
-                  <input 
-                    type="text" 
-                    v-model="editorForm.slug" 
-                    class="form-input slug-field" 
-                    placeholder="cam-nang-lai-xe-dien-vinfast"
-                    maxlength="255"
-                  />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Tóm tắt ngắn (Excerpt):</label>
-                <textarea 
-                  v-model="editorForm.summary" 
-                  class="form-textarea" 
-                  rows="2" 
-                  placeholder="Tóm tắt ngắn 1-2 câu hiển thị ở danh sách bài viết..."
-                  maxlength="1000"
-                ></textarea>
-              </div>
-
-              <!-- Content Editor Area with quick markdown / formatting buttons -->
-              <div class="form-group">
-                <div class="content-toolbar">
-                  <label class="form-label required">Nội dung bài viết:</label>
-                  <div class="format-buttons">
-                    <button type="button" class="btn-fmt" @click="insertFormatting('h2')" title="Tiêu đề H2"><b>H2</b></button>
-                    <button type="button" class="btn-fmt" @click="insertFormatting('h3')" title="Tiêu đề H3"><b>H3</b></button>
-                    <button type="button" class="btn-fmt" @click="insertFormatting('bold')" title="In đậm"><i class="fa-solid fa-bold"></i></button>
-                    <button type="button" class="btn-fmt" @click="insertFormatting('italic')" title="In nghiêng"><i class="fa-solid fa-italic"></i></button>
-                    <button type="button" class="btn-fmt" @click="insertFormatting('quote')" title="Trích dẫn"><i class="fa-solid fa-quote-left"></i></button>
-                    <button type="button" class="btn-fmt" @click="insertFormatting('list')" title="Danh sách"><i class="fa-solid fa-list-ul"></i></button>
-                    <button type="button" class="btn-fmt" @click="insertFormatting('image')" title="Chèn ảnh"><i class="fa-solid fa-image"></i></button>
-                  </div>
-                </div>
-                <textarea 
-                  id="postContentArea"
-                  v-model="editorForm.content" 
-                  class="form-textarea content-area" 
-                  rows="14" 
-                  placeholder="Nhập nội dung bài viết chi tiết tại đây (hỗ trợ văn bản và định dạng HTML/Markdown)..."
-                ></textarea>
-              </div>
-            </div>
-
-            <!-- Right Sidebar Column: Metadata, Featured Image, SEO -->
-            <div class="form-side-col">
-              <!-- Meta Card: Category & Featured Image -->
-              <div class="side-card">
-                <h4 class="side-card-title"><i class="fa-solid fa-sliders"></i> Phân loại & Ảnh đại diện</h4>
-                
-                <div class="form-group">
-                  <label class="form-label">Chuyên mục:</label>
-                  <select v-model="editorForm.category_id" class="form-select">
-                    <option :value="null">-- Chọn chuyên mục --</option>
-                    <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">URL Ảnh đại diện:</label>
-                  <div class="image-input-wrap">
-                    <input 
-                      type="text" 
-                      v-model="editorForm.featured_image" 
-                      class="form-input" 
-                      placeholder="https://..."
-                    />
-                    <router-link to="/admin/media" target="_blank" class="btn-browse-media" title="Mở thư viện tài nguyên">
-                      <i class="fa-solid fa-photo-film"></i>
-                    </router-link>
-                  </div>
-                  <!-- Image Preview -->
-                  <div class="featured-image-preview" v-if="editorForm.featured_image">
-                    <img 
-                      :src="editorForm.featured_image" 
-                      alt="Xem trước ảnh" 
-                      @error="$event.target.src = '/assets/images/default-car.png'"
-                    />
-                  </div>
-                </div>
-
-                <div class="form-group" v-if="permissions.can_publish">
-                  <label class="form-label">Thời điểm xuất bản (Lên lịch):</label>
-                  <input 
-                    type="datetime-local" 
-                    v-model="editorForm.published_at" 
-                    class="form-input" 
-                  />
-                  <small class="form-hint">Để trống để xuất bản ngay khi bấm Xuất bản.</small>
-                </div>
-              </div>
-
-              <!-- SEO Meta Card -->
-              <div class="side-card">
-                <h4 class="side-card-title"><i class="fa-solid fa-magnifying-glass-chart"></i> Tối ưu hóa SEO</h4>
-                <div class="form-group">
-                  <label class="form-label">Tiêu đề SEO (Meta Title):</label>
-                  <input 
-                    type="text" 
-                    v-model="editorForm.meta_title" 
-                    class="form-input" 
-                    placeholder="Tiêu đề hiển thị trên Google..."
-                    maxlength="255"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Mô tả SEO (Meta Description):</label>
-                  <textarea 
-                    v-model="editorForm.meta_description" 
-                    class="form-textarea" 
-                    rows="2" 
-                    placeholder="Mô tả tóm tắt cho công cụ tìm kiếm..."
-                    maxlength="500"
-                  ></textarea>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Editor Modal Footer Actions -->
-        <div class="modal-footer">
-          <button class="btn-outline" @click="closeEditorModal" :disabled="submitting">Đóng</button>
-          
-          <div class="footer-actions-right">
-            <!-- Save as Draft -->
-            <button 
-              type="button" 
-              class="btn-secondary" 
-              @click="submitEditor('save_draft')" 
-              :disabled="submitting"
-            >
-              <i class="fa-solid fa-floppy-disk"></i>
-              <span>Lưu nháp</span>
-            </button>
-
-            <!-- Submit for Review -->
-            <button 
-              type="button" 
-              class="btn-warning-action" 
-              @click="submitEditor('submit_review')" 
-              :disabled="submitting"
-            >
-              <i class="fa-solid fa-paper-plane"></i>
-              <span>Gửi duyệt</span>
-            </button>
-
-            <!-- Publish Now (Publishers only) -->
-            <button 
-              v-if="permissions.can_publish" 
-              type="button" 
-              class="btn-primary" 
-              @click="submitEditor('publish')" 
-              :disabled="submitting"
-            >
-              <i class="fa-solid fa-check"></i>
-              <span>Xuất bản</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- ==========================================
+         MODAL 1: SOẠN THẢO / CHỈNH SỬA BÀI VIẾT
+         ========================================== -->
+    <PostEditorModal
+      v-model:visible="showEditorModal"
+      :post-id="editingPostId"
+      :categories="categories"
+      :permissions="permissions"
+      @saved="onPostSaved"
+      @close="showEditorModal = false"
+    />
 
     <!-- ==========================================
          MODAL 2: QUẢN LÝ CHUYÊN MỤC BÀI VIẾT
@@ -768,6 +569,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import baseRequest from '../../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
+import PostEditorModal from './components/PostEditorModal.vue';
 
 const toaster = createToaster({ position: "top-right" });
 
@@ -813,9 +615,7 @@ const filterPendingRevision = ref('');
 
 // Modals State
 const showEditorModal = ref(false);
-const isEditing = ref(false);
 const editingPostId = ref(null);
-const originalPostStatus = ref(null);
 
 const showCategoryModal = ref(false);
 const newCategoryName = ref('');
@@ -829,20 +629,6 @@ const rejectionReasonInput = ref('');
 const showRevisionModal = ref(false);
 const targetRevisionPost = ref(null);
 
-// Editor Form
-const editorForm = reactive({
-  title: '',
-  slug: '',
-  summary: '',
-  content: '',
-  featured_image: '',
-  category_id: null,
-  published_at: '',
-  meta_title: '',
-  meta_description: '',
-  meta_keywords: '',
-});
-
 // Computed Properties
 const hasActiveFilters = computed(() => {
   return searchQuery.value.trim() !== '' ||
@@ -850,12 +636,6 @@ const hasActiveFilters = computed(() => {
     filterCategory.value !== 'all' ||
     filterAuthor.value !== 'all' ||
     filterPendingRevision.value !== '';
-});
-
-const isEditingPublishedWithoutPublishPerm = computed(() => {
-  return isEditing.value && 
-    originalPostStatus.value === 'published' && 
-    !permissions.can_publish;
 });
 
 const visiblePages = computed(() => {
@@ -958,131 +738,19 @@ const resetFilters = () => {
 
 // Editor Methods
 const openCreateModal = () => {
-  isEditing.value = false;
   editingPostId.value = null;
-  originalPostStatus.value = null;
-  
-  Object.assign(editorForm, {
-    title: '',
-    slug: '',
-    summary: '',
-    content: '',
-    featured_image: '',
-    category_id: null,
-    published_at: '',
-    meta_title: '',
-    meta_description: '',
-    meta_keywords: '',
-  });
-
   showEditorModal.value = true;
 };
 
 const openEditModal = (post) => {
-  isEditing.value = true;
   editingPostId.value = post.id;
-  originalPostStatus.value = post.status;
-
-  Object.assign(editorForm, {
-    title: post.title || '',
-    slug: post.slug || '',
-    summary: post.summary || '',
-    content: post.content || '',
-    featured_image: post.featured_image || '',
-    category_id: post.category_id || null,
-    published_at: post.published_at ? post.published_at.substring(0, 16) : '',
-    meta_title: post.meta_title || '',
-    meta_description: post.meta_description || '',
-    meta_keywords: post.meta_keywords || '',
-  });
-
   showEditorModal.value = true;
 };
 
-const closeEditorModal = () => {
-  showEditorModal.value = false;
+const onPostSaved = () => {
+  fetchPosts(pagination.current_page);
 };
 
-const autoGenerateSlug = () => {
-  if (!isEditing.value || !editorForm.slug) {
-    editorForm.slug = editorForm.title
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[đĐ]/g, 'd')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-');
-  }
-};
-
-const insertFormatting = (type) => {
-  const textarea = document.getElementById('postContentArea');
-  if (!textarea) return;
-
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const text = editorForm.content;
-  const selectedText = text.substring(start, end);
-
-  let replacement = '';
-  switch (type) {
-    case 'h2': replacement = `\n## ${selectedText || 'Tiêu đề mục'}\n`; break;
-    case 'h3': replacement = `\n### ${selectedText || 'Tiêu đề phụ'}\n`; break;
-    case 'bold': replacement = `**${selectedText || 'Văn bản in đậm'}**`; break;
-    case 'italic': replacement = `*${selectedText || 'Văn bản in nghiêng'}*`; break;
-    case 'quote': replacement = `\n> ${selectedText || 'Đoạn trích dẫn...'}\n`; break;
-    case 'list': replacement = `\n- ${selectedText || 'Mục danh sách'}\n`; break;
-    case 'image': replacement = `\n![Chú thích ảnh](https://url-hinh-anh.jpg)\n`; break;
-  }
-
-  editorForm.content = text.substring(0, start) + replacement + text.substring(end);
-};
-
-const submitEditor = async (actionType) => {
-  if (!editorForm.title.trim()) {
-    toaster.warning('Vui lòng nhập tiêu đề bài viết!');
-    return;
-  }
-  if (!editorForm.content.trim()) {
-    toaster.warning('Vui lòng nhập nội dung bài viết!');
-    return;
-  }
-
-  submitting.value = true;
-  try {
-    const payload = {
-      title: editorForm.title.trim(),
-      slug: editorForm.slug.trim() || undefined,
-      summary: editorForm.summary?.trim() || null,
-      content: editorForm.content,
-      featured_image: editorForm.featured_image?.trim() || null,
-      category_id: editorForm.category_id || null,
-      action: actionType,
-      published_at: editorForm.published_at || null,
-      meta_title: editorForm.meta_title?.trim() || null,
-      meta_description: editorForm.meta_description?.trim() || null,
-      meta_keywords: editorForm.meta_keywords?.trim() || null,
-    };
-
-    let res;
-    if (isEditing.value) {
-      res = await baseRequest.put(`admin/posts/${editingPostId.value}`, payload);
-    } else {
-      res = await baseRequest.post('admin/posts', payload);
-    }
-
-    if (res.data && res.data.status === 1) {
-      toaster.success(res.data.message || 'Lưu bài viết thành công!');
-      closeEditorModal();
-      fetchPosts(pagination.current_page);
-    }
-  } catch (err) {
-    toaster.error(err.response?.data?.message || 'Có lỗi xảy ra khi lưu bài viết!');
-  } finally {
-    submitting.value = false;
-  }
-};
 
 // Category Methods
 const openCategoryModal = () => {

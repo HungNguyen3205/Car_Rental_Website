@@ -417,4 +417,186 @@ class PostManagementWorkflowTest extends TestCase
         $this->assertNotNull($found);
         $this->assertEquals(1, $found['posts_count']);
     }
+
+    /**
+     * 7. Kiểm tra HTML Allowlist: loại bỏ triệt để <script>, inline event và javascript link
+     */
+    public function test_html_sanitization_removes_scripts_and_malicious_attributes(): void
+    {
+        Sanctum::actingAs($this->owner, ['*'], 'admin');
+
+        $maliciousPayload = '
+            <h2>Tiêu đề bài viết hợp lệ</h2>
+            <script>alert("XSS Attack!");</script>
+            <p>Đoạn văn có <img src="https://example.com/safe.jpg" alt="Ảnh an toàn" onerror="alert(document.cookie)" /> và hình ảnh.</p>
+            <a href="javascript:alert(1)" onclick="stealData()">Bấm vào đây để nhận quà</a>
+            <a href="https://vinfastauto.com" target="_blank">Trang chủ VinFast</a>
+            <style>body { display: none; }</style>
+        ';
+
+        $res = $this->postJson('/api/admin/posts', [
+            'title'   => 'Bài kiểm tra XSS Allowlist',
+            'content' => $maliciousPayload,
+            'action'  => 'publish',
+        ]);
+
+        $res->assertStatus(200);
+        $savedContent = $res->json('data.content');
+
+        // Phải loại bỏ hoàn toàn thẻ <script> và nội dung bên trong
+        $this->assertStringNotContainsString('<script>', $savedContent);
+        $this->assertStringNotContainsString('alert("XSS Attack!")', $savedContent);
+
+        // Phải loại bỏ thẻ <style>
+        $this->assertStringNotContainsString('<style>', $savedContent);
+
+        // Phải loại bỏ các thuộc tính event handler onerror, onclick
+        $this->assertStringNotContainsString('onerror', $savedContent);
+        $this->assertStringNotContainsString('onclick', $savedContent);
+
+        // Phải loại bỏ liên kết javascript:
+        $this->assertStringNotContainsString('javascript:alert(1)', $savedContent);
+
+        // Phải giữ lại nội dung an toàn
+        $this->assertStringContainsString('<h2>Tiêu đề bài viết hợp lệ</h2>', $savedContent);
+        $this->assertStringContainsString('https://example.com/safe.jpg', $savedContent);
+        $this->assertStringContainsString('https://vinfastauto.com', $savedContent);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $savedContent);
+    }
+
+    /**
+     * 8. Kiểm tra kiểm soát thẻ iframe: chỉ cho phép YouTube/Vimeo/Google Maps, chặn domain lạ
+     */
+    public function test_html_sanitization_allows_whitelisted_iframes_and_rejects_untrusted_iframes(): void
+    {
+        Sanctum::actingAs($this->owner, ['*'], 'admin');
+
+        $contentWithIframes = '
+            <p>Video đánh giá xe:</p>
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" width="560" height="315" allowfullscreen></iframe>
+            <iframe src="https://player.vimeo.com/video/123456789" width="640" height="360"></iframe>
+            <iframe src="https://malicious-phishing.com/embed" width="500" height="500"></iframe>
+            <iframe src="https://attacker.org/steal-session"></iframe>
+        ';
+
+        $res = $this->postJson('/api/admin/posts', [
+            'title'   => 'Bài viết chứa iframe video',
+            'content' => $contentWithIframes,
+            'action'  => 'publish',
+        ]);
+
+        $res->assertStatus(200);
+        $savedContent = $res->json('data.content');
+
+        // YouTube & Vimeo được giữ lại
+        $this->assertStringContainsString('youtube.com/embed/dQw4w9WgXcQ', $savedContent);
+        $this->assertStringContainsString('player.vimeo.com/video/123456789', $savedContent);
+
+        // Iframe từ domain lạ phải bị xóa hoàn toàn
+        $this->assertStringNotContainsString('malicious-phishing.com', $savedContent);
+        $this->assertStringNotContainsString('attacker.org', $savedContent);
+    }
+
+    /**
+     * 9. Kiểm tra xem trước riêng tư: Yêu cầu xác thực Admin, bản nháp KHÔNG lộ ra API công khai
+     */
+    public function test_private_preview_endpoint_requires_auth_and_never_leaks_to_public(): void
+    {
+        // Tạo bản nháp bài viết trực tiếp
+        $post = Post::create([
+            'title'     => 'Bí mật xe sắp ra mắt 2027',
+            'slug'      => 'bi-mat-xe-sap-ra-mat-2027',
+            'content'   => '<p>Thông tin nội bộ chưa được công bố...</p>',
+            'status'    => Post::STATUS_DRAFT,
+            'author_id' => $this->author->id,
+        ]);
+
+        // 1. API công khai phải trả về 404 Not Found đối với bản nháp
+        $this->getJson("/api/posts/{$post->slug}")->assertStatus(404);
+
+        // 2. Gọi preview mà không có đăng nhập admin -> 401 Unauthorized
+        $this->getJson("/api/admin/posts/{$post->id}/preview")->assertStatus(401);
+
+        // 3. Quản trị viên/Tác giả đăng nhập xem preview -> 200 OK
+        Sanctum::actingAs($this->author, ['*'], 'admin');
+        $resPreview = $this->getJson("/api/admin/posts/{$post->id}/preview");
+        $resPreview->assertStatus(200);
+        $this->assertTrue($resPreview->json('preview_mode'));
+        $this->assertFalse($resPreview->json('preview_info.is_actual_public'));
+        $this->assertEquals('Bí mật xe sắp ra mắt 2027', $resPreview->json('data.title'));
+    }
+
+    /**
+     * 10. Kiểm tra xử lý xung đột sửa đổi (Optimistic Locking) bằng expected_updated_at
+     */
+    public function test_optimistic_locking_conflict_detection_with_updated_at(): void
+    {
+        Sanctum::actingAs($this->author, ['*'], 'admin');
+
+        // Tạo bài nháp ban đầu
+        $res = $this->postJson('/api/admin/posts', [
+            'title'   => 'Bài viết ban đầu',
+            'content' => '<p>Nội dung ban đầu</p>',
+            'action'  => 'save_draft',
+        ]);
+        $res->assertStatus(200);
+        $postId = $res->json('data.id');
+        $originalUpdatedAt = $res->json('data.updated_at');
+
+        // Giả lập phiên 1 (Admin khác vào sửa bài trước và lưu lúc T2)
+        $post = Post::find($postId);
+        $post->title = 'Tiêu đề đã được sửa bởi Biên tập viên khác';
+        $post->updated_at = now()->addMinutes(5);
+        $post->save();
+
+        // Phiên 2 (Người dùng hiện tại cố lưu dựa trên timestamp T1 cũ)
+        $resConflict = $this->putJson("/api/admin/posts/{$postId}", [
+            'title'               => 'Tiêu đề của người dùng phiên 2',
+            'content'             => '<p>Nội dung phiên 2</p>',
+            'action'              => 'save',
+            'expected_updated_at' => $originalUpdatedAt,
+        ]);
+
+        // Phải trả về HTTP 409 Conflict và cảnh báo xung đột
+        $resConflict->assertStatus(409);
+        $this->assertTrue($resConflict->json('conflict'));
+
+        // Nếu người dùng chọn ghi đè có chủ đích (force_overwrite = true)
+        $resForce = $this->putJson("/api/admin/posts/{$postId}", [
+            'title'               => 'Tiêu đề ghi đè có chủ đích',
+            'content'             => '<p>Nội dung ghi đè</p>',
+            'action'              => 'save',
+            'expected_updated_at' => $originalUpdatedAt,
+            'force_overwrite'     => true,
+        ]);
+        $resForce->assertStatus(200);
+        $this->assertEquals('Tiêu đề ghi đè có chủ đích', Post::find($postId)->title);
+    }
+
+    /**
+     * 11. Kiểm tra lưu trữ ảnh bìa và Alt Text hỗ trợ SEO & Accessibility
+     */
+    public function test_featured_image_and_alt_text_persisted(): void
+    {
+        Sanctum::actingAs($this->author, ['*'], 'admin');
+
+        $res = $this->postJson('/api/admin/posts', [
+            'title'              => 'Bài viết kèm ảnh bìa chuẩn SEO',
+            'content'            => '<p>Nội dung chi tiết...</p>',
+            'featured_image'     => 'https://example.com/vinfast-vf8.jpg',
+            'featured_image_alt' => 'VinFast VF8 màu đỏ ngoại thất lộng lẫy',
+            'action'             => 'save_draft',
+        ]);
+
+        $res->assertStatus(200);
+        $this->assertEquals('https://example.com/vinfast-vf8.jpg', $res->json('data.featured_image'));
+        $this->assertEquals('VinFast VF8 màu đỏ ngoại thất lộng lẫy', $res->json('data.featured_image_alt'));
+
+        $this->assertDatabaseHas('posts', [
+            'id'                 => $res->json('data.id'),
+            'featured_image'     => 'https://example.com/vinfast-vf8.jpg',
+            'featured_image_alt' => 'VinFast VF8 màu đỏ ngoại thất lộng lẫy',
+        ]);
+    }
 }
+

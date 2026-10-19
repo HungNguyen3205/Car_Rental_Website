@@ -26,6 +26,7 @@ class Post extends Model
         'summary',
         'content',
         'featured_image',
+        'featured_image_alt',
         'category_id',
         'author_id',
         'status',

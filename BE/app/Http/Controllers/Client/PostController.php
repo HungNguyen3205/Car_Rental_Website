@@ -30,6 +30,7 @@ class PostController extends Controller
                 'slug',
                 'summary',
                 'featured_image',
+                'featured_image_alt',
                 'category_id',
                 'author_id',
                 'published_at',
@@ -94,7 +95,7 @@ class PostController extends Controller
             ->where('id', '!=', $post->id)
             ->when($post->category_id, fn($q) => $q->where('category_id', $post->category_id))
             ->with(['category:id,name,slug', 'author:id,ho_ten'])
-            ->select(['id', 'title', 'slug', 'summary', 'featured_image', 'category_id', 'author_id', 'published_at', 'views_count'])
+            ->select(['id', 'title', 'slug', 'summary', 'featured_image', 'featured_image_alt', 'category_id', 'author_id', 'published_at', 'views_count'])
             ->orderByDesc('published_at')
             ->limit(3)
             ->get();

@@ -8,6 +8,8 @@ use App\Models\Post;
 use App\Models\PostCategory;
 use App\Services\Audit\AuditService;
 use App\Services\Authorization\PermissionMatrix;
+use App\Services\Security\HtmlSanitizerService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -231,7 +233,34 @@ class PostController extends Controller
     }
 
     /**
-     * Tạo bài viết mới
+     * Xem trước riêng tư dành cho Quản trị viên / Biên tập viên
+     * Yêu cầu xác thực quyền nội bộ, tuyệt đối không lộ bản nháp/bản chưa duyệt ra API công khai
+     */
+    public function preview(int $id): JsonResponse
+    {
+        $admin = $this->getAuthenticatedAdmin();
+        if (!$admin) {
+            return response()->json(['status' => 0, 'message' => 'Chưa xác thực quản trị viên!'], 401);
+        }
+
+        $post = Post::withTrashed()
+            ->with(['category:id,name,slug', 'author:id,ho_ten,email', 'reviewer:id,ho_ten'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'status'       => 1,
+            'data'         => $post,
+            'preview_mode' => true,
+            'preview_info' => [
+                'previewed_by'     => $admin->ho_ten,
+                'previewed_at'     => now()->toIso8601String(),
+                'is_actual_public' => $post->status === Post::STATUS_PUBLISHED && $post->published_at && $post->published_at <= now() && !$post->trashed(),
+            ],
+        ]);
+    }
+
+    /**
+     * Tạo bài viết mới (hỗ trợ lưu nháp, kiểm soát HTML allowlist, alt text)
      */
     public function store(Request $request): JsonResponse
     {
@@ -241,17 +270,18 @@ class PostController extends Controller
         }
 
         $validated = $request->validate([
-            'title'            => 'required|string|max:255',
-            'slug'             => 'nullable|string|max:255',
-            'summary'          => 'nullable|string|max:1000',
-            'content'          => 'required|string',
-            'featured_image'   => 'nullable|string|max:500',
-            'category_id'      => 'nullable|exists:post_categories,id',
-            'action'           => 'required|in:save_draft,submit_review,publish',
-            'published_at'     => 'nullable|date',
-            'meta_title'       => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:500',
-            'meta_keywords'    => 'nullable|string|max:255',
+            'title'              => 'required|string|max:255',
+            'slug'               => 'nullable|string|max:255',
+            'summary'            => 'nullable|string|max:1000',
+            'content'            => 'required|string',
+            'featured_image'     => 'nullable|string|max:500',
+            'featured_image_alt' => 'nullable|string|max:255',
+            'category_id'        => 'nullable|exists:post_categories,id',
+            'action'             => 'required|in:save_draft,submit_review,publish',
+            'published_at'       => 'nullable|date',
+            'meta_title'         => 'nullable|string|max:255',
+            'meta_description'   => 'nullable|string|max:500',
+            'meta_keywords'      => 'nullable|string|max:255',
         ]);
 
         // Kiểm tra quyền xuất bản nếu chọn action = publish
@@ -266,6 +296,9 @@ class PostController extends Controller
         $slug = !empty($validated['slug'])
             ? Post::generateUniqueSlug($validated['slug'])
             : Post::generateUniqueSlug($validated['title']);
+
+        // Làm sạch nội dung HTML theo Allowlist nghiêm ngặt để chống XSS
+        $cleanContent = HtmlSanitizerService::clean($validated['content']);
 
         // Xác định trạng thái và thời điểm xuất bản
         $status = match ($validated['action']) {
@@ -282,18 +315,19 @@ class PostController extends Controller
         }
 
         $post = Post::create([
-            'title'            => trim($validated['title']),
-            'slug'             => $slug,
-            'summary'          => $validated['summary'] ?? null,
-            'content'          => $validated['content'],
-            'featured_image'   => $validated['featured_image'] ?? null,
-            'category_id'      => $validated['category_id'] ?? null,
-            'author_id'        => $admin->id,
-            'status'           => $status,
-            'published_at'     => $publishedAt,
-            'meta_title'       => $validated['meta_title'] ?? null,
-            'meta_description' => $validated['meta_description'] ?? null,
-            'meta_keywords'    => $validated['meta_keywords'] ?? null,
+            'title'              => trim($validated['title']),
+            'slug'               => $slug,
+            'summary'            => $validated['summary'] ?? null,
+            'content'            => $cleanContent,
+            'featured_image'     => $validated['featured_image'] ?? null,
+            'featured_image_alt' => $validated['featured_image_alt'] ?? null,
+            'category_id'        => $validated['category_id'] ?? null,
+            'author_id'          => $admin->id,
+            'status'             => $status,
+            'published_at'       => $publishedAt,
+            'meta_title'         => $validated['meta_title'] ?? null,
+            'meta_description'   => $validated['meta_description'] ?? null,
+            'meta_keywords'      => $validated['meta_keywords'] ?? null,
         ]);
 
         AuditService::log('post.created', 'Post', $post->id, $post->title, $post->toArray());
@@ -313,9 +347,11 @@ class PostController extends Controller
 
     /**
      * Cập nhật bài viết
-     * Quy tắc an toàn: Nếu bài viết đang ở trạng thái đã xuất bản (published) và người sửa
-     * KHÔNG có quyền posts.publish, thay đổi sẽ được lưu vào pending_changes để chờ duyệt,
-     * tuyệt đối không đè lên nội dung công khai hiện hành!
+     * Quy tắc an toàn:
+     * 1. Xử lý xung đột sửa đổi (Optimistic Locking) thông qua expected_updated_at.
+     * 2. Làm sạch nội dung HTML bằng Allowlist.
+     * 3. Nếu bài viết đang ở trạng thái đã xuất bản (published) và người sửa KHÔNG có quyền posts.publish,
+     *    thay đổi sẽ được lưu vào pending_changes để chờ duyệt, tuyệt đối không đè lên nội dung công khai!
      */
     public function update(Request $request, int $id): JsonResponse
     {
@@ -334,41 +370,64 @@ class PostController extends Controller
             ], 403);
         }
 
+        // XỬ LÝ XUNG ĐỘT CHỈNH SỬA (OPTIMISTIC LOCKING)
+        if (!$request->boolean('force_overwrite') && $request->filled('expected_updated_at')) {
+            $clientTime = strtotime($request->input('expected_updated_at'));
+            $serverTime = $post->updated_at ? $post->updated_at->timestamp : 0;
+            // Nếu server có bản cập nhật mới hơn thời điểm client tải trên 1 giây
+            if ($clientTime && $serverTime > ($clientTime + 1)) {
+                return response()->json([
+                    'status'            => 0,
+                    'conflict'          => true,
+                    'message'           => 'Bài viết đã được chỉnh sửa và lưu bởi một phiên làm việc khác kể từ lần cuối bạn tải dữ liệu! Vui lòng làm mới để xem nội dung mới nhất.',
+                    'server_updated_at' => $post->updated_at->toIso8601String(),
+                    'server_title'      => $post->title,
+                ], 409);
+            }
+        }
+
         $validated = $request->validate([
-            'title'            => 'required|string|max:255',
-            'slug'             => 'nullable|string|max:255',
-            'summary'          => 'nullable|string|max:1000',
-            'content'          => 'required|string',
-            'featured_image'   => 'nullable|string|max:500',
-            'category_id'      => 'nullable|exists:post_categories,id',
-            'action'           => 'nullable|in:save,submit_review,publish,archive',
-            'published_at'     => 'nullable|date',
-            'revision_notes'   => 'nullable|string|max:500',
-            'meta_title'       => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:500',
-            'meta_keywords'    => 'nullable|string|max:255',
+            'title'               => 'required|string|max:255',
+            'slug'                => 'nullable|string|max:255',
+            'summary'             => 'nullable|string|max:1000',
+            'content'             => 'required|string',
+            'featured_image'      => 'nullable|string|max:500',
+            'featured_image_alt'  => 'nullable|string|max:255',
+            'category_id'         => 'nullable|exists:post_categories,id',
+            'action'              => 'nullable|in:save,submit_review,publish,archive',
+            'published_at'        => 'nullable|date',
+            'revision_notes'      => 'nullable|string|max:500',
+            'meta_title'          => 'nullable|string|max:255',
+            'meta_description'    => 'nullable|string|max:500',
+            'meta_keywords'       => 'nullable|string|max:255',
+            'expected_updated_at' => 'nullable|string',
+            'force_overwrite'     => 'nullable|boolean',
         ]);
 
         $old = $post->toArray();
         $isPublisher = $this->canPublish($admin);
+
+        // Làm sạch nội dung HTML theo Allowlist nghiêm ngặt
+        $cleanContent = HtmlSanitizerService::clean($validated['content']);
 
         // QUY TẮC ĐẶC BIỆT: BÀI ĐÃ XUẤT BẢN ĐƯỢC CHỈNH SỬA
         if ($post->status === Post::STATUS_PUBLISHED) {
             if (!$isPublisher) {
                 // Tác giả không có quyền xuất bản: Lưu vào buffer pending_changes để duyệt
                 $pendingChanges = [
-                    'title'            => trim($validated['title']),
-                    'summary'          => $validated['summary'] ?? null,
-                    'content'          => $validated['content'],
-                    'featured_image'   => $validated['featured_image'] ?? $post->featured_image,
-                    'category_id'      => $validated['category_id'] ?? $post->category_id,
-                    'meta_title'       => $validated['meta_title'] ?? $post->meta_title,
-                    'meta_description' => $validated['meta_description'] ?? $post->meta_description,
-                    'meta_keywords'    => $validated['meta_keywords'] ?? $post->meta_keywords,
-                    'editor_id'        => $admin->id,
-                    'editor_name'      => $admin->ho_ten,
-                    'submitted_at'     => now()->toIso8601String(),
-                    'revision_notes'   => $validated['revision_notes'] ?? 'Đề xuất cập nhật nội dung bài viết đã đăng',
+                    'title'              => trim($validated['title']),
+                    'summary'            => $validated['summary'] ?? null,
+                    'content'            => $cleanContent,
+                    'featured_image'     => $validated['featured_image'] ?? $post->featured_image,
+                    'featured_image_alt' => $validated['featured_image_alt'] ?? $post->featured_image_alt,
+                    'category_id'        => $validated['category_id'] ?? $post->category_id,
+                    'meta_title'         => $validated['meta_title'] ?? $post->meta_title,
+                    'meta_description'   => $validated['meta_description'] ?? $post->meta_description,
+                    'meta_keywords'      => $validated['meta_keywords'] ?? $post->meta_keywords,
+                    'editor_id'          => $admin->id,
+                    'editor_name'        => $admin->ho_ten,
+                    'submitted_at'       => now()->toIso8601String(),
+                    'revision_notes'     => $validated['revision_notes'] ?? 'Đề xuất cập nhật nội dung bài viết đã đăng',
                 ];
 
                 $post->pending_changes = $pendingChanges;
@@ -393,8 +452,9 @@ class PostController extends Controller
                 'title'                => trim($validated['title']),
                 'slug'                 => $slug,
                 'summary'              => $validated['summary'] ?? null,
-                'content'              => $validated['content'],
+                'content'              => $cleanContent,
                 'featured_image'       => $validated['featured_image'] ?? $post->featured_image,
+                'featured_image_alt'   => $validated['featured_image_alt'] ?? $post->featured_image_alt,
                 'category_id'          => $validated['category_id'] ?? null,
                 'meta_title'           => $validated['meta_title'] ?? null,
                 'meta_description'     => $validated['meta_description'] ?? null,
@@ -454,17 +514,18 @@ class PostController extends Controller
         }
 
         $post->update([
-            'title'            => trim($validated['title']),
-            'slug'             => $slug,
-            'summary'          => $validated['summary'] ?? null,
-            'content'          => $validated['content'],
-            'featured_image'   => $validated['featured_image'] ?? $post->featured_image,
-            'category_id'      => $validated['category_id'] ?? null,
-            'status'           => $targetStatus,
-            'published_at'     => $publishedAt,
-            'meta_title'       => $validated['meta_title'] ?? null,
-            'meta_description' => $validated['meta_description'] ?? null,
-            'meta_keywords'    => $validated['meta_keywords'] ?? null,
+            'title'              => trim($validated['title']),
+            'slug'               => $slug,
+            'summary'            => $validated['summary'] ?? null,
+            'content'            => $cleanContent,
+            'featured_image'     => $validated['featured_image'] ?? $post->featured_image,
+            'featured_image_alt' => $validated['featured_image_alt'] ?? $post->featured_image_alt,
+            'category_id'        => $validated['category_id'] ?? null,
+            'status'             => $targetStatus,
+            'published_at'       => $publishedAt,
+            'meta_title'         => $validated['meta_title'] ?? null,
+            'meta_description'   => $validated['meta_description'] ?? null,
+            'meta_keywords'      => $validated['meta_keywords'] ?? null,
         ]);
 
         AuditService::log('post.updated', 'Post', $post->id, $post->title, $post->toArray(), $old);
@@ -585,6 +646,7 @@ class PostController extends Controller
                 'summary'              => $rev['summary'] ?? $post->summary,
                 'content'              => $rev['content'] ?? $post->content,
                 'featured_image'       => $rev['featured_image'] ?? $post->featured_image,
+                'featured_image_alt'   => $rev['featured_image_alt'] ?? $post->featured_image_alt,
                 'category_id'          => $rev['category_id'] ?? $post->category_id,
                 'meta_title'           => $rev['meta_title'] ?? $post->meta_title,
                 'meta_description'     => $rev['meta_description'] ?? $post->meta_description,

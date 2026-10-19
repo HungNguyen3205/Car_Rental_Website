@@ -216,6 +216,7 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             Route::delete('/categories/{id}', [\App\Http\Controllers\Admin\PostController::class, 'destroyCategory'])
                 ->middleware('permission:posts.publish,admins.manage');
             Route::get('/{id}', [\App\Http\Controllers\Admin\PostController::class, 'show']);
+            Route::get('/{id}/preview', [\App\Http\Controllers\Admin\PostController::class, 'preview']);
             Route::post('/', [\App\Http\Controllers\Admin\PostController::class, 'store'])
                 ->middleware('permission:posts.create,posts.publish,admins.manage');
             Route::put('/{id}', [\App\Http\Controllers\Admin\PostController::class, 'update'])
