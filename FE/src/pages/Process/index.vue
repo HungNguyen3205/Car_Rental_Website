@@ -3,60 +3,28 @@
     <!-- Hero Header -->
     <section class="process-hero">
       <div class="app-container text-center">
-        <span class="badge mb-3">Quy trình đơn giản</span>
-        <h1 class="page-title">4 Bước Thuê Xe <span>Nhanh Chóng</span></h1>
-        <p class="hero-desc">Bắt đầu hành trình của bạn chỉ trong vài phút với quy trình tối giản, trực quan và bảo mật.</p>
+        <span class="badge mb-3">{{ processContent.badge }}</span>
+        <h1 class="page-title">{{ processContent.title }}</h1>
+        <p class="hero-desc">{{ processContent.hero_desc }}</p>
       </div>
     </section>
 
     <!-- Visual Process Timeline -->
     <section class="timeline-section app-container">
       <div class="timeline-container">
-        <!-- Step 1 -->
-        <div class="timeline-item">
-          <div class="step-number">01</div>
+        <div
+          v-for="(step, idx) in displaySteps"
+          :key="step.step_number || idx"
+          class="timeline-item"
+          :class="{ reverse: idx % 2 === 1 }"
+        >
+          <div class="step-number">{{ step.step_number }}</div>
           <div class="step-content card">
             <div class="step-icon">
-              <i class="fa-solid fa-car-side"></i>
+              <i :class="step.icon"></i>
             </div>
-            <h3>Khám phá & Chọn xe</h3>
-            <p>Duyệt qua danh mục xe điện cao cấp VinFast (VF3, VF5, VF8, VF9) với thông tin giá thuê, khu vực hoạt động và hình ảnh thực tế minh bạch.</p>
-          </div>
-        </div>
-
-        <!-- Step 2 -->
-        <div class="timeline-item reverse">
-          <div class="step-number">02</div>
-          <div class="step-content card">
-            <div class="step-icon">
-              <i class="fa-solid fa-calendar-check"></i>
-            </div>
-            <h3>Đặt lịch & Chọn địa điểm</h3>
-            <p>Chọn ngày bắt đầu, ngày kết thúc và địa chỉ nhận xe. Hệ thống tự động tính số ngày và hiển thị tổng tiền tạm tính chính xác.</p>
-          </div>
-        </div>
-
-        <!-- Step 3 -->
-        <div class="timeline-item">
-          <div class="step-number">03</div>
-          <div class="step-content card">
-            <div class="step-icon">
-              <i class="fa-solid fa-qrcode"></i>
-            </div>
-            <h3>Thanh toán VietQR & Tải bill</h3>
-            <p>Quét mã VietQR tiện lợi với nội dung chuyển khoản tự động kèm mã đơn, sau đó tải ảnh biên lai lên hệ thống để quản trị viên duyệt đơn.</p>
-          </div>
-        </div>
-
-        <!-- Step 4 -->
-        <div class="timeline-item reverse">
-          <div class="step-number">04</div>
-          <div class="step-content card">
-            <div class="step-icon">
-              <i class="fa-solid fa-key"></i>
-            </div>
-            <h3>Nhận xe & Lên đường</h3>
-            <p>Quản trị viên xác nhận đơn. Xe được kiểm tra kỹ thuật và bàn giao tận nơi đúng thời gian đã hẹn để bạn bắt đầu hành trình xanh.</p>
+            <h3>{{ step.title }}</h3>
+            <p>{{ step.desc }}</p>
           </div>
         </div>
       </div>
@@ -65,20 +33,30 @@
     <!-- Call to action -->
     <section class="process-cta app-container text-center">
       <div class="cta-card card">
-        <h2>Sẵn sàng bắt đầu chuyến đi của bạn?</h2>
-        <p>Đội ngũ xe điện thông minh đã sẵn sàng đồng hành cùng bạn trên mọi nẻo đường.</p>
+        <h2>{{ processContent.cta_title }}</h2>
+        <p>{{ processContent.cta_desc }}</p>
         <div class="cta-actions">
-          <router-link to="/fleet" class="btn-primary btn-lg">
-            Khám phá đội xe ngay <i class="fa-solid fa-arrow-right"></i>
+          <router-link :to="processContent.primary_cta_url || '/fleet'" class="btn-primary btn-lg">
+            {{ processContent.primary_cta_text || 'Khám phá đội xe ngay' }} <i class="fa-solid fa-arrow-right"></i>
           </router-link>
-          <router-link to="/" class="btn-outline btn-lg">
-            Tìm xe theo ngày <i class="fa-solid fa-magnifying-glass"></i>
+          <router-link :to="processContent.secondary_cta_url || '/'" class="btn-outline btn-lg">
+            {{ processContent.secondary_cta_text || 'Tìm xe theo ngày' }} <i class="fa-solid fa-magnifying-glass"></i>
           </router-link>
         </div>
       </div>
     </section>
   </div>
 </template>
+
+<script setup>
+import { computed } from 'vue';
+import { useWebsiteContent } from '@/core/contentStore';
+
+const processContent = useWebsiteContent('process_page');
+const displaySteps = computed(() => {
+  return processContent.steps || [];
+});
+</script>
 
 <style scoped>
 .process-page {

@@ -31,14 +31,14 @@
     <!-- FAQ Accordion Section -->
     <section class="home-faq-section app-container" aria-label="Câu hỏi thường gặp">
       <div class="faq-heading-row">
-        <span class="eyebrow-text">GIẢI ĐÁP THẮC MẮC</span>
-        <h2 class="section-title">Câu Hỏi Thường Gặp</h2>
-        <p class="section-desc">Mọi thông tin cần biết để hành trình của quý khách luôn an tâm và trọn vẹn nhất</p>
+        <span class="eyebrow-text">{{ faqContent.eyebrow }}</span>
+        <h2 class="section-title">{{ faqContent.title }}</h2>
+        <p class="section-desc">{{ faqContent.description }}</p>
       </div>
 
       <div class="faq-list-grid">
         <div
-          v-for="(faq, index) in faqs"
+          v-for="(faq, index) in displayFaqs"
           :key="index"
           class="faq-card"
           :class="{ 'is-open': openFaqIndex === index }"
@@ -245,6 +245,7 @@ import { createToaster } from '@meforma/vue-toaster';
 
 import baseRequest from '../../core/baseRequest';
 import { resolveCarImage, handleCarImgError } from '../../core/carImageHelper';
+import { useWebsiteContent } from '../../core/contentStore';
 
 // Modular Child Components matching Video Reference Sections
 import HomeHero from './components/HomeHero.vue';
@@ -288,8 +289,9 @@ const bookingEndDate = ref(null);
 const bookingLoading = ref(false);
 const bookingSuccessData = ref(null);
 const showAuthPrompt = ref(false);
+const faqContent = useWebsiteContent('home_faq');
 
-const faqs = [
+const defaultFaqs = [
   {
     question: 'Tôi cần chuẩn bị những giấy tờ gì khi nhận xe?',
     answer: 'Quý khách chỉ cần chuẩn bị Căn cước công dân gắn chip (hoặc Hộ chiếu còn hạn) và Giấy phép lái xe hạng B1/B2 còn hiệu lực để đối chiếu thông tin khi giao nhận xe.'
@@ -311,6 +313,13 @@ const faqs = [
     answer: 'DriveRent cung cấp gói cứu hộ khẩn cấp 24/7 trên toàn quốc. Đội ngũ kỹ thuật viên luôn túc trực và xe thay thế sẽ được điều động nhanh chóng.'
   }
 ];
+
+const displayFaqs = computed(() => {
+  if (faqContent.faqs && faqContent.faqs.length) {
+    return faqContent.faqs;
+  }
+  return defaultFaqs;
+});
 
 const toggleFaq = (idx) => {
   openFaqIndex.value = openFaqIndex.value === idx ? -1 : idx;

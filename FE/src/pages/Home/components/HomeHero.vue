@@ -3,9 +3,9 @@
     <div class="hero-container app-container">
       <div class="hero-grid">
         <div class="hero-info">
-          <p class="hero-eyebrow"><span></span> DRIVERENT / CHỌN HÀNH TRÌNH CỦA BẠN</p>
-          <h1 class="hero-title">XE SANG CHO<br />MỌI HÀNH TRÌNH<span>.</span></h1>
-          <p class="hero-description">Một lựa chọn phù hợp. Một hành trình đáng nhớ.</p>
+          <p class="hero-eyebrow"><span></span> {{ heroContent.eyebrow }}</p>
+          <h1 class="hero-title" v-html="formattedHeroTitle"></h1>
+          <p class="hero-description">{{ heroContent.description }}</p>
           <div class="class-selector-group">
             <span class="selector-label">KHÁM PHÁ PHÂN KHÚC</span>
             <div ref="tabList" class="segmented-pill-container" role="group" aria-label="Chọn phân khúc xe">
@@ -23,12 +23,16 @@
             <div v-if="startingPrice"><span class="spec-label">Giá tham khảo từ</span><strong class="price-text">{{ formatPrice(startingPrice) }}<small>/ngày</small></strong></div>
           </div>
           <div class="hero-quick-actions">
-            <button type="button" class="btn-hero-explore" @click="emit('scroll-to-search')">Tìm xe cho chuyến đi <span aria-hidden="true">↗</span></button>
-            <router-link to="/fleet" class="btn-hero-fleet">Xem đội xe <span aria-hidden="true">→</span></router-link>
+            <button type="button" class="btn-hero-explore" @click="emit('scroll-to-search')">
+              {{ heroContent.primary_cta_text }} <span aria-hidden="true">↗</span>
+            </button>
+            <router-link :to="heroContent.secondary_cta_url || '/fleet'" class="btn-hero-fleet">
+              {{ heroContent.secondary_cta_text }} <span aria-hidden="true">→</span>
+            </router-link>
           </div>
         </div>
         <div class="hero-visual">
-          <div class="visual-note"><span></span> Khám phá xe. Chọn hành trình.</div>
+          <div class="visual-note"><span></span> {{ heroContent.visual_note || 'Khám phá xe. Chọn hành trình.' }}</div>
           <div class="car-stage-wrapper" :class="{ 'is-moving': phase !== 'idle' }" :aria-busy="preparing">
             <div class="stage-halo" aria-hidden="true"></div>
             <div class="stage-road" aria-hidden="true"></div>
@@ -48,6 +52,18 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { useWebsiteContent } from '@/core/contentStore';
+
+const heroContent = useWebsiteContent('home_hero');
+const formattedHeroTitle = computed(() => {
+  const t = heroContent.title || 'XE SANG CHO MỌI HÀNH TRÌNH';
+  const clean = String(t).replace(/<[^>]*>/g, '').trim();
+  if (clean.includes('CHO ')) {
+    return clean.replace('CHO ', 'CHO<br />') + '<span>.</span>';
+  }
+  return clean + '<span>.</span>';
+});
+
 const props = defineProps({ cars: { type: Array, default: () => [] } });
 const emit = defineEmits(['scroll-to-search', 'category-change']);
 const categories = [

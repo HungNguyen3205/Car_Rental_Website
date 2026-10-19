@@ -1,15 +1,15 @@
 <template>
   <section class="home-bento-section app-container" aria-label="Đặc quyền dịch vụ">
     <div class="bento-heading-row">
-      <span class="eyebrow-text">TIÊU CHUẨN ĐẲNG CẤP</span>
-      <h2 class="section-title">Trải Nghiệm Khác Biệt Tại DriveRent</h2>
+      <span class="eyebrow-text">{{ bentoContent.eyebrow }}</span>
+      <h2 class="section-title">{{ bentoContent.title }}</h2>
     </div>
 
     <div class="bento-grid">
       <!-- Big Left Card -->
       <div class="bento-card bento-card-large">
         <img
-          src="/assets/images/bento_main.jpg"
+          :src="bentoContent.featured_image || '/assets/images/bento_main.jpg'"
           alt="Trải nghiệm xe điện hiện đại"
           class="bento-bg-img"
           loading="lazy"
@@ -18,21 +18,17 @@
 
         <div class="bento-content-box">
           <span class="bento-pill">
-            <i class="fa-solid fa-bolt"></i> 100% Động Cơ Xanh
+            <i class="fa-solid fa-bolt"></i> {{ bentoContent.featured_badge }}
           </span>
-          <h3 class="bento-title-lg">Kiến Tạo Hành Trình Thông Minh & Đẳng Cấp</h3>
+          <h3 class="bento-title-lg">{{ bentoContent.featured_title }}</h3>
           <p class="bento-desc-lg">
-            Khám phá cảm giác lái êm ái, tĩnh lặng tuyệt đối cùng công nghệ hỗ trợ lái tiên tiến. Mỗi chặng đường đều là một trải nghiệm thư thái trọn vẹn.
+            {{ bentoContent.featured_desc }}
           </p>
 
           <div class="bento-features-row">
-            <div class="mini-feat">
+            <div v-for="(feat, fIdx) in (bentoContent.featured_features || [])" :key="fIdx" class="mini-feat">
               <i class="fa-solid fa-circle-check"></i>
-              <span>Pin sạc chuẩn hoá</span>
-            </div>
-            <div class="mini-feat">
-              <i class="fa-solid fa-circle-check"></i>
-              <span>Cứu hộ 24/7 toàn quốc</span>
+              <span>{{ feat }}</span>
             </div>
           </div>
         </div>
@@ -46,12 +42,12 @@
             <div class="bento-icon-box green">
               <i class="fa-solid fa-map-location-dot"></i>
             </div>
-            <span class="bento-sub-tag">Mạng Lưới Phục Vụ</span>
+            <span class="bento-sub-tag">{{ bentoContent.card_network_badge }}</span>
           </div>
 
-          <h3 class="bento-title-sm">Phủ Sóng 3 Miền Toàn Quốc</h3>
+          <h3 class="bento-title-sm">{{ bentoContent.card_network_title }}</h3>
           <p class="bento-desc-sm">
-            Mạng lưới bàn giao xe linh hoạt tại Hà Nội, Đà Nẵng, TP. Hồ Chí Minh và đón trả tận nơi tại các sân bay lớn: Nội Bài, Tân Sơn Nhất, Đà Nẵng.
+            {{ bentoContent.card_network_desc }}
           </p>
         </div>
 
@@ -61,17 +57,17 @@
             <div class="bento-icon-box blue">
               <i class="fa-solid fa-shield-halved"></i>
             </div>
-            <span class="bento-sub-tag">Minh Bạch Tuyệt Đối</span>
+            <span class="bento-sub-tag">{{ bentoContent.card_policy_badge }}</span>
           </div>
 
-          <h3 class="bento-title-sm">Chính Sách Hoàn Cọc Trong 24H</h3>
+          <h3 class="bento-title-sm">{{ bentoContent.card_policy_title }}</h3>
           <p class="bento-desc-sm">
-            Bảo đảm hoàn cọc an ninh trong 24 giờ sau khi đối soát biên bản trả xe. Không phụ phí ẩn, không phát sinh ngoài hợp đồng số.
+            {{ bentoContent.card_policy_desc }}
           </p>
 
           <div class="bento-link-row">
-            <router-link to="/fleet" class="bento-cta-link">
-              <span>Khám phá ngay</span>
+            <router-link :to="bentoContent.card_policy_cta_url || '/fleet'" class="bento-cta-link">
+              <span>{{ bentoContent.card_policy_cta_text || 'Khám phá ngay' }}</span>
               <i class="fa-solid fa-arrow-right"></i>
             </router-link>
           </div>
@@ -82,6 +78,9 @@
 </template>
 
 <script setup>
+import { useWebsiteContent } from '@/core/contentStore';
+
+const bentoContent = useWebsiteContent('home_bento');
 </script>
 
 <style scoped>

@@ -24,6 +24,10 @@ class PermissionMatrix
     public const PERM_POSTS_REVIEW     = 'posts.review';
     public const PERM_POSTS_PUBLISH    = 'posts.publish';
     public const PERM_POSTS_DELETE     = 'posts.delete';
+    public const PERM_CONTENT_VIEW     = 'content.view';
+    public const PERM_CONTENT_EDIT     = 'content.edit';
+    public const PERM_CONTENT_PUBLISH  = 'content.publish';
+    public const PERM_CONTENT_MANAGE   = 'content.manage';
 
     /**
      * Danh mục toàn bộ các vai trò trong hệ thống
@@ -142,6 +146,30 @@ class PermissionMatrix
                 'group'       => 'Nội dung & Bài viết',
                 'description' => 'Đưa bài viết vào thùng rác, khôi phục bài viết hoặc xóa vĩnh viễn',
             ],
+            self::PERM_CONTENT_VIEW => [
+                'code'        => self::PERM_CONTENT_VIEW,
+                'name'        => 'Xem nội dung nháp & Preview',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Xem danh sách và xem trước bản nháp nội dung website',
+            ],
+            self::PERM_CONTENT_EDIT => [
+                'code'        => self::PERM_CONTENT_EDIT,
+                'name'        => 'Soạn thảo & Lưu nháp nội dung',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Chỉnh sửa và lưu nháp các khối giao diện Home, About, Contact, Process, Policies',
+            ],
+            self::PERM_CONTENT_PUBLISH => [
+                'code'        => self::PERM_CONTENT_PUBLISH,
+                'name'        => 'Xuất bản & Khôi phục nội dung',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Xuất bản nội dung lên website chính thức và khôi phục các phiên bản lịch sử',
+            ],
+            self::PERM_CONTENT_MANAGE => [
+                'code'        => self::PERM_CONTENT_MANAGE,
+                'name'        => 'Toàn quyền CMS Website',
+                'group'       => 'Nội dung & Bài viết',
+                'description' => 'Chỉnh sửa, xem trước, lưu nháp, xuất bản và khôi phục toàn bộ các khối nội dung website',
+            ],
         ];
     }
 
@@ -166,6 +194,10 @@ class PermissionMatrix
                 self::PERM_POSTS_REVIEW,
                 self::PERM_POSTS_PUBLISH,
                 self::PERM_POSTS_DELETE,
+                self::PERM_CONTENT_VIEW,
+                self::PERM_CONTENT_EDIT,
+                self::PERM_CONTENT_PUBLISH,
+                self::PERM_CONTENT_MANAGE,
             ],
             self::ROLE_DISPATCHER => [
                 self::PERM_CARS_MANAGE,

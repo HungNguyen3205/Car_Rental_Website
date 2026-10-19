@@ -69,6 +69,10 @@
                         <div class="icon-box"><i class="fa-solid fa-newspaper"></i></div>
                         <span>Quản lý bài viết</span>
                     </router-link>
+                    <router-link v-if="canAny('content.view', 'content.edit', 'content.publish', 'content.manage', 'admins.manage')" to="/admin/content" class="nav-link" active-class="active" @click="$emit('close')">
+                        <div class="icon-box"><i class="fa-solid fa-layer-group"></i></div>
+                        <span>Nội dung Website (CMS)</span>
+                    </router-link>
                     <router-link v-if="canAny('admins.manage', 'audit_logs.view')" to="/admin/permissions" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-shield-halved"></i></div>
                         <span>Tài khoản Admin</span>

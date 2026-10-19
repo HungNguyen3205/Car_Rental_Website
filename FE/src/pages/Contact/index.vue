@@ -2,9 +2,9 @@
   <div class="contact-page">
     <section class="hero-header">
       <div class="app-container text-center">
-        <span class="badge mb-3">Trung tâm hỗ trợ khách hàng</span>
-        <h1 class="page-title">Liên Hệ & <span>Góp Ý Dịch Vụ</span></h1>
-        <p class="hero-desc">Đội ngũ DriveRentals luôn sẵn sàng lắng nghe mọi ý kiến đóng góp, tư vấn hành trình và giải quyết yêu cầu hỗ trợ của bạn 24/7.</p>
+        <span class="badge mb-3">{{ contactContent.badge }}</span>
+        <h1 class="page-title">{{ contactContent.title }}</h1>
+        <p class="hero-desc">{{ contactContent.hero_desc }}</p>
       </div>
     </section>
 
@@ -17,8 +17,8 @@
               <i class="fa-solid fa-paper-plane"></i>
             </div>
             <div>
-              <h3>Gửi Yêu Cầu Trực Tuyến</h3>
-              <p class="subtitle">Điền thông tin bên dưới, nhân viên hỗ trợ sẽ liên hệ lại với bạn trong 24 giờ làm việc.</p>
+              <h3>{{ contactContent.form_title }}</h3>
+              <p class="subtitle">{{ contactContent.form_subtitle }}</p>
             </div>
           </div>
 
@@ -145,8 +145,8 @@
         <!-- Sidebar Direct Channels & AI Assistant -->
         <div class="contact-sidebar">
           <div class="direct-channels card">
-            <h3 class="sidebar-title">Kênh Liên Hệ Khác</h3>
-            <p class="sidebar-sub">Bạn cũng có thể kết nối nhanh với chúng tôi qua các kênh trực tiếp:</p>
+            <h3 class="sidebar-title">{{ contactContent.sidebar_title }}</h3>
+            <p class="sidebar-sub">{{ contactContent.sidebar_sub }}</p>
 
             <div class="channel-list">
               <a :href="`tel:${settings.hotline ? settings.hotline.replace(/\s+/g, '') : '19001234'}`" class="channel-item">
@@ -188,10 +188,10 @@
           <div class="ai-support-card card">
             <div class="ai-header">
               <div class="ai-badge">
-                <span class="pulse-dot"></span> Trực tuyến 24/7
+                <span class="pulse-dot"></span> {{ contactContent.ai_badge }}
               </div>
-              <h4>Hỗ Trợ Tức Thì Qua DriveBot</h4>
-              <p>Tra cứu thông số xe, bảng giá hoặc hướng dẫn đặt cọc ngay trong 5 giây mà không cần chờ đợi.</p>
+              <h4>{{ contactContent.ai_title }}</h4>
+              <p>{{ contactContent.ai_desc }}</p>
             </div>
 
             <div class="ai-action-box">
@@ -211,6 +211,9 @@ import { ref, reactive, onMounted } from 'vue';
 import baseRequest from '../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 import { useSystemSettings } from '../../core/settingsStore';
+import { useWebsiteContent } from '../../core/contentStore';
+
+const contactContent = useWebsiteContent('contact_page');
 
 const toaster = createToaster({ position: "top-right" });
 const { settings, fetchSettings } = useSystemSettings();

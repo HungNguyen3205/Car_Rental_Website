@@ -3,12 +3,12 @@
     <!-- Header Row -->
     <div class="steps-heading-row">
       <div class="heading-left">
-        <span class="eyebrow-text">QUY TRÌNH TINH GỌN</span>
-        <h2 class="section-title">3 Bước Đơn Giản Lăn Bánh</h2>
+        <span class="eyebrow-text">{{ stepsContent.eyebrow }}</span>
+        <h2 class="section-title">{{ stepsContent.title }}</h2>
       </div>
       <div class="heading-right">
         <p class="section-desc">
-          Không thủ tục rườm rà, không chờ đợi giấy tờ. Toàn bộ quy trình được số hóa minh bạch từ lúc chọn xe đến khi bàn giao.
+          {{ stepsContent.description }}
         </p>
       </div>
     </div>
@@ -26,18 +26,18 @@
     <!-- 3 Step Cards Grid -->
     <div class="steps-cards-grid" @mouseenter="pauseAutoPlay" @mouseleave="resumeAutoPlay">
       <div
-        v-for="(step, index) in steps"
-        :key="step.number"
+        v-for="(step, index) in displaySteps"
+        :key="step.number || step.step_number || index"
         class="step-card"
         :class="{ 'is-active': currentStepIndex === index }"
         @click="setStep(index)"
         role="button"
         tabindex="0"
-        :aria-label="'Bước ' + step.number + ': ' + step.title"
+        :aria-label="'Bước ' + (step.number || step.step_number) + ': ' + step.title"
         @keydown.enter="setStep(index)"
       >
         <div class="step-card-header">
-          <span class="step-number-pill">{{ step.number }}</span>
+          <span class="step-number-pill">{{ step.number || step.step_number }}</span>
           <div class="step-icon-circle">
             <i :class="step.icon"></i>
           </div>
@@ -56,11 +56,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useWebsiteContent } from '@/core/contentStore';
 
+const stepsContent = useWebsiteContent('home_rental_steps');
 const currentStepIndex = ref(0);
 let autoPlayTimer = null;
 
-const steps = [
+const defaultSteps = [
   {
     number: '01',
     icon: 'fa-solid fa-car',
@@ -81,11 +83,17 @@ const steps = [
   }
 ];
 
+const displaySteps = computed(() => {
+  if (stepsContent.steps && stepsContent.steps.length) {
+    return stepsContent.steps;
+  }
+  return defaultSteps;
+});
+
 const progressWidth = computed(() => {
-  // 0% -> 50% -> 100%
-  if (currentStepIndex.value === 0) return 16;
-  if (currentStepIndex.value === 1) return 50;
-  return 84;
+  const total = displaySteps.value.length || 3;
+  if (total <= 1) return 100;
+  return Math.min(100, Math.round(((currentStepIndex.value + 0.5) / total) * 100));
 });
 
 const setStep = (idx) => {
@@ -93,7 +101,8 @@ const setStep = (idx) => {
 };
 
 const nextStep = () => {
-  currentStepIndex.value = (currentStepIndex.value + 1) % steps.length;
+  const len = displaySteps.value.length || 1;
+  currentStepIndex.value = (currentStepIndex.value + 1) % len;
 };
 
 const pauseAutoPlay = () => {

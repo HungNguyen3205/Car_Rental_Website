@@ -53,6 +53,11 @@ const routes = [
                 component: () => import('../pages/Contact/index.vue'),
             },
             {
+                path: 'policies',
+                name: 'Policies',
+                component: () => import('../pages/Policies/index.vue'),
+            },
+            {
                 path: 'profile',
                 name: 'Profile',
                 component: () => import('../pages/Profile/index.vue'),
@@ -163,6 +168,11 @@ const routes = [
                 path: 'posts',
                 name: 'AdminPosts',
                 component: () => import('../pages/Admin/Posts/index.vue'),
+            },
+            {
+                path: 'content',
+                name: 'AdminContent',
+                component: () => import('../pages/Admin/Content/index.vue'),
             }
         ]
     }

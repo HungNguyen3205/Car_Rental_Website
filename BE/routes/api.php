@@ -30,6 +30,11 @@ Route::get('/posts', [\App\Http\Controllers\Client\PostController::class, 'index
 Route::get('/posts/categories', [\App\Http\Controllers\Client\PostController::class, 'categories']);
 Route::get('/posts/{slug}', [\App\Http\Controllers\Client\PostController::class, 'show']);
 
+// Quản lý nội dung website công khai (Public Website Content CMS)
+Route::get('/content', [\App\Http\Controllers\Public\ContentController::class, 'index']);
+Route::get('/content/{sectionKey}', [\App\Http\Controllers\Public\ContentController::class, 'show']);
+Route::get('/content/{sectionKey}/preview', [\App\Http\Controllers\Public\ContentController::class, 'preview']);
+
 Route::group(['prefix' => 'client'], function () {
     Route::get('/car/data', [ClientCarController::class, 'getDataClient']);
     Route::get('/car/detail/{id}', [ClientCarController::class, 'getDetailClient']);
@@ -233,6 +238,19 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
                 ->middleware('permission:posts.delete,posts.publish,admins.manage');
             Route::delete('/{id}/force', [\App\Http\Controllers\Admin\PostController::class, 'forceDelete'])
                 ->middleware('permission:posts.delete,posts.publish,admins.manage');
+        });
+
+        // Quản lý nội dung Website (Website Content CMS)
+        Route::group(['prefix' => 'content', 'middleware' => 'permission:content.view,content.edit,content.publish,content.manage,admins.manage'], function () {
+            Route::get('/', [\App\Http\Controllers\Admin\ContentController::class, 'index']);
+            Route::get('/{sectionKey}', [\App\Http\Controllers\Admin\ContentController::class, 'show']);
+            Route::post('/{sectionKey}/draft', [\App\Http\Controllers\Admin\ContentController::class, 'saveDraft'])
+                ->middleware('permission:content.edit,content.manage,admins.manage');
+            Route::post('/{sectionKey}/publish', [\App\Http\Controllers\Admin\ContentController::class, 'publish'])
+                ->middleware('permission:content.publish,content.manage,admins.manage');
+            Route::get('/{sectionKey}/versions', [\App\Http\Controllers\Admin\ContentController::class, 'versions']);
+            Route::post('/{sectionKey}/restore/{versionId}', [\App\Http\Controllers\Admin\ContentController::class, 'restoreVersion'])
+                ->middleware('permission:content.publish,content.manage,admins.manage');
         });
 
         // Xuất dữ liệu (CSV Export)

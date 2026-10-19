@@ -2,43 +2,29 @@
   <div class="about-page">
     <section class="hero-header">
       <div class="app-container text-center">
-        <span class="badge mb-3">Về chúng tôi</span>
-        <h1 class="page-title">Hành Trình Chuyển Đổi <span>Di Chuyển Xanh</span></h1>
-        <p class="hero-desc">Tiên phong mang đến dịch vụ thuê xe điện tự lái thông minh, an toàn và thân thiện với môi trường tại Việt Nam.</p>
+        <span class="badge mb-3">{{ aboutContent.badge }}</span>
+        <h1 class="page-title">{{ aboutContent.title }}</h1>
+        <p class="hero-desc">{{ aboutContent.hero_desc }}</p>
       </div>
     </section>
 
     <section class="app-container content-section">
       <div class="about-grid">
         <div class="about-text">
-          <h2>Sứ mệnh của DriveRentals</h2>
-          <p>
-            Được thành lập với tầm nhìn phát triển giao thông bền vững, DriveRentals kết nối khách hàng với dòng xe điện cao cấp, mang lại sự tự do và tiện nghi tối đa cho mọi chuyến đi.
-          </p>
-          <p>
-            Chúng tôi tin rằng mỗi chuyến đi không chỉ là hành trình di chuyển giữa hai điểm đến, mà là trải nghiệm công nghệ tinh tế, êm ái và không phát thải. Đội xe được bảo dưỡng định kỳ với tiêu chuẩn khắt khe, cam kết an tâm trọn vẹn.
-          </p>
+          <h2>{{ aboutContent.mission_title }}</h2>
+          <p>{{ aboutContent.mission_paragraph_1 }}</p>
+          <p>{{ aboutContent.mission_paragraph_2 }}</p>
           
           <div class="commitments-grid">
-            <div class="commit-item card">
-              <div class="commit-icon"><i class="fa-solid fa-leaf"></i></div>
+            <div
+              v-for="(item, cIdx) in (aboutContent.commitments || [])"
+              :key="cIdx"
+              class="commit-item card"
+            >
+              <div class="commit-icon"><i :class="item.icon"></i></div>
               <div class="commit-info">
-                <h4>100% Động Cơ Điện</h4>
-                <p>Giảm thiểu phát thải CO2, vận hành êm ái và mượt mà.</p>
-              </div>
-            </div>
-            <div class="commit-item card">
-              <div class="commit-icon"><i class="fa-solid fa-shield-halved"></i></div>
-              <div class="commit-info">
-                <h4>Bảo Hiểm Toàn Diện</h4>
-                <p>Mỗi chuyến đi đều được bảo vệ với gói bảo hiểm chuẩn quốc tế.</p>
-              </div>
-            </div>
-            <div class="commit-item card">
-              <div class="commit-icon"><i class="fa-solid fa-headset"></i></div>
-              <div class="commit-info">
-                <h4>Hỗ Trợ Thông Minh 24/7</h4>
-                <p>Trợ lý ảo AI và đội ngũ cứu hộ kỹ thuật sẵn sàng hỗ trợ mọi lúc.</p>
+                <h4>{{ item.title }}</h4>
+                <p>{{ item.desc }}</p>
               </div>
             </div>
           </div>
@@ -47,7 +33,7 @@
         <div class="about-image-wrapper">
           <div class="image-frame card">
             <img 
-              src="https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200" 
+              :src="aboutContent.team_image || 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200'" 
               alt="Đội ngũ DriveRentals" 
               class="about-img" 
             />
@@ -57,6 +43,12 @@
     </section>
   </div>
 </template>
+
+<script setup>
+import { useWebsiteContent } from '@/core/contentStore';
+
+const aboutContent = useWebsiteContent('about_page');
+</script>
 
 <style scoped>
 .about-page {
