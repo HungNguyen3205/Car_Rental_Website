@@ -211,6 +211,159 @@ class SystemSettingsAndExportTest extends TestCase
     }
 
     /**
+     * Test 3.1: Whitelist cài đặt công khai loại bỏ hoàn toàn cấu hình nhạy cảm và kênh nội bộ bí mật.
+     */
+    public function test_public_settings_whitelist_isolates_private_settings_and_secrets(): void
+    {
+        // Thiết lập các setting công khai và riêng tư
+        SystemSetting::set('rental_buffer_hours', 3, 'operations', true);
+        SystemSetting::set('booking_auto_cancel_unpaid_hours', 48, 'operations', true);
+        SystemSetting::set('animation_mode', 'reduced', 'animation', true);
+        SystemSetting::set('animation_duration_scale', '0.5', 'animation', true);
+        SystemSetting::set('notification_sound_enabled', true, 'notifications', true);
+        
+        // Cấu hình nội bộ bí mật (is_public = false)
+        SystemSetting::set('notification_email_alerts', true, 'notifications', false);
+        SystemSetting::set('notification_admin_recipient_email', 'private_secret_admin@driverentals.com', 'notifications', false);
+        SystemSetting::set('stripe_secret_key', 'sk_live_very_secret_key', 'payment', false);
+
+        SystemSetting::clearPublicCache();
+
+        $res = $this->getJson('/api/settings/public');
+        $res->assertStatus(200);
+        $data = $res->json('data');
+
+        // Kiểm tra các trường công khai có mặt
+        $this->assertEquals(3, $data['rental_buffer_hours']);
+        $this->assertEquals(48, $data['booking_auto_cancel_unpaid_hours']);
+        $this->assertEquals('reduced', $data['animation_mode']);
+        $this->assertEquals('0.5', $data['animation_duration_scale']);
+        $this->assertTrue($data['notification_sound_enabled']);
+
+        // Tuyệt đối không chứa các trường bí mật nội bộ
+        $this->assertArrayNotHasKey('notification_email_alerts', $data);
+        $this->assertArrayNotHasKey('notification_admin_recipient_email', $data);
+        $this->assertArrayNotHasKey('stripe_secret_key', $data);
+    }
+
+    /**
+     * Test 3.2: Kiểm tra validation bảo mật URL nhúng bản đồ: Chặn thẻ iframe và host không hợp lệ.
+     */
+    public function test_map_embed_url_strict_validation(): void
+    {
+        // 1. Chèn thẻ iframe HTML tùy ý -> Phải bị từ chối 422
+        $resIframe = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'map_embed_url' => '<iframe src="https://google.com/maps/embed"></iframe>',
+            ]);
+        $resIframe->assertStatus(422)
+            ->assertJsonValidationErrors(['map_embed_url']);
+
+        // 2. Chèn javascript: hoặc host độc hại -> Bị từ chối 422
+        $resMalicious = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'map_embed_url' => 'https://evil-tracking-site.com/map/embed',
+            ]);
+        $resMalicious->assertStatus(422)
+            ->assertJsonValidationErrors(['map_embed_url']);
+
+        // 3. Đường dẫn hợp lệ từ Google Maps -> Chấp nhận 200
+        $validGoogleMaps = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.5178265431627!2d106.70188237586828!3d10.771594959281696';
+        $resValid = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'map_provider'  => 'google_maps',
+                'map_embed_url' => $validGoogleMaps,
+            ]);
+        $resValid->assertStatus(200);
+
+        $this->assertEquals($validGoogleMaps, SystemSetting::get('map_embed_url'));
+    }
+
+    /**
+     * Test 3.3: Kiểm tra giới hạn animation: Chỉ cho phép các mức thiết lập sẵn, chặn mã code tùy ý.
+     */
+    public function test_animation_mode_and_duration_scale_validation(): void
+    {
+        // 1. Cố tình nhập mã CSS hoặc script tùy ý vào animation_mode -> Bị từ chối 422
+        $resMalicious = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'animation_mode' => 'body { display: none; }',
+            ]);
+        $resMalicious->assertStatus(422)
+            ->assertJsonValidationErrors(['animation_mode']);
+
+        // 2. Nhập hệ số thời lượng vượt ngoài danh mục cho phép -> Bị từ chối 422
+        $resInvalidScale = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'animation_duration_scale' => '99.9',
+            ]);
+        $resInvalidScale->assertStatus(422)
+            ->assertJsonValidationErrors(['animation_duration_scale']);
+
+        // 3. Nhập giá trị hợp lệ (off, 0.5) -> Chấp nhận 200
+        $resValid = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'animation_mode'           => 'off',
+                'animation_duration_scale' => '0.5',
+            ]);
+        $resValid->assertStatus(200);
+
+        $this->assertEquals('off', SystemSetting::get('animation_mode'));
+        $this->assertEquals('0.5', SystemSetting::get('animation_duration_scale'));
+    }
+
+    /**
+     * Test 3.4: Kiểm tra giới hạn tham số vận hành: buffer hours và auto cancel hours.
+     */
+    public function test_operations_buffer_and_auto_cancel_hours_validation(): void
+    {
+        // 1. buffer < 0 -> Bị từ chối 422
+        $resNegative = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'rental_buffer_hours' => -1,
+            ]);
+        $resNegative->assertStatus(422)
+            ->assertJsonValidationErrors(['rental_buffer_hours']);
+
+        // 2. buffer > 48 -> Bị từ chối 422
+        $resTooLarge = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'rental_buffer_hours' => 50,
+            ]);
+        $resTooLarge->assertStatus(422)
+            ->assertJsonValidationErrors(['rental_buffer_hours']);
+
+        // 3. Hợp lệ -> 200
+        $resValid = $this->actingAs($this->owner, 'admin')
+            ->putJson('/api/admin/settings', [
+                'rental_buffer_hours'              => 4,
+                'booking_auto_cancel_unpaid_hours' => 48,
+            ]);
+        $resValid->assertStatus(200);
+
+        $this->assertEquals(4, SystemSetting::get('rental_buffer_hours'));
+        $this->assertEquals(48, SystemSetting::get('booking_auto_cancel_unpaid_hours'));
+    }
+
+    /**
+     * Test 3.5: Cấu hình ngân hàng chưa thiết lập trả về rỗng, tuyệt đối không sinh tài khoản hoặc số tiền mẫu giả định.
+     */
+    public function test_unconfigured_bank_settings_returns_no_fake_fallback_data(): void
+    {
+        // Xóa cấu hình ngân hàng để mô phỏng trạng thái chưa cấu hình
+        SystemSetting::whereIn('key', ['bank_name', 'bank_account_number', 'bank_account_holder', 'bank_bin'])->delete();
+        SystemSetting::clearPublicCache();
+
+        $res = $this->getJson('/api/settings/public');
+        $res->assertStatus(200);
+        $data = $res->json('data');
+
+        // Kiểm tra không có số tài khoản mẫu cũ (0971120038) hay mã BIN mẫu (970422) tự xuất hiện
+        $this->assertNull($data['bank_account_number'] ?? null);
+        $this->assertNull($data['bank_bin'] ?? null);
+    }
+
+    /**
      * Test 4: CRUD danh mục xe: Validation, tên trùng, và bảo vệ khi đang có xe sử dụng.
      */
     public function test_car_category_crud_and_protection_when_in_use(): void

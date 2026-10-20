@@ -650,11 +650,23 @@
             
             <div class="qr-upload-grid">
               <div class="qr-col">
-                <img 
-                  :src="`https://api.vietqr.io/image/970436-123456789-V3N0a6.jpg?accountName=NAM%20HUNG%20RENTAL&amount=${booking.tong_tien}&addInfo=${booking.ma_dat_xe}`" 
-                  alt="QR Code" 
-                  class="invoice-qr"
-                />
+                <div v-if="settings.bank_bin && settings.bank_account_number" class="qr-active-box">
+                  <img 
+                    :src="`https://api.vietqr.io/image/${settings.bank_bin}-${settings.bank_account_number}-compact2.png?accountName=${encodeURIComponent(settings.bank_account_holder || '')}&amount=${booking.tong_tien}&addInfo=${booking.ma_dat_xe}`" 
+                    alt="Mã VietQR Chuyển Khoản" 
+                    class="invoice-qr"
+                  />
+                  <div class="qr-bank-caption mt-2 text-center" style="font-size: 13px;">
+                    <div>{{ settings.bank_name || 'Ngân hàng thụ hưởng' }}</div>
+                    <strong>STK: {{ settings.bank_account_number }}</strong>
+                    <div v-if="settings.bank_account_holder" class="text-muted">CTK: {{ settings.bank_account_holder }}</div>
+                  </div>
+                </div>
+                <div v-else class="qr-unconfigured-box alert alert-warning p-3 text-center" style="border-radius: 8px; border: 1px dashed #f59e0b; background: #fffbeb;">
+                  <i class="fa-solid fa-triangle-exclamation" style="font-size: 24px; color: #d97706; margin-bottom: 8px;"></i>
+                  <div style="font-weight: 600; color: #92400e; margin-bottom: 4px;">Chưa cấu hình tài khoản ngân hàng</div>
+                  <p style="font-size: 12px; color: #b45309; margin: 0;">Quý khách vui lòng liên hệ tổng đài <strong>{{ settings.hotline || '1900 1234' }}</strong> để nhận số tài khoản thanh toán.</p>
+                </div>
               </div>
               <div class="upload-col">
                 <input 
@@ -952,8 +964,10 @@ import { useRoute, useRouter } from 'vue-router';
 import baseRequest from '../../../core/baseRequest';
 import html2pdf from 'html2pdf.js';
 import { createToaster } from "@meforma/vue-toaster";
+import { useSystemSettings } from '../../../core/settingsStore';
 
 const toaster = createToaster({ position: "top-right" });
+const { settings, fetchSettings } = useSystemSettings();
 
 const route = useRoute();
 const router = useRouter();

@@ -158,27 +158,32 @@
         <div class="modal-body">
           <!-- Step 1: QR Code -->
           <div class="payment-card-body">
-            <div class="payment-qr-container">
+            <div v-if="settings.bank_bin && settings.bank_account_number" class="payment-qr-container">
               <img 
-                :src="`https://api.vietqr.io/image/${settings.bank_bin || '970422'}-${settings.bank_account_number || '0971120038'}-qr_only.png?accountName=${encodeURIComponent(settings.bank_account_holder || 'NAM HUNG RENTAL')}&amount=${selectedBooking.financial_summary?.remaining_rent_amount && selectedBooking.financial_summary.remaining_rent_amount > 0 ? selectedBooking.financial_summary.remaining_rent_amount : selectedBooking.tong_tien}&addInfo=${selectedBooking.ma_dat_xe}`" 
+                :src="`https://api.vietqr.io/image/${settings.bank_bin}-${settings.bank_account_number}-qr_only.png?accountName=${encodeURIComponent(settings.bank_account_holder || '')}&amount=${selectedBooking.financial_summary?.remaining_rent_amount && selectedBooking.financial_summary.remaining_rent_amount > 0 ? selectedBooking.financial_summary.remaining_rent_amount : selectedBooking.tong_tien}&addInfo=${selectedBooking.ma_dat_xe}`" 
                 alt="VietQR Chuyển Khoản"
                 class="qr-image"
               />
               <p class="qr-hint">Quét mã QR bằng ứng dụng ngân hàng bất kỳ để chuyển tiền nhanh</p>
             </div>
+            <div v-else class="payment-unconfigured-alert alert alert-warning p-3 text-center my-3" style="border-radius: 8px; border: 1px dashed #f59e0b; background: #fffbeb;">
+              <i class="fa-solid fa-triangle-exclamation" style="font-size: 24px; color: #d97706; margin-bottom: 8px;"></i>
+              <div style="font-weight: 600; color: #92400e; margin-bottom: 4px;">Chưa cấu hình tài khoản thanh toán</div>
+              <p style="font-size: 13px; color: #b45309; margin: 0;">Quý khách vui lòng liên hệ hotline <strong>{{ settings.hotline || '1900 1234' }}</strong> để nhận số tài khoản thanh toán trực tiếp.</p>
+            </div>
 
             <div class="payment-details-list">
               <div class="pay-row">
                 <span>Ngân hàng thụ hưởng:</span>
-                <strong>{{ settings.bank_name || 'MBBank (Quân Đội)' }}</strong>
+                <strong>{{ settings.bank_name || 'Chưa cấu hình' }}</strong>
               </div>
               <div class="pay-row">
                 <span>Số tài khoản:</span>
-                <strong class="highlight-text">{{ settings.bank_account_number || '0971120038' }}</strong>
+                <strong class="highlight-text">{{ settings.bank_account_number || 'Chưa cấu hình' }}</strong>
               </div>
               <div class="pay-row">
                 <span>Chủ tài khoản:</span>
-                <span>{{ settings.bank_account_holder || 'NAM HUNG RENTAL' }}</span>
+                <span>{{ settings.bank_account_holder || 'Chưa cấu hình' }}</span>
               </div>
               <div class="pay-row">
                 <span>Số tiền cần thanh toán:</span>

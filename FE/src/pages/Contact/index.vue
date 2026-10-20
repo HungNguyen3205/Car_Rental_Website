@@ -203,11 +203,48 @@
         </div>
       </div>
     </section>
+
+    <!-- Showroom & Office Map Section -->
+    <section class="app-container map-section my-5">
+      <div class="map-card card p-4">
+        <div class="map-card-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="d-flex align-items-center gap-3">
+            <div class="map-icon" style="width: 44px; height: 44px; border-radius: 10px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+              <i class="fa-solid fa-map-location-dot"></i>
+            </div>
+            <div>
+              <h3 style="margin: 0; font-size: 18px; font-weight: 700;">Văn Phòng & Trạm Giao Nhận Xe Trực Tiếp</h3>
+              <p style="margin: 0; color: #64748b; font-size: 14px;">{{ settings.company_address || 'Tòa nhà Bitexco, Q.1, TP. HCM' }}</p>
+            </div>
+          </div>
+          <div v-if="settings.map_coordinates" class="coordinates-badge" style="background: #f1f5f9; padding: 6px 12px; border-radius: 20px; font-size: 12px; color: #475569; font-weight: 500;">
+            <i class="fa-solid fa-crosshairs"></i> Tọa độ GPS: {{ settings.map_coordinates }}
+          </div>
+        </div>
+        <div class="map-frame-wrapper" style="border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+          <iframe
+            v-if="safeMapEmbedUrl"
+            :src="safeMapEmbedUrl"
+            width="100%"
+            height="380"
+            style="border:0; display: block;"
+            allowfullscreen=""
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            title="Bản đồ vị trí DriveRentals"
+          ></iframe>
+          <div v-else class="map-placeholder p-5 text-center" style="background: #f8fafc; color: #94a3b8;">
+            <i class="fa-solid fa-location-dot" style="font-size: 32px; margin-bottom: 12px;"></i>
+            <p style="margin: 0;">Bản đồ chỉ đường đang được cập nhật</p>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import baseRequest from '../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 import { useSystemSettings } from '../../core/settingsStore';
@@ -217,6 +254,20 @@ const contactContent = useWebsiteContent('contact_page');
 
 const toaster = createToaster({ position: "top-right" });
 const { settings, fetchSettings } = useSystemSettings();
+
+const safeMapEmbedUrl = computed(() => {
+  const url = settings.map_embed_url;
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (
+    trimmed.startsWith('https://www.google.com/maps/embed') ||
+    trimmed.startsWith('https://maps.google.com/') ||
+    trimmed.startsWith('https://www.openstreetmap.org/export/embed.html')
+  ) {
+    return trimmed;
+  }
+  return '';
+});
 
 const submitting = ref(false);
 const submittedSuccess = ref(false);

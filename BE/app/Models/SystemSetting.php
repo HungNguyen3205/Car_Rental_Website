@@ -43,6 +43,17 @@ class SystemSetting extends Model
         'bank_bin',
         'bank_transfer_instruction',
         'rental_policy',
+        'rental_buffer_hours',
+        'booking_auto_cancel_unpaid_hours',
+        'seo_meta_title_suffix',
+        'seo_meta_description',
+        'seo_og_image',
+        'map_provider',
+        'map_embed_url',
+        'map_coordinates',
+        'animation_mode',
+        'animation_duration_scale',
+        'notification_sound_enabled',
     ];
 
     public function updatedByAdmin()

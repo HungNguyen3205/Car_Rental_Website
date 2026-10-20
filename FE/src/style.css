@@ -715,8 +715,31 @@ input, select, textarea {
 }
 
 /* ==========================================================================
-   Reduced Motion
+   Reduced Motion & System Animation Mode Setting
    ========================================================================== */
+
+:root {
+  --app-transition-scale: 1.0;
+}
+
+/* Chế độ tắt toàn bộ chuyển động (Off) */
+html[data-animation-mode="off"] *,
+html[data-animation-mode="off"] *::before,
+html[data-animation-mode="off"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Chế độ giảm thiểu chuyển động (Reduced) */
+html[data-animation-mode="reduced"] *,
+html[data-animation-mode="reduced"] *::before,
+html[data-animation-mode="reduced"] *::after {
+  animation-duration: 0.15s !important;
+  transition-duration: 0.15s !important;
+  animation-iteration-count: 1 !important;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
