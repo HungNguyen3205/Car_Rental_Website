@@ -127,23 +127,23 @@
         <table class="data-table" v-if="cars.length > 0">
           <thead>
             <tr>
-              <th width="60">STT</th>
-              <th>Thông tin xe</th>
-              <th>Phân hạng</th>
-              <th>Giá thuê / ngày</th>
-              <th>Khu vực</th>
-              <th v-if="currentTab !== 'trash'">Vận hành</th>
-              <th v-if="currentTab !== 'trash'">Xuất bản</th>
-              <th v-if="currentTab === 'trash'">Thời điểm xóa</th>
-              <th width="190" class="text-center">Thao tác</th>
+              <th class="col-stt">STT</th>
+              <th class="col-car-info">Thông tin xe</th>
+              <th class="col-category">Phân hạng</th>
+              <th class="col-price">Giá thuê / ngày</th>
+              <th class="col-city">Khu vực</th>
+              <th v-if="currentTab !== 'trash'" class="col-status">Vận hành</th>
+              <th v-if="currentTab !== 'trash'" class="col-pub">Xuất bản</th>
+              <th v-if="currentTab === 'trash'" class="col-deleted-at">Thời điểm xóa</th>
+              <th class="col-actions text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(car, index) in cars" :key="car.id">
-              <td>
+              <td class="col-stt text-center">
                 <span class="stt-badge">{{ (pagination.current_page - 1) * pagination.per_page + index + 1 }}</span>
               </td>
-              <td>
+              <td class="col-car-info">
                 <div class="car-cell">
                   <img 
                     :src="resolveCarImage(car)" 
@@ -152,26 +152,28 @@
                     alt="car"
                   />
                   <div class="car-details">
-                    <span class="car-name">{{ car.name }}</span>
+                    <span class="car-name" :title="car.name">{{ car.name }}</span>
                     <span class="car-id">Mã xe: #CAR-{{ car.id }}</span>
                   </div>
                 </div>
               </td>
-              <td><span class="tag-outline">{{ car.category_name || car.type || 'Tiêu chuẩn' }}</span></td>
-              <td>
+              <td class="col-category">
+                <span class="tag-outline">{{ car.category_name || car.type || 'Tiêu chuẩn' }}</span>
+              </td>
+              <td class="col-price">
                 <div class="price-box">
                   <span class="price-text">{{ formatCurrency(car.price_per_day) }}</span>
-                  <small>/ ngày</small>
+                  <span class="price-unit">/ ngày</span>
                 </div>
               </td>
-              <td>
+              <td class="col-city">
                 <span class="city-badge">
                   <i class="fa-solid fa-location-dot"></i> {{ getCityLabel(car.city) }}
                 </span>
               </td>
 
               <!-- Vận hành (Sẵn sàng / Bảo trì) -->
-              <td v-if="currentTab !== 'trash'">
+              <td v-if="currentTab !== 'trash'" class="col-status">
                 <div class="status-cell">
                   <span 
                     class="status-badge" 
@@ -184,7 +186,7 @@
               </td>
 
               <!-- Trạng thái nội dung / xuất bản -->
-              <td v-if="currentTab !== 'trash'">
+              <td v-if="currentTab !== 'trash'" class="col-pub">
                 <div class="publication-select-wrapper">
                   <select 
                     class="pub-select" 
@@ -200,7 +202,7 @@
               </td>
 
               <!-- Thời điểm xóa khi ở tab thùng rác -->
-              <td v-if="currentTab === 'trash'">
+              <td v-if="currentTab === 'trash'" class="col-deleted-at">
                 <div class="deleted-time-cell">
                   <i class="fa-regular fa-clock text-muted"></i>
                   <span>{{ formatDateTime(car.deleted_at) }}</span>
@@ -208,7 +210,7 @@
               </td>
 
               <!-- Actions Cell -->
-              <td class="actions-cell">
+              <td class="col-actions actions-cell">
                 <!-- Chế độ kho xe thông thường -->
                 <template v-if="currentTab !== 'trash'">
                   <button 
@@ -1654,6 +1656,7 @@ onUnmounted(() => {
 /* Table */
 .data-table {
   width: 100%;
+  min-width: 1100px;
   border-collapse: collapse;
 }
 
@@ -1677,6 +1680,60 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
+/* Explicit Column Sizing & No-Wrap */
+.col-stt {
+  width: 56px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.col-car-info {
+  min-width: 280px;
+}
+
+.col-category {
+  width: 130px;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.col-price {
+  width: 160px;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.col-city {
+  width: 150px;
+  min-width: 140px;
+  white-space: nowrap;
+}
+
+.col-status {
+  width: 135px;
+  min-width: 130px;
+  white-space: nowrap;
+}
+
+.col-pub {
+  width: 135px;
+  min-width: 130px;
+  white-space: nowrap;
+}
+
+.col-deleted-at {
+  width: 160px;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.col-actions {
+  width: 180px;
+  min-width: 180px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .stt-badge {
   font-weight: 700;
   color: var(--color-text-muted);
@@ -1686,21 +1743,45 @@ onUnmounted(() => {
 .car-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  min-width: 260px;
 }
 
 .car-thumb {
-  width: 72px;
-  height: 46px;
+  width: 76px;
+  height: 48px;
   object-fit: cover;
   border-radius: var(--radius-sm);
   background: var(--bg-surface-alt);
   border: 1px solid var(--color-border);
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.car-details { display: flex; flex-direction: column; }
-.car-name { font-weight: 700; color: var(--color-text-main); font-size: 0.92rem; }
-.car-id { font-size: 0.72rem; color: var(--color-text-muted); font-family: monospace; }
+.car-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.car-name {
+  font-weight: 700;
+  color: var(--color-text-main);
+  font-size: 0.94rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.car-id {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
 
 .tag-outline {
   display: inline-block;
@@ -1715,15 +1796,25 @@ onUnmounted(() => {
 }
 
 .price-box {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
   gap: 4px;
+  white-space: nowrap;
 }
 
 .price-text {
-  font-weight: 700;
-  color: var(--color-primary);
-  font-size: 0.92rem;
+  font-weight: 800;
+  color: #059669;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+.price-unit {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .city-badge {
