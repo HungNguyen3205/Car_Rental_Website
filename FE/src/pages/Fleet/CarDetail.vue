@@ -484,11 +484,23 @@ const lightboxImage = ref(null);
 
 // Booking Form State
 const getInitialStartDate = () => {
+  if (route.query.start_date) {
+    try {
+      const d = new Date(route.query.start_date);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 16);
+    } catch (e) {}
+  }
   const d = new Date(Date.now() + 2 * 3600 * 1000); // 2h from now
   return d.toISOString().slice(0, 16);
 };
 
 const getInitialEndDate = () => {
+  if (route.query.end_date) {
+    try {
+      const d = new Date(route.query.end_date);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 16);
+    } catch (e) {}
+  }
   const d = new Date(Date.now() + 26 * 3600 * 1000); // 26h from now (1 day)
   return d.toISOString().slice(0, 16);
 };
@@ -497,10 +509,22 @@ const minStartDate = computed(() => {
   return new Date().toISOString().slice(0, 16);
 });
 
+const getInitialAddress = () => {
+  if (route.query.address) return String(route.query.address);
+  if (route.query.city) {
+    const c = String(route.query.city).toLowerCase();
+    if (c === 'sg' || c.includes('hồ chí minh')) return 'Showroom TP. Hồ Chí Minh';
+    if (c === 'hn' || c.includes('hà nội')) return 'Showroom Hà Nội';
+    if (c === 'dn' || c.includes('đà nẵng')) return 'Showroom Đà Nẵng';
+    if (c === 'nt' || c.includes('nha trang')) return 'Showroom Nha Trang';
+  }
+  return 'Tại showroom DriveRent';
+};
+
 const bookingForm = ref({
   startDate: getInitialStartDate(),
   endDate: getInitialEndDate(),
-  address: 'Tại showroom DriveRent'
+  address: getInitialAddress()
 });
 
 // Server Quote & Availability State

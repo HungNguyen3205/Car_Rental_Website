@@ -69,7 +69,61 @@ class CarController extends Controller
             });
         }
 
-        $data = $query->orderByDesc('cars.id')->get();
+        // Lọc theo số chỗ ngồi (seats)
+        if ($request->filled('seats') && $request->seats !== 'all') {
+            $seats = (int) $request->seats;
+            if ($seats >= 7) {
+                $query->where('cars.seats', '>=', 7);
+            } elseif ($seats === 4 || $seats === 5) {
+                $query->where(function ($q) {
+                    $q->whereIn('cars.seats', [4, 5])
+                      ->orWhereNull('cars.seats');
+                });
+            } else {
+                $query->where('cars.seats', $seats);
+            }
+        }
+
+        // Lọc theo khoảng giá
+        if ($request->filled('price_min') && is_numeric($request->price_min)) {
+            $query->where('cars.price_per_day', '>=', (float) $request->price_min);
+        }
+        if ($request->filled('price_max') && is_numeric($request->price_max)) {
+            $query->where('cars.price_per_day', '<=', (float) $request->price_max);
+        }
+
+        // Sắp xếp
+        $sort = $request->get('sort', 'default');
+        if ($sort === 'price_asc' || $sort === 'price-asc') {
+            $query->orderBy('cars.price_per_day', 'asc');
+        } elseif ($sort === 'price_desc' || $sort === 'price-desc') {
+            $query->orderBy('cars.price_per_day', 'desc');
+        } elseif ($sort === 'name_asc') {
+            $query->orderBy('cars.name', 'asc');
+        } else {
+            $query->orderByDesc('cars.id');
+        }
+
+        // Phân trang tùy chọn (nếu client yêu cầu page hoặc per_page)
+        if ($request->filled('per_page') || $request->filled('page')) {
+            $perPage = min(max((int) $request->get('per_page', 9), 1), 50);
+            $paginator = $query->paginate($perPage);
+
+            return response()->json([
+                'status'     => 1,
+                'data'       => $paginator->items(),
+                'pagination' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page'    => $paginator->lastPage(),
+                    'per_page'     => $paginator->perPage(),
+                    'total'        => $paginator->total(),
+                    'from'         => $paginator->firstItem(),
+                    'to'           => $paginator->lastItem(),
+                ]
+            ]);
+        }
+
+        $data = $query->get();
 
         return response()->json([
             'status' => 1,
