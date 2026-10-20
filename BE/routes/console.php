@@ -23,3 +23,6 @@ Schedule::command('bookings:send-reminders')->hourly();
     $this->info('Expired private image trials cleaned.');
 });
 \Illuminate\Support\Facades\Schedule::command('marketing:clean-image-trials')->daily()->withoutOverlapping();
+
+// Tự động xuất bản các bài viết marketing đã đến lịch (Website & Facebook Page)
+Schedule::command('marketing:publish-scheduled')->everyMinute()->withoutOverlapping();

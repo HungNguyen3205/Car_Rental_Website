@@ -85,6 +85,8 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
                 ->middleware('permission:bookings.view,cars.manage');
             Route::post('/upload-image', [AdminCarController::class, 'uploadImage'])
                 ->middleware('permission:cars.manage');
+            Route::post('/ai-normalize-image', [AdminCarController::class, 'aiNormalizeImage'])
+                ->middleware('permission:cars.manage');
             Route::post('/status', [AdminCarController::class, 'statusData'])
                 ->middleware('permission:cars.manage');
             Route::post('/publication-status', [AdminCarController::class, 'publicationStatusData'])
@@ -210,15 +212,7 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             Route::delete('/{id}', [\App\Http\Controllers\Admin\MediaController::class, 'destroy']);
         });
 
-        // Isolated image trial: never publishes posts or changes rental vehicle photos.
-        Route::group(['prefix' => 'post-image-trials', 'middleware' => 'permission:posts.create,posts.publish,admins.manage'], function () {
-            $controller = \App\Http\Controllers\Admin\PollinationsPreviewController::class;
-            Route::get('/config', [$controller, 'config']);
-            Route::post('/', [$controller, 'store'])->middleware('throttle:5,1');
-            Route::get('/{id}', [$controller, 'show']);
-            Route::get('/{id}/image', [$controller, 'image']);
-            Route::post('/{id}/approve', [$controller, 'approve'])->middleware('throttle:10,1');
-        });
+        // Pollinations image trial endpoints removed per scope requirements
 
         // Quản lý bài viết & Tin tức (Posts & Editorial Management)
         Route::group(['prefix' => 'posts', 'middleware' => 'permission:posts.view,posts.create,posts.review,posts.publish,admins.manage'], function () {
@@ -248,6 +242,37 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
                 ->middleware('permission:posts.delete,posts.publish,admins.manage');
             Route::delete('/{id}/force', [\App\Http\Controllers\Admin\PostController::class, 'forceDelete'])
                 ->middleware('permission:posts.delete,posts.publish,admins.manage');
+        });
+
+        // Quản lý Import Excel & Lịch đăng bài Đa Kênh (Website & Facebook Page)
+        Route::group(['prefix' => 'post-schedules', 'middleware' => 'permission:posts.view,posts.create,posts.publish,admins.manage'], function () {
+            Route::get('/template', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'downloadTemplate']);
+            Route::get('/drive-config', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'getDriveConfig']);
+            Route::post('/drive-config', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'updateDriveConfig'])
+                ->middleware('permission:settings.edit,admins.manage');
+            Route::post('/drive-test', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'testDriveConnection']);
+
+            Route::get('/facebook-config', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'getFacebookConfig']);
+            Route::post('/facebook-config', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'updateFacebookConfig'])
+                ->middleware('permission:settings.edit,admins.manage');
+            Route::post('/facebook-test', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'testFacebookConnection']);
+
+            Route::post('/preview-import', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'previewImport'])
+                ->middleware('permission:posts.create,admins.manage');
+            Route::post('/confirm-import', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'confirmImport'])
+                ->middleware('permission:posts.create,admins.manage');
+
+            Route::get('/', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'listSchedules']);
+            Route::get('/batches', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'listBatches']);
+            Route::get('/{id}', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'getScheduleDetail']);
+            Route::put('/{id}', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'updateSchedule'])
+                ->middleware('permission:posts.edit,admins.manage');
+            Route::post('/{id}/cancel', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'cancelSchedule'])
+                ->middleware('permission:posts.edit,posts.publish,admins.manage');
+            Route::post('/{id}/retry', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'retrySchedule'])
+                ->middleware('permission:posts.publish,admins.manage');
+            Route::post('/{id}/publish-now', [\App\Http\Controllers\Admin\PostImportScheduleController::class, 'publishNow'])
+                ->middleware('permission:posts.publish,admins.manage');
         });
 
         // Quản lý nội dung Website (Website Content CMS)

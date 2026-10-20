@@ -14,8 +14,20 @@
           <i class="fa-solid fa-folder-tree"></i>
           <span>Chuyên mục</span>
         </button>
-        <button class="btn-refresh" @click="fetchPosts(1)" :disabled="loading" title="Tải lại">
-          <i class="fa-solid fa-rotate" :class="{ 'fa-spin': loading }"></i>
+        <button class="btn-outline-action" @click="downloadTemplate" title="Tải file mẫu Excel 4 cột chuẩn">
+          <i class="fa-solid fa-file-excel text-emerald"></i>
+          <span>Tải file mẫu Excel</span>
+        </button>
+        <button class="btn-outline-action" @click="showChannelConfigModal = true" title="Cấu hình Google Drive & Facebook Page">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Cấu hình Kênh</span>
+        </button>
+        <button class="btn-primary btn-emerald" @click="showImportModal = true" title="Import Excel và ghép ảnh Google Drive">
+          <i class="fa-solid fa-file-import"></i>
+          <span>✦ Import Lịch Đăng</span>
+        </button>
+        <button class="btn-refresh" @click="onRefreshCurrentView" :disabled="loading || loadingSchedules || loadingBatches" title="Tải lại">
+          <i class="fa-solid fa-rotate" :class="{ 'fa-spin': loading || loadingSchedules || loadingBatches }"></i>
           <span>Làm mới</span>
         </button>
         <button v-if="permissions.can_create || permissions.can_publish" class="btn-primary" @click="openCreateModal">
@@ -25,6 +37,39 @@
       </div>
     </header>
 
+    <!-- Main View Switcher Tabs -->
+    <div class="main-tabs-bar">
+      <button 
+        class="main-tab-btn" 
+        :class="{ active: activeMainTab === 'articles' }"
+        @click="switchMainTab('articles')"
+      >
+        <i class="fa-solid fa-newspaper"></i>
+        <span>1. Quản lý Bài Viết (CMS Website)</span>
+      </button>
+
+      <button 
+        class="main-tab-btn" 
+        :class="{ active: activeMainTab === 'schedules' }"
+        @click="switchMainTab('schedules')"
+      >
+        <i class="fa-solid fa-calendar-days text-primary"></i>
+        <span>2. Lịch Đăng Bài Đa Kênh (Automation)</span>
+        <span v-if="schedulesPagination.total > 0" class="tab-count-badge">{{ schedulesPagination.total }}</span>
+      </button>
+
+      <button 
+        class="main-tab-btn" 
+        :class="{ active: activeMainTab === 'batches' }"
+        @click="switchMainTab('batches')"
+      >
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <span>3. Đợt Import Excel (Batches)</span>
+      </button>
+    </div>
+
+    <!-- VIEW 1: QUẢN LÝ BÀI VIẾT (CMS) -->
+    <div v-if="activeMainTab === 'articles'" class="articles-view-section">
     <!-- KPI Summary Grid -->
     <div class="kpi-grid">
       <div 
@@ -369,9 +414,372 @@
         </div>
       </div>
 
-      <!-- Loading overlay -->
-      <div v-if="loading" class="loading-overlay">
-        <i class="fa-solid fa-spinner fa-spin"></i>
+      </div>
+    </div> <!-- /articles-view-section -->
+
+    <!-- ========================================================
+         VIEW 2: LỊCH ĐĂNG BÀI ĐA KÊNH (AUTOMATION SCHEDULER)
+         ======================================================== -->
+    <div v-if="activeMainTab === 'schedules'" class="schedules-view-section">
+      <!-- Schedules KPI Grid -->
+      <div class="kpi-grid">
+        <div 
+          class="kpi-card" 
+          :class="{ active: scheduleFilters.status_website === 'all' && scheduleFilters.status_facebook === 'all' }" 
+          @click="setScheduleFilter('all')"
+        >
+          <div class="kpi-icon total"><i class="fa-solid fa-calendar-days"></i></div>
+          <div class="kpi-info">
+            <span class="kpi-label">Tổng lịch đăng</span>
+            <span class="kpi-val">{{ schedulesKpi.total || 0 }}</span>
+          </div>
+        </div>
+
+        <div 
+          class="kpi-card" 
+          :class="{ active: scheduleFilters.status_website === 'scheduled' || scheduleFilters.status_facebook === 'scheduled' }" 
+          @click="setScheduleFilter('scheduled')"
+        >
+          <div class="kpi-icon pending"><i class="fa-solid fa-clock"></i></div>
+          <div class="kpi-info">
+            <span class="kpi-label">Chờ đến giờ đăng</span>
+            <span class="kpi-val text-warning">{{ schedulesKpi.scheduled || 0 }}</span>
+          </div>
+        </div>
+
+        <div 
+          class="kpi-card" 
+          :class="{ active: scheduleFilters.status_website === 'published' }" 
+          @click="setScheduleFilter('website_published')"
+        >
+          <div class="kpi-icon published"><i class="fa-solid fa-globe"></i></div>
+          <div class="kpi-info">
+            <span class="kpi-label">Đã đăng Website</span>
+            <span class="kpi-val text-success">{{ schedulesKpi.website_published || 0 }}</span>
+          </div>
+        </div>
+
+        <div 
+          class="kpi-card" 
+          :class="{ active: scheduleFilters.status_facebook === 'published' }" 
+          @click="setScheduleFilter('facebook_published')"
+        >
+          <div class="kpi-icon revision"><i class="fa-brands fa-facebook"></i></div>
+          <div class="kpi-info">
+            <span class="kpi-label">Đã đăng Fanpage</span>
+            <span class="kpi-val text-info">{{ schedulesKpi.facebook_published || 0 }}</span>
+          </div>
+        </div>
+
+        <div 
+          class="kpi-card" 
+          :class="{ active: scheduleFilters.status_website === 'failed' || scheduleFilters.status_facebook === 'failed' }" 
+          @click="setScheduleFilter('failed')"
+        >
+          <div class="kpi-icon trashed"><i class="fa-solid fa-circle-exclamation"></i></div>
+          <div class="kpi-info">
+            <span class="kpi-label">Lỗi xuất bản</span>
+            <span class="kpi-val text-danger">{{ schedulesKpi.failed || 0 }}</span>
+          </div>
+        </div>
+
+        <div 
+          class="kpi-card" 
+          :class="{ active: scheduleFilters.status_facebook === 'outcome_unknown' }" 
+          @click="setScheduleFilter('outcome_unknown')"
+        >
+          <div class="kpi-icon archived"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div class="kpi-info">
+            <span class="kpi-label">Chờ đối soát (Timeout)</span>
+            <span class="kpi-val text-muted">{{ schedulesKpi.outcome_unknown || 0 }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedules Main Card -->
+      <div class="content-card card">
+        <div class="table-tools">
+          <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input 
+              type="text" 
+              v-model="scheduleFilters.search" 
+              placeholder="Tìm theo tiêu đề, nội dung, tên ảnh..."
+              @input="onScheduleSearchInput"
+            />
+            <button v-if="scheduleFilters.search" class="btn-clear-search" @click="scheduleFilters.search = ''; fetchSchedules(1)">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <div class="filters-row">
+            <select v-model="scheduleFilters.channel" class="form-select" @change="fetchSchedules(1)">
+              <option value="all">Tất cả kênh</option>
+              <option value="website">Chỉ Website</option>
+              <option value="facebook">Chỉ Facebook</option>
+              <option value="both">Cả hai (Web & FB)</option>
+            </select>
+
+            <select v-model="scheduleFilters.status_website" class="form-select" @change="fetchSchedules(1)">
+              <option value="all">Trạng thái Website: Tất cả</option>
+              <option value="scheduled">Website: Chờ đăng</option>
+              <option value="published">Website: Đã đăng</option>
+              <option value="failed">Website: Lỗi</option>
+            </select>
+
+            <select v-model="scheduleFilters.status_facebook" class="form-select" @change="fetchSchedules(1)">
+              <option value="all">Trạng thái FB: Tất cả</option>
+              <option value="scheduled">FB: Chờ đăng</option>
+              <option value="published">FB: Đã đăng</option>
+              <option value="failed">FB: Lỗi</option>
+              <option value="outcome_unknown">FB: Chờ đối soát</option>
+            </select>
+
+            <button v-if="scheduleFilters.batch_id" class="btn-clear-filters" @click="scheduleFilters.batch_id = ''; fetchSchedules(1)">
+              <i class="fa-solid fa-xmark"></i> Bỏ lọc Batch #{{ scheduleFilters.batch_id }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Schedules Table -->
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th width="100">Ảnh snapshot</th>
+                <th width="240">Tiêu đề bài viết</th>
+                <th>Nội dung (Caption)</th>
+                <th width="150">Thời gian đăng</th>
+                <th width="100">Kênh</th>
+                <th width="150">Website</th>
+                <th width="150">Facebook Page</th>
+                <th width="130" class="text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="schedules.length === 0 && !loadingSchedules">
+                <td colspan="8" class="text-center empty-cell">
+                  <div class="empty-state">
+                    <i class="fa-regular fa-calendar-xmark empty-icon"></i>
+                    <p>Không có bài viết nào trong lịch đăng với bộ lọc hiện tại.</p>
+                    <button class="btn-primary-sm mt-2 btn-emerald" @click="showImportModal = true">
+                      <i class="fa-solid fa-file-import"></i> Import Excel ngay
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <tr v-for="sc in schedules" :key="sc.id">
+                <!-- Snapshot Thumbnail -->
+                <td>
+                  <div class="schedule-thumb-box" @click="openImagePreview(sc.snapshot_url || sc.image_snapshot_path)">
+                    <img :src="sc.snapshot_url" alt="Snapshot" class="schedule-thumb-img" />
+                    <span class="thumb-drive-tag" :title="sc.drive_image_name">
+                      <i class="fa-brands fa-google-drive"></i> {{ sc.drive_image_name }}
+                    </span>
+                  </div>
+                </td>
+
+                <!-- Tiêu đề & Batch -->
+                <td>
+                  <div class="schedule-title-cell">
+                    <span class="schedule-title">{{ sc.title || sc.title_suggested }}</span>
+                    <span v-if="sc.batch_id" class="batch-link-badge" @click="filterSchedulesByBatch(sc.batch_id)">
+                      #BATCH-{{ sc.batch_id }}
+                    </span>
+                  </div>
+                </td>
+
+                <!-- Nội dung tóm tắt -->
+                <td>
+                  <div class="schedule-content-cell">
+                    <p class="content-preview-line">{{ sc.content }}</p>
+                    <button type="button" class="btn-read-more" @click="openFullContent(sc)">
+                      Xem toàn văn
+                    </button>
+                  </div>
+                </td>
+
+                <!-- Thời gian đăng -->
+                <td>
+                  <div class="schedule-time-cell">
+                    <i class="fa-regular fa-clock text-muted"></i>
+                    <span class="time-main">{{ formatDateTime(sc.scheduled_at) }}</span>
+                    <span v-if="isUpcoming(sc.scheduled_at)" class="time-countdown text-emerald">
+                      {{ getTimeRemaining(sc.scheduled_at) }}
+                    </span>
+                    <span v-else class="time-countdown text-muted">Đã qua giờ</span>
+                  </div>
+                </td>
+
+                <!-- Kênh -->
+                <td>
+                  <span class="badge-channel" :class="'channel-' + sc.channel">
+                    {{ getChannelLabel(sc.channel) }}
+                  </span>
+                </td>
+
+                <!-- Trạng thái Website -->
+                <td>
+                  <div class="status-cell-col">
+                    <span class="badge-status-pill" :class="'status-' + sc.status_website">
+                      <i class="fa-solid" :class="getStatusIcon(sc.status_website)"></i>
+                      {{ getStatusLabel(sc.status_website) }}
+                    </span>
+                    <a v-if="sc.post?.slug" :href="'/blog/' + sc.post.slug" target="_blank" class="post-live-link">
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i> Xem bài viết
+                    </a>
+                    <small v-if="sc.website_error" class="text-danger error-inline" :title="sc.website_error">
+                      {{ sc.website_error }}
+                    </small>
+                  </div>
+                </td>
+
+                <!-- Trạng thái Facebook Page -->
+                <td>
+                  <div class="status-cell-col">
+                    <span class="badge-status-pill" :class="'status-' + sc.status_facebook">
+                      <i class="fa-solid" :class="getStatusIcon(sc.status_facebook)"></i>
+                      {{ getStatusLabel(sc.status_facebook) }}
+                    </span>
+                    <a v-if="sc.facebook_post_url" :href="sc.facebook_post_url" target="_blank" class="post-live-link fb-link">
+                      <i class="fa-brands fa-facebook"></i> Mở bài Page
+                    </a>
+                    <small v-if="sc.facebook_error" class="text-danger error-inline" :title="sc.facebook_error">
+                      {{ sc.facebook_error }}
+                    </small>
+                  </div>
+                </td>
+
+                <!-- Thao tác -->
+                <td class="text-center">
+                  <div class="action-btns-group">
+                    <button 
+                      v-if="canEditSchedule(sc)" 
+                      class="btn-act edit" 
+                      @click="openEditSchedule(sc)" 
+                      title="Chỉnh sửa nội dung & giờ đăng"
+                    >
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+
+                    <button 
+                      v-if="canPublishNow(sc)" 
+                      class="btn-act publish" 
+                      @click="handlePublishNow(sc)" 
+                      title="Đăng ngay lập tức"
+                    >
+                      <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+
+                    <button 
+                      v-if="canRetrySchedule(sc)" 
+                      class="btn-act retry" 
+                      @click="handleRetrySchedule(sc)" 
+                      title="Thử lại xuất bản"
+                    >
+                      <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+
+                    <button 
+                      v-if="canCancelSchedule(sc)" 
+                      class="btn-act delete" 
+                      @click="handleCancelSchedule(sc)" 
+                      title="Hủy lịch đăng"
+                    >
+                      <i class="fa-solid fa-ban"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Schedules Pagination -->
+        <div v-if="schedulesPagination.last_page > 1" class="pagination-bar">
+          <span class="pagination-info">
+            Hiển thị trang <strong>{{ schedulesPagination.current_page }}</strong> / {{ schedulesPagination.last_page }} (Tổng {{ schedulesPagination.total }} lịch đăng)
+          </span>
+          <div class="pagination-btns">
+            <button class="btn-page" :disabled="schedulesPagination.current_page <= 1" @click="fetchSchedules(schedulesPagination.current_page - 1)">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button class="btn-page" :disabled="schedulesPagination.current_page >= schedulesPagination.last_page" @click="fetchSchedules(schedulesPagination.current_page + 1)">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="loadingSchedules" class="loading-overlay">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================
+         VIEW 3: ĐỢT IMPORT EXCEL (BATCHES)
+         ======================================================== -->
+    <div v-if="activeMainTab === 'batches'" class="batches-view-section">
+      <div class="content-card card">
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th width="120">Mã đợt</th>
+                <th>Tên tệp Excel</th>
+                <th width="180">Thời gian xác nhận</th>
+                <th width="120">Kênh</th>
+                <th width="160" class="text-center">Số bài / Hợp lệ</th>
+                <th width="150" class="text-center">Trạng thái</th>
+                <th width="160" class="text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="batches.length === 0 && !loadingBatches">
+                <td colspan="7" class="text-center empty-cell">
+                  <div class="empty-state">
+                    <i class="fa-solid fa-boxes-stacked empty-icon"></i>
+                    <p>Chưa có đợt import Excel nào.</p>
+                  </div>
+                </td>
+              </tr>
+
+              <tr v-for="b in batches" :key="b.id">
+                <td><strong>#BATCH-{{ b.id }}</strong></td>
+                <td>
+                  <div class="batch-name-cell">
+                    <i class="fa-solid fa-file-excel text-emerald"></i>
+                    <span>{{ b.file_name }}</span>
+                  </div>
+                </td>
+                <td>{{ formatDateTime(b.confirmed_at || b.created_at) }}</td>
+                <td>
+                  <span class="badge-channel" :class="'channel-' + b.channel">
+                    {{ getChannelLabel(b.channel) }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <strong>{{ b.valid_rows || 0 }}</strong> / {{ b.total_rows || 0 }} bài
+                </td>
+                <td class="text-center">
+                  <span class="badge-batch-status" :class="'bstatus-' + b.status">
+                    {{ getBatchStatusLabel(b.status) }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <button class="btn-primary-sm" @click="filterSchedulesByBatch(b.id)">
+                    <i class="fa-solid fa-list-check"></i> Xem bài viết
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="loadingBatches" class="loading-overlay">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+        </div>
       </div>
     </div>
 
@@ -562,6 +970,71 @@
         </div>
       </div>
     </div>
+
+    <!-- ==========================================
+         MODAL 5: IMPORT EXCEL LỊCH ĐĂNG & DRIVE
+         ========================================== -->
+    <PostImportModal
+      :visible="showImportModal"
+      :categories="categories"
+      @close="showImportModal = false"
+      @imported="onImportCompleted"
+      @view-schedules="switchMainTab('schedules')"
+    />
+
+    <!-- ==========================================
+         MODAL 6: CẤU HÌNH KÊNH (DRIVE & FACEBOOK)
+         ========================================== -->
+    <PostChannelConfigModal
+      :visible="showChannelConfigModal"
+      @close="showChannelConfigModal = false"
+      @updated="onChannelConfigUpdated"
+    />
+
+    <!-- ==========================================
+         MODAL 7: SỬA LỊCH ĐĂNG BÀI VIẾT
+         ========================================== -->
+    <PostScheduleEditModal
+      :visible="showScheduleEditModal"
+      :schedule="targetEditSchedule"
+      :categories="categories"
+      @close="showScheduleEditModal = false"
+      @updated="fetchSchedules(schedulesPagination.current_page)"
+    />
+
+    <!-- Modal Xem Toàn Văn Bài Viết (Lịch Đăng) -->
+    <div v-if="fullContentModalItem" class="modal-overlay inner-modal" @click.self="fullContentModalItem = null">
+      <div class="modal-content card inner-content-modal animate-in">
+        <div class="modal-header">
+          <div>
+            <h3>{{ fullContentModalItem.title || fullContentModalItem.title_suggested }}</h3>
+            <p class="modal-sub">Ảnh Drive: <code>{{ fullContentModalItem.drive_image_name }}</code> • Thời gian đăng: {{ formatDateTime(fullContentModalItem.scheduled_at) }}</p>
+          </div>
+          <button class="btn-close" @click="fullContentModalItem = null"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="full-content-view">
+            {{ fullContentModalItem.content }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline" @click="fullContentModalItem = null">Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Xem Ảnh Snapshot To -->
+    <div v-if="previewImageModalUrl" class="modal-overlay inner-modal" @click.self="previewImageModalUrl = null">
+      <div class="modal-content card image-preview-modal animate-in">
+        <div class="modal-header">
+          <h3>Ảnh Snapshot Lưu Trữ Trên Máy Chủ</h3>
+          <button class="btn-close" @click="previewImageModalUrl = null"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body text-center">
+          <img :src="previewImageModalUrl" alt="Snapshot Preview" class="large-preview-img" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -570,8 +1043,59 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import baseRequest from '../../../core/baseRequest';
 import { createToaster } from "@meforma/vue-toaster";
 import PostEditorModal from './components/PostEditorModal.vue';
+import PostImportModal from './components/PostImportModal.vue';
+import PostChannelConfigModal from './components/PostChannelConfigModal.vue';
+import PostScheduleEditModal from './components/PostScheduleEditModal.vue';
 
 const toaster = createToaster({ position: "top-right" });
+
+// Main Tabs State
+const activeMainTab = ref('articles'); // 'articles' | 'schedules' | 'batches'
+
+// Schedules Automation States
+const schedules = ref([]);
+const loadingSchedules = ref(false);
+const schedulesPagination = reactive({
+  current_page: 1,
+  last_page: 1,
+  per_page: 15,
+  total: 0,
+});
+const schedulesKpi = reactive({
+  total: 0,
+  scheduled: 0,
+  website_published: 0,
+  facebook_published: 0,
+  failed: 0,
+  outcome_unknown: 0,
+});
+const scheduleFilters = reactive({
+  search: '',
+  channel: 'all',
+  status_website: 'all',
+  status_facebook: 'all',
+  batch_id: '',
+  date_from: '',
+  date_to: '',
+});
+
+// Batches States
+const batches = ref([]);
+const loadingBatches = ref(false);
+const batchesPagination = reactive({
+  current_page: 1,
+  last_page: 1,
+  per_page: 15,
+  total: 0,
+});
+
+// Modal States
+const showImportModal = ref(false);
+const showChannelConfigModal = ref(false);
+const showScheduleEditModal = ref(false);
+const targetEditSchedule = ref(null);
+const fullContentModalItem = ref(null);
+const previewImageModalUrl = ref(null);
 
 // States
 const posts = ref([]);
@@ -928,8 +1452,19 @@ const getStatusClass = (post) => {
 };
 
 const getStatusIcon = (post) => {
-  if (post.deleted_at) return 'fa-trash-can';
-  switch (post.status) {
+  if (typeof post === 'string') {
+    switch (post) {
+      case 'published': return 'fa-circle-check';
+      case 'scheduled': return 'fa-clock';
+      case 'publishing': return 'fa-spinner fa-spin';
+      case 'failed': return 'fa-circle-exclamation';
+      case 'outcome_unknown': return 'fa-triangle-exclamation';
+      case 'cancelled': return 'fa-ban';
+      default: return 'fa-minus';
+    }
+  }
+  if (post?.deleted_at) return 'fa-trash-can';
+  switch (post?.status) {
     case 'published': return 'fa-circle-check';
     case 'pending_review': return 'fa-clock';
     case 'draft': return 'fa-file-lines';
@@ -948,8 +1483,270 @@ const getStatusText = (st) => {
   }
 };
 
+// ==========================================
+// SCHEDULES & MULTI-CHANNEL AUTOMATION LOGIC
+// ==========================================
+const switchMainTab = (tab) => {
+  activeMainTab.value = tab;
+  if (tab === 'schedules') {
+    fetchSchedules(1);
+  } else if (tab === 'batches') {
+    fetchBatches(1);
+  } else {
+    fetchPosts(pagination.current_page);
+  }
+};
+
+const onRefreshCurrentView = () => {
+  if (activeMainTab.value === 'articles') {
+    fetchPosts(pagination.current_page);
+  } else if (activeMainTab.value === 'schedules') {
+    fetchSchedules(schedulesPagination.current_page);
+  } else {
+    fetchBatches(batchesPagination.current_page);
+  }
+};
+
+const downloadTemplate = () => {
+  window.open('/api/admin/post-schedules/template', '_blank');
+};
+
+let scheduleSearchTimeout = null;
+const onScheduleSearchInput = () => {
+  clearTimeout(scheduleSearchTimeout);
+  scheduleSearchTimeout = setTimeout(() => {
+    fetchSchedules(1);
+  }, 400);
+};
+
+const setScheduleFilter = (type) => {
+  if (type === 'all') {
+    scheduleFilters.status_website = 'all';
+    scheduleFilters.status_facebook = 'all';
+  } else if (type === 'scheduled') {
+    scheduleFilters.status_website = 'scheduled';
+    scheduleFilters.status_facebook = 'all';
+  } else if (type === 'website_published') {
+    scheduleFilters.status_website = 'published';
+    scheduleFilters.status_facebook = 'all';
+  } else if (type === 'facebook_published') {
+    scheduleFilters.status_website = 'all';
+    scheduleFilters.status_facebook = 'published';
+  } else if (type === 'failed') {
+    scheduleFilters.status_website = 'failed';
+    scheduleFilters.status_facebook = 'all';
+  } else if (type === 'outcome_unknown') {
+    scheduleFilters.status_website = 'all';
+    scheduleFilters.status_facebook = 'outcome_unknown';
+  }
+  fetchSchedules(1);
+};
+
+const filterSchedulesByBatch = (batchId) => {
+  scheduleFilters.batch_id = batchId;
+  activeMainTab.value = 'schedules';
+  fetchSchedules(1);
+};
+
+const fetchSchedules = async (page = 1) => {
+  loadingSchedules.value = true;
+  try {
+    const params = {
+      page,
+      per_page: schedulesPagination.per_page,
+    };
+    if (scheduleFilters.search.trim()) params.search = scheduleFilters.search.trim();
+    if (scheduleFilters.channel !== 'all') params.channel = scheduleFilters.channel;
+    if (scheduleFilters.status_website !== 'all') params.status_website = scheduleFilters.status_website;
+    if (scheduleFilters.status_facebook !== 'all') params.status_facebook = scheduleFilters.status_facebook;
+    if (scheduleFilters.batch_id) params.batch_id = scheduleFilters.batch_id;
+    if (scheduleFilters.date_from) params.date_from = scheduleFilters.date_from;
+    if (scheduleFilters.date_to) params.date_to = scheduleFilters.date_to;
+
+    const res = await baseRequest.get('admin/post-schedules', { params });
+    if (res.data?.status === 1 && res.data.data) {
+      schedules.value = res.data.data.data || [];
+      schedulesPagination.current_page = res.data.data.current_page || 1;
+      schedulesPagination.last_page = res.data.data.last_page || 1;
+      schedulesPagination.total = res.data.data.total || 0;
+
+      calculateSchedulesKpi();
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || 'Không thể tải danh sách lịch đăng bài.');
+  } finally {
+    loadingSchedules.value = false;
+  }
+};
+
+const calculateSchedulesKpi = () => {
+  schedulesKpi.total = schedulesPagination.total;
+  let scheduled = 0, webPub = 0, fbPub = 0, failed = 0, unknown = 0;
+  schedules.value.forEach(s => {
+    if (s.status_website === 'scheduled' || s.status_facebook === 'scheduled') scheduled++;
+    if (s.status_website === 'published') webPub++;
+    if (s.status_facebook === 'published') fbPub++;
+    if (s.status_website === 'failed' || s.status_facebook === 'failed') failed++;
+    if (s.status_facebook === 'outcome_unknown') unknown++;
+  });
+  schedulesKpi.scheduled = scheduled;
+  schedulesKpi.website_published = webPub;
+  schedulesKpi.facebook_published = fbPub;
+  schedulesKpi.failed = failed;
+  schedulesKpi.outcome_unknown = unknown;
+};
+
+const fetchBatches = async (page = 1) => {
+  loadingBatches.value = true;
+  try {
+    const res = await baseRequest.get('admin/post-schedules/batches', {
+      params: { page, per_page: batchesPagination.per_page }
+    });
+    if (res.data?.status === 1 && res.data.data) {
+      batches.value = res.data.data.data || [];
+      batchesPagination.current_page = res.data.data.current_page || 1;
+      batchesPagination.last_page = res.data.data.last_page || 1;
+      batchesPagination.total = res.data.data.total || 0;
+    }
+  } catch (err) {
+    toaster.error('Không thể tải danh sách đợt import.');
+  } finally {
+    loadingBatches.value = false;
+  }
+};
+
+const isUpcoming = (scheduledAt) => {
+  if (!scheduledAt) return false;
+  return new Date(scheduledAt) > new Date();
+};
+
+const getTimeRemaining = (scheduledAt) => {
+  if (!scheduledAt) return '';
+  const diffMs = new Date(scheduledAt) - new Date();
+  if (diffMs <= 0) return 'Đến giờ';
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 24) {
+    const days = Math.floor(hours / 24);
+    return `Còn ${days} ngày nữa`;
+  }
+  return `Còn ${hours}h ${mins}p`;
+};
+
+const getChannelLabel = (ch) => {
+  if (ch === 'website') return 'Website';
+  if (ch === 'facebook') return 'Facebook';
+  return 'Cả hai (Web & FB)';
+};
+
+const getStatusLabel = (st) => {
+  switch (st) {
+    case 'scheduled': return 'Chờ đến lịch';
+    case 'publishing': return 'Đang đăng...';
+    case 'published': return 'Đã xuất bản';
+    case 'failed': return 'Lỗi';
+    case 'outcome_unknown': return 'Cần đối soát';
+    case 'cancelled': return 'Đã hủy';
+    case 'not_applicable': return 'Không áp dụng';
+    default: return st;
+  }
+};
+
+const getBatchStatusLabel = (st) => {
+  switch (st) {
+    case 'draft': return 'Bản nháp';
+    case 'scheduled': return 'Đã lên lịch';
+    case 'completed': return 'Đã hoàn tất';
+    case 'partially_failed': return 'Có lỗi';
+    case 'cancelled': return 'Đã hủy';
+    default: return st;
+  }
+};
+
+const canEditSchedule = (sc) => {
+  return sc.status_website !== 'published' && sc.status_facebook !== 'published';
+};
+
+const canPublishNow = (sc) => {
+  return sc.status_website === 'scheduled' || sc.status_facebook === 'scheduled' ||
+         sc.status_website === 'failed' || sc.status_facebook === 'failed';
+};
+
+const canRetrySchedule = (sc) => {
+  return sc.status_website === 'failed' || sc.status_facebook === 'failed' || sc.status_facebook === 'outcome_unknown';
+};
+
+const canCancelSchedule = (sc) => {
+  return sc.status_website !== 'published' && sc.status_facebook !== 'published' &&
+         sc.status_website !== 'cancelled' && sc.status_facebook !== 'cancelled';
+};
+
+const openEditSchedule = (sc) => {
+  targetEditSchedule.value = sc;
+  showScheduleEditModal.value = true;
+};
+
+const handlePublishNow = async (sc) => {
+  if (!confirm(`Bạn có chắc muốn đăng bài viết "${sc.title || sc.title_suggested}" ngay lập tức?`)) return;
+  try {
+    const res = await baseRequest.post(`admin/post-schedules/${sc.id}/publish-now`);
+    if (res.data?.status === 1) {
+      toaster.success('Đã xuất bản bài viết thành công!');
+      fetchSchedules(schedulesPagination.current_page);
+    } else {
+      toaster.error(res.data?.message || 'Xuất bản thất bại.');
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || 'Lỗi khi đăng bài.');
+  }
+};
+
+const handleRetrySchedule = async (sc) => {
+  try {
+    const res = await baseRequest.post(`admin/post-schedules/${sc.id}/retry`);
+    if (res.data?.status === 1) {
+      toaster.success('Đã đưa bài viết trở lại hàng đợi xuất bản.');
+      fetchSchedules(schedulesPagination.current_page);
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || 'Không thể thử lại.');
+  }
+};
+
+const handleCancelSchedule = async (sc) => {
+  if (!confirm(`Hủy lịch đăng của bài viết này?`)) return;
+  try {
+    const res = await baseRequest.post(`admin/post-schedules/${sc.id}/cancel`);
+    if (res.data?.status === 1) {
+      toaster.success('Đã hủy lịch đăng thành công.');
+      fetchSchedules(schedulesPagination.current_page);
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || 'Không thể hủy lịch.');
+  }
+};
+
+const openFullContent = (sc) => {
+  fullContentModalItem.value = sc;
+};
+
+const openImagePreview = (url) => {
+  if (url) previewImageModalUrl.value = url;
+};
+
+const onImportCompleted = () => {
+  fetchSchedules(1);
+  fetchBatches(1);
+};
+
+const onChannelConfigUpdated = () => {
+  fetchSchedules(schedulesPagination.current_page);
+};
+
 onMounted(() => {
   fetchPosts(1);
+  // Prefetch count for schedules tab
+  fetchSchedules(1);
 });
 </script>
 
@@ -2056,5 +2853,369 @@ onMounted(() => {
   color: #334155;
   white-space: pre-wrap;
   line-height: 1.5;
+}
+
+/* ========================================================
+   MAIN TABS BAR & AUTOMATION SCHEDULER DESIGN SYSTEM
+   ======================================================== */
+.main-tabs-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  background: var(--bg-surface-alt);
+  padding: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.main-tab-btn {
+  padding: 10px 18px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.main-tab-btn:hover {
+  color: var(--color-text-main);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.main-tab-btn.active {
+  background: var(--bg-surface);
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tab-count-badge {
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.btn-emerald {
+  background: #059669 !important;
+  color: #fff !important;
+  border-color: #047857 !important;
+}
+
+.btn-emerald:hover {
+  background: #047857 !important;
+}
+
+.text-emerald {
+  color: #059669 !important;
+}
+
+/* Schedule Table Cells */
+.schedule-thumb-box {
+  position: relative;
+  width: 76px;
+  height: 50px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #0f172a;
+  cursor: pointer;
+}
+
+.schedule-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.schedule-thumb-box:hover .schedule-thumb-img {
+  transform: scale(1.08);
+}
+
+.thumb-drive-tag {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.schedule-title-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--color-text-main);
+  line-height: 1.35;
+}
+
+.batch-link-badge {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-family: monospace;
+  background: #EEF2FF;
+  color: #4F46E5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.batch-link-badge:hover {
+  background: #E0E7FF;
+}
+
+.schedule-content-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.content-preview-line {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.btn-read-more {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.schedule-time-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.time-main {
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.time-countdown {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* Badges */
+.badge-channel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.badge-channel.channel-website {
+  background: #EEF2FF;
+  color: #4338CA;
+}
+
+.badge-channel.channel-facebook {
+  background: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.badge-channel.channel-both {
+  background: #ECFDF5;
+  color: #065F46;
+}
+
+.status-cell-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.badge-status-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.badge-status-pill.status-scheduled {
+  background: #FFFBEB;
+  color: #B45309;
+}
+
+.badge-status-pill.status-publishing {
+  background: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.badge-status-pill.status-published {
+  background: #ECFDF5;
+  color: #065F46;
+}
+
+.badge-status-pill.status-failed {
+  background: #FEF2F2;
+  color: #B91C1C;
+}
+
+.badge-status-pill.status-outcome_unknown {
+  background: #FFF7ED;
+  color: #C2410C;
+}
+
+.badge-status-pill.status-cancelled {
+  background: #F1F5F9;
+  color: #64748B;
+}
+
+.badge-status-pill.status-not_applicable {
+  background: #F8FAFC;
+  color: #94A3B8;
+}
+
+.post-live-link {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.post-live-link:hover {
+  text-decoration: underline;
+}
+
+.post-live-link.fb-link {
+  color: #1877F2;
+}
+
+.error-inline {
+  font-size: 0.7rem;
+  line-height: 1.25;
+  max-width: 140px;
+  display: block;
+}
+
+.action-btns-group {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.btn-act.publish {
+  background: #ECFDF5;
+  color: #059669;
+}
+
+.btn-act.publish:hover {
+  background: #059669;
+  color: #fff;
+}
+
+.btn-act.retry {
+  background: #EFF6FF;
+  color: #2563EB;
+}
+
+.btn-act.retry:hover {
+  background: #2563EB;
+  color: #fff;
+}
+
+.btn-clear-filters {
+  padding: 6px 12px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Batch Table Styles */
+.batch-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.badge-batch-status {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.badge-batch-status.bstatus-scheduled {
+  background: #FFFBEB;
+  color: #B45309;
+}
+
+.badge-batch-status.bstatus-completed {
+  background: #ECFDF5;
+  color: #065F46;
+}
+
+.badge-batch-status.bstatus-partially_failed {
+  background: #FEF2F2;
+  color: #B91C1C;
+}
+
+.badge-batch-status.bstatus-draft {
+  background: #F1F5F9;
+  color: #64748B;
+}
+
+.badge-batch-status.bstatus-cancelled {
+  background: #F1F5F9;
+  color: #94A3B8;
+}
+
+.image-preview-modal {
+  max-width: 800px;
+}
+
+.large-preview-img {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>

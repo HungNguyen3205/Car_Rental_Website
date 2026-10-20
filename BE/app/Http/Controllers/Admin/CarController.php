@@ -612,4 +612,48 @@ class CarController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * AI Tách nền và chuẩn hóa tỷ lệ ảnh xe (Canvas 1600x1000, 8:5, WebP).
+     */
+    public function aiNormalizeImage(Request $request, \App\Services\Car\CarImageAiService $aiService)
+    {
+        $request->validate([
+            'image'     => 'nullable|file|image|mimes:jpeg,jpg,png,webp|max:10240',
+            'image_url' => 'nullable|string',
+        ], [
+            'image.image' => 'Tệp tải lên phải là hình ảnh hợp lệ!',
+            'image.mimes' => 'Hình ảnh chỉ chấp nhận định dạng jpeg, jpg, png, webp!',
+            'image.max'   => 'Dung lượng ảnh tối đa 10MB!',
+        ]);
+
+        if (!$request->hasFile('image') && empty($request->image_url)) {
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Vui lòng cung cấp tệp ảnh hoặc đường dẫn ảnh cần chuẩn hóa!',
+            ], 422);
+        }
+
+        try {
+            $input = $request->hasFile('image') ? $request->file('image') : $request->image_url;
+            $result = $aiService->process($input);
+
+            return response()->json([
+                'status'  => 1,
+                'message' => 'Chuẩn hóa và tách nền ảnh xe thành công!',
+                'data'    => $result,
+            ]);
+        } catch (\DomainException $de) {
+            return response()->json([
+                'status'  => 0,
+                'message' => $de->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error("Car aiNormalizeImage error: " . $e->getMessage());
+            return response()->json([
+                'status'  => 0,
+                'message' => 'Có lỗi xảy ra trong quá trình xử lý tách nền: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

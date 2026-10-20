@@ -7,10 +7,12 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "google/apiclient": "*",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
         "laravel/socialite": "^5.18",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "phpoffice/phpspreadsheet": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -75,7 +77,7 @@
         }
     },
     "config": {
-        "optimize-autoloader": true,
+        "optimize-autoloader": false,
         "preferred-install": "dist",
         "sort-packages": true,
         "allow-plugins": {

@@ -358,7 +358,7 @@
                     <i class="fa-solid fa-photo-film"></i>
                     <span>Chọn từ Thư viện tài nguyên</span>
                   </button>
-                  <label class="btn-secondary btn-file-upload" :class="{ disabled: uploadingMain }">
+                  <label class="btn-secondary btn-file-upload" :class="{ disabled: uploadingMain || normalizingAi }">
                     <i v-if="uploadingMain" class="fa-solid fa-spinner fa-spin"></i>
                     <i v-else class="fa-solid fa-cloud-arrow-up"></i>
                     <span>{{ uploadingMain ? 'Đang tải ảnh...' : 'Tải ảnh từ máy tính' }}</span>
@@ -366,11 +366,38 @@
                       type="file" 
                       accept="image/png,image/jpeg,image/webp" 
                       @change="onUploadMainImage" 
-                      :disabled="uploadingMain" 
+                      :disabled="uploadingMain || normalizingAi" 
                       hidden
                     />
                   </label>
                   <small class="helper-text">Định dạng hỗ trợ: JPG, PNG, WEBP (Tối đa 5MB)</small>
+                </div>
+
+                <!-- AI Background Removal & Normalization Controls -->
+                <div class="ai-action-bar mt-2">
+                  <button 
+                    type="button" 
+                    class="btn-ai-action" 
+                    :disabled="normalizingAi || !form.image"
+                    @click="triggerAiNormalizeCurrent"
+                    title="Tách nền và căn khung 1600x1000px chuẩn hóa cho ảnh hiện tại"
+                  >
+                    <i class="fa-solid fa-wand-magic-sparkles" :class="{ 'fa-spin': normalizingAi }"></i>
+                    <span>{{ normalizingAi ? 'AI đang tách nền & chuẩn hóa...' : '✦ AI Xóa nền & Chuẩn hóa (1600×1000)' }}</span>
+                  </button>
+
+                  <label class="btn-ai-action secondary" :class="{ disabled: normalizingAi }">
+                    <i v-if="normalizingAi" class="fa-solid fa-spinner fa-spin"></i>
+                    <i v-else class="fa-solid fa-upload"></i>
+                    <span>Tải ảnh & Xóa nền ngay</span>
+                    <input 
+                      type="file" 
+                      accept="image/png,image/jpeg,image/webp" 
+                      @change="onUploadAndAiNormalize" 
+                      :disabled="normalizingAi" 
+                      hidden
+                    />
+                  </label>
                 </div>
 
                 <div class="url-input-group mt-2">
@@ -802,6 +829,65 @@
       @close="showMediaPicker = false" 
       @select="onSelectFromMediaPicker" 
     />
+
+    <!-- AI Background Removal & Normalization Review Modal -->
+    <div v-if="showAiReviewModal" class="modal-overlay" @click.self="showAiReviewModal = false">
+      <div class="modal-content ai-review-modal card animate-in">
+        <div class="modal-header">
+          <div>
+            <h3><i class="fa-solid fa-wand-magic-sparkles text-emerald"></i> Kiểm tra & Phê duyệt Ảnh Xe Chuẩn Hóa</h3>
+            <p class="modal-sub">So sánh ảnh gốc và ảnh tách nền canvas 1600×1000px (8:5, WebP). Admin phê duyệt trước khi áp dụng.</p>
+          </div>
+          <button class="btn-close" @click="showAiReviewModal = false"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="ai-compare-grid">
+            <!-- Cột ảnh gốc -->
+            <div class="compare-card">
+              <div class="compare-card-header">
+                <span class="compare-badge badge-orig">Ảnh gốc ban đầu</span>
+                <span class="compare-meta" v-if="aiResult?.original_size">
+                  {{ aiResult.original_size[0] }} × {{ aiResult.original_size[1] }}px
+                </span>
+              </div>
+              <div class="compare-img-box orig-box">
+                <img :src="aiResult?.original_url" alt="Original Car" class="compare-img" />
+              </div>
+            </div>
+
+            <!-- Cột ảnh đã xử lý -->
+            <div class="compare-card">
+              <div class="compare-card-header">
+                <span class="compare-badge badge-processed">✦ Chuẩn hóa 1600×1000 (Tách nền)</span>
+                <span class="compare-meta">WebP 8:5 • Nền trong suốt</span>
+              </div>
+              <div class="compare-img-box checkerboard-bg">
+                <img :src="aiResult?.processed_url" alt="Processed Car" class="compare-img" />
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-spec-notice">
+            <i class="fa-solid fa-circle-check text-emerald"></i>
+            <div>
+              <strong>Quy chuẩn bảo toàn:</strong> Canvas chuẩn 1600×1000px (8:5), nền trong suốt RGBA, giữ nguyên 100% màu sơn, chi tiết xe, mâm và phụ kiện (không sinh lại bằng generative AI). Tự động tạo thumbnail WebP 320×200px.
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer flex-between">
+          <button type="button" class="btn-outline" @click="showAiReviewModal = false">
+            Giữ ảnh cũ / Hủy bỏ
+          </button>
+          <div class="footer-actions">
+            <button type="button" class="btn-primary btn-emerald" @click="applyAiProcessedImage">
+              <i class="fa-solid fa-check"></i> Phê duyệt & Áp dụng cho xe
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -878,6 +964,9 @@ const activeSection = ref('sec-basic');
 const showPreviewModal = ref(false);
 const showConflictModal = ref(false);
 const conflictServerUpdatedAt = ref('');
+const showAiReviewModal = ref(false);
+const normalizingAi = ref(false);
+const aiResult = ref(null);
 
 // Table of Contents definition
 const tocItems = [
@@ -1112,6 +1201,71 @@ const onSelectFromMediaPicker = (selected) => {
       toaster.success(`Đã thêm ${newUrls.length} ảnh từ Thư viện vào Gallery!`);
     }
   }
+};
+
+// AI Image Normalization & Background Removal
+const triggerAiNormalizeCurrent = async () => {
+  if (!form.image) {
+    toaster.warning("Vui lòng tải hoặc chọn ảnh đại diện trước khi chạy AI chuẩn hóa.");
+    return;
+  }
+  normalizingAi.value = true;
+  try {
+    const res = await baseRequest.post('admin/cars/ai-normalize-image', {
+      image_url: form.image
+    });
+    if (res.data && res.data.status && res.data.data) {
+      aiResult.value = res.data.data;
+      showAiReviewModal.value = true;
+      toaster.success("Tách nền & chuẩn hóa thành công! Vui lòng duyệt trước khi áp dụng.");
+    } else {
+      toaster.error(res.data?.message || "Không thể chuẩn hóa ảnh xe.");
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || "Lỗi khi xử lý ảnh xe bằng AI.");
+  } finally {
+    normalizingAi.value = false;
+  }
+};
+
+const onUploadAndAiNormalize = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 8 * 1024 * 1024) {
+    toaster.error("Kích thước tệp không được vượt quá 8MB!");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  normalizingAi.value = true;
+  try {
+    const res = await baseRequest.post('admin/cars/ai-normalize-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    if (res.data && res.data.status && res.data.data) {
+      aiResult.value = res.data.data;
+      showAiReviewModal.value = true;
+      toaster.success("Tải ảnh và chuẩn hóa thành công! Vui lòng xem trước và phê duyệt.");
+    } else {
+      toaster.error(res.data?.message || "Không thể xử lý ảnh.");
+    }
+  } catch (err) {
+    toaster.error(err.response?.data?.message || "Lỗi xử lý ảnh từ máy chủ.");
+  } finally {
+    normalizingAi.value = false;
+    e.target.value = '';
+  }
+};
+
+const applyAiProcessedImage = () => {
+  if (!aiResult.value?.processed_url) return;
+  form.image = aiResult.value.processed_url;
+  markDirty();
+  showAiReviewModal.value = false;
+  toaster.success("Đã phê duyệt và áp dụng ảnh xe chuẩn hóa (1600×1000 WebP)!");
 };
 
 // Fetch initial data
@@ -2103,6 +2257,172 @@ onUnmounted(() => {
     grid-column: span 1;
   }
   .preview-layout {
+    grid-template-columns: 1fr;
+  }
+}
+/* AI Normalization & Review Modal */
+.ai-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-ai-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: #fff;
+  border: 1px solid #059669;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-ai-action:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.btn-ai-action:disabled,
+.btn-ai-action.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-ai-action.secondary {
+  background: var(--bg-surface-alt);
+  color: var(--color-text-main);
+  border: 1px solid var(--color-border);
+}
+
+.btn-ai-action.secondary:hover:not(.disabled) {
+  background: var(--color-border-light);
+  box-shadow: none;
+}
+
+.ai-review-modal {
+  max-width: 960px;
+  width: 95%;
+}
+
+.text-emerald {
+  color: #10B981 !important;
+}
+
+.btn-emerald {
+  background: #10B981 !important;
+  border-color: #059669 !important;
+  color: #fff !important;
+}
+
+.btn-emerald:hover {
+  background: #059669 !important;
+}
+
+.ai-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.compare-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.78rem;
+}
+
+.compare-badge {
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.compare-badge.badge-orig {
+  background: #E2E8F0;
+  color: #475569;
+}
+
+.compare-badge.badge-processed {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.compare-meta {
+  color: var(--color-text-muted);
+}
+
+.compare-img-box {
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.compare-img-box.orig-box {
+  background: #F8FAFC;
+}
+
+.checkerboard-bg {
+  background-color: #F1F5F9;
+  background-image: linear-gradient(45deg, #E2E8F0 25%, transparent 25%),
+                    linear-gradient(-45deg, #E2E8F0 25%, transparent 25%),
+                    linear-gradient(45deg, transparent 75%, #E2E8F0 75%),
+                    linear-gradient(-45deg, transparent 75%, #E2E8F0 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.compare-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ai-spec-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  border-radius: var(--radius-sm);
+  color: #065F46;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .ai-compare-grid {
     grid-template-columns: 1fr;
   }
 }
