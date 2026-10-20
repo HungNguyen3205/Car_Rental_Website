@@ -15,6 +15,9 @@ class CreateContactRequest extends BaseApiRequest
             'tieu_de'       => ['required', 'string', 'min:3', 'max:200'],
             'noi_dung'      => ['required', 'string', 'min:5', 'max:3000'],
             'car_id'        => ['nullable', 'integer', 'exists:cars,id'],
+            'rental_date'   => ['nullable', 'date'],
+            'source'        => ['nullable', 'string', 'max:100'],
+            'website_hp'    => ['nullable', 'string', 'max:0'],
         ];
     }
 
@@ -28,12 +31,15 @@ class CreateContactRequest extends BaseApiRequest
             'email.max'              => 'Địa chỉ email không được vượt quá 150 ký tự!',
             'so_dien_thoai.max'      => 'Số điện thoại không được vượt quá 20 ký tự!',
             'so_dien_thoai.regex'    => 'Số điện thoại chứa ký tự không hợp lệ!',
-            'tieu_de.required'       => 'Vui lòng nhập tiêu đề yêu cầu liên hệ!',
+            'tieu_de.required'       => 'Vui lòng chọn hoặc nhập tiêu đề yêu cầu liên hệ!',
             'tieu_de.min'            => 'Tiêu đề phải có tối thiểu 3 ký tự!',
             'tieu_de.max'            => 'Tiêu đề không được vượt quá 200 ký tự!',
             'noi_dung.required'      => 'Vui lòng nhập nội dung cần hỗ trợ hoặc phản ánh!',
             'noi_dung.min'           => 'Nội dung phản ánh cần có ít nhất 5 ký tự!',
             'noi_dung.max'           => 'Nội dung phản ánh không được vượt quá 3000 ký tự!',
+            'car_id.exists'          => 'Xe được chọn không tồn tại trong hệ thống!',
+            'rental_date.date'       => 'Ngày dự kiến thuê không đúng định dạng hợp lệ!',
+            'website_hp.max'         => 'Phát hiện hành vi gửi biểu mẫu tự động (spam).',
         ];
     }
 }

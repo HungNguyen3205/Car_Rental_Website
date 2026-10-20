@@ -142,6 +142,64 @@ class ContactAndNotificationTest extends TestCase
     }
 
     /**
+     * 2b. Test chặn bot spam tự động điền trường honeypot (website_hp)
+     */
+    public function test_contact_form_blocks_honeypot_bot_submission(): void
+    {
+        $payload = [
+            'ho_ten'     => 'Spam Bot',
+            'email'      => 'bot@spam.com',
+            'tieu_de'    => 'Mua bán dịch vụ quảng cáo',
+            'noi_dung'   => 'Nội dung spam quảng cáo tự động điền toàn bộ trường',
+            'website_hp' => 'http://spam-link.example.com',
+        ];
+
+        $response = $this->postJson('/api/contact', $payload);
+        $response->assertStatus(422)
+            ->assertJson([
+                'status' => 0,
+            ]);
+
+        $this->assertDatabaseMissing('contacts', [
+            'email' => 'bot@spam.com',
+        ]);
+    }
+
+    /**
+     * 2c. Test lưu thông tin xe quan tâm và ngày dự kiến thuê vào cơ sở dữ liệu
+     */
+    public function test_contact_form_stores_car_and_rental_date(): void
+    {
+        $payload = [
+            'ho_ten'        => 'Hoàng Nhật Minh',
+            'email'         => 'nhatminh@example.com',
+            'so_dien_thoai' => '0933445566',
+            'car_id'        => $this->car->id,
+            'rental_date'   => '2026-11-15',
+            'source'        => 'Trang Liên hệ',
+            'tieu_de'       => 'Tư vấn thuê xe VF8 đi công tác',
+            'noi_dung'      => 'Xin báo giá trọn gói 3 ngày có tài xế hoặc tự lái.',
+        ];
+
+        $response = $this->postJson('/api/contact', $payload);
+        $response->assertStatus(201)
+            ->assertJson([
+                'status' => 1,
+            ]);
+
+        $this->assertDatabaseHas('contacts', [
+            'email'   => 'nhatminh@example.com',
+            'car_id'  => $this->car->id,
+            'tieu_de' => 'Tư vấn thuê xe VF8 đi công tác',
+        ]);
+
+        $contact = Contact::where('email', 'nhatminh@example.com')->first();
+        $this->assertNotNull($contact);
+        $this->assertStringContainsString('15/11/2026', $contact->noi_dung);
+        $this->assertStringContainsString('Trang Liên hệ', $contact->noi_dung);
+    }
+
+    /**
      * 3. Test quyền đọc và cập nhật trạng thái liên hệ của Admin
      */
     public function test_admin_contact_authorization_and_status_update(): void
