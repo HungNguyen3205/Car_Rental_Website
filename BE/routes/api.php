@@ -210,6 +210,16 @@ Route::group(['middleware' => ['auth:sanctum,admin', \App\Http\Middleware\Ensure
             Route::delete('/{id}', [\App\Http\Controllers\Admin\MediaController::class, 'destroy']);
         });
 
+        // Isolated image trial: never publishes posts or changes rental vehicle photos.
+        Route::group(['prefix' => 'post-image-trials', 'middleware' => 'permission:posts.create,posts.publish,admins.manage'], function () {
+            $controller = \App\Http\Controllers\Admin\PollinationsPreviewController::class;
+            Route::get('/config', [$controller, 'config']);
+            Route::post('/', [$controller, 'store'])->middleware('throttle:5,1');
+            Route::get('/{id}', [$controller, 'show']);
+            Route::get('/{id}/image', [$controller, 'image']);
+            Route::post('/{id}/approve', [$controller, 'approve'])->middleware('throttle:10,1');
+        });
+
         // Quản lý bài viết & Tin tức (Posts & Editorial Management)
         Route::group(['prefix' => 'posts', 'middleware' => 'permission:posts.view,posts.create,posts.review,posts.publish,admins.manage'], function () {
             Route::get('/', [\App\Http\Controllers\Admin\PostController::class, 'index']);

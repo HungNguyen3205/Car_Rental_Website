@@ -354,6 +354,7 @@
             <!-- Featured Image URL with Media Picker Button -->
             <div class="form-group" :class="{ 'has-error': fieldErrors.featured_image }">
               <label class="form-label">Ảnh đại diện bài viết:</label>
+              <PollinationsImageTrial :key="postId || 'new'" :title="form.title" @selected="image => { form.featured_image = image.url; form.featured_image_alt = image.alt; markDirty(); }" />
               <div class="media-input-group">
                 <input 
                   type="text" 
@@ -828,6 +829,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import baseRequest from '../../../../core/baseRequest';
+import PollinationsImageTrial from './PollinationsImageTrial.vue';
 import { createToaster } from "@meforma/vue-toaster";
 
 const toaster = createToaster({ position: "top-right" });
