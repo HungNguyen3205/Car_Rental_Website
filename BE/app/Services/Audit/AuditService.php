@@ -88,8 +88,16 @@ class AuditService
 
         $result = [];
         foreach ($data as $key => $value) {
-            $lowerKey = strtolower($key);
-            if (in_array($lowerKey, self::$sensitiveFields, true)) {
+            $lowerKey = strtolower((string) $key);
+            $isSensitive = in_array($lowerKey, self::$sensitiveFields, true) ||
+                str_contains($lowerKey, 'password') ||
+                str_contains($lowerKey, 'token') ||
+                str_contains($lowerKey, 'secret') ||
+                str_contains($lowerKey, 'apikey') ||
+                str_contains($lowerKey, 'api_key') ||
+                str_contains($lowerKey, 'cvv');
+
+            if ($isSensitive) {
                 $result[$key] = '[REDACTED]';
             } elseif (is_array($value)) {
                 $result[$key] = self::sanitize($value);

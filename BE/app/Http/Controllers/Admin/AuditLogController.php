@@ -26,22 +26,25 @@ class AuditLogController extends Controller
             $query->where('actor_type', $request->actor_type);
         }
 
-        // 3. Lọc theo loại đối tượng tác động (target_type: Car, Booking, Admin, User...)
+        // 3. Lọc theo loại đối tượng tác động (target_type: Car, Booking, Admin, User, SystemSetting...)
         if ($request->filled('target_type')) {
             $query->where('target_type', $request->target_type);
         }
 
-        // 4. Lọc theo khoảng thời gian
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+        // 4. Lọc theo khoảng thời gian (hỗ trợ cả date_from/date_to lẫn start_date/end_date)
+        $dateFrom = $request->input('date_from') ?? $request->input('start_date');
+        $dateTo = $request->input('date_to') ?? $request->input('end_date');
+
+        if (!empty($dateFrom)) {
+            $query->whereDate('created_at', '>=', $dateFrom);
         }
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+        if (!empty($dateTo)) {
+            $query->whereDate('created_at', '<=', $dateTo);
         }
 
         // 5. Tìm kiếm từ khóa tự do
         if ($request->filled('search')) {
-            $keyword = trim($request->search);
+            $keyword = trim((string) $request->search);
             $query->where(function ($q) use ($keyword) {
                 $q->where('target_label', 'like', "%{$keyword}%")
                   ->orWhere('actor_name', 'like', "%{$keyword}%")
@@ -58,9 +61,16 @@ class AuditLogController extends Controller
 
         $logs = $query->paginate($perPage);
 
+        // Đảm bảo dữ liệu nhạy cảm được khử trùng sạch sẽ trước khi trả về Frontend
+        $items = collect($logs->items())->map(function ($log) {
+            $log->old_values = \App\Services\Audit\AuditService::sanitize($log->old_values);
+            $log->new_values = \App\Services\Audit\AuditService::sanitize($log->new_values);
+            return $log;
+        });
+
         return response()->json([
-            'status' => 1,
-            'data'   => $logs->items(),
+            'status'     => 1,
+            'data'       => $items,
             'pagination' => [
                 'current_page' => $logs->currentPage(),
                 'last_page'    => $logs->lastPage(),

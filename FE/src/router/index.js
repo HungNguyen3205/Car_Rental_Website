@@ -173,6 +173,12 @@ const routes = [
                 path: 'content',
                 name: 'AdminContent',
                 component: () => import('../pages/Admin/Content/index.vue'),
+            },
+            {
+                path: 'audit-logs',
+                name: 'AdminAuditLogs',
+                component: () => import('../pages/Admin/AuditLogs/index.vue'),
+                meta: { title: 'Nhật ký hoạt động' },
             }
         ]
     }
@@ -259,6 +265,24 @@ router.beforeEach(async (to, from, next) => {
     }
 
     next();
+});
+
+// Dynamic Title & SEO Consumer
+router.afterEach((to) => {
+    try {
+        const cachedRaw = localStorage.getItem('driverent_public_settings');
+        let suffix = ' - Dịch Vụ Thuê Xe Điện VinFast Uy Tín';
+        if (cachedRaw) {
+            const parsed = JSON.parse(cachedRaw);
+            if (parsed.seo_meta_title_suffix) {
+                suffix = parsed.seo_meta_title_suffix;
+            }
+        }
+        const pageName = to.meta?.title || to.name || 'DriveRent';
+        document.title = `${pageName}${suffix}`;
+    } catch (e) {
+        // Fallback
+    }
 });
 
 export default router;

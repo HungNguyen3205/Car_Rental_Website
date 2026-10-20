@@ -77,6 +77,10 @@
                         <div class="icon-box"><i class="fa-solid fa-shield-halved"></i></div>
                         <span>Tài khoản Admin</span>
                     </router-link>
+                    <router-link v-if="canAny('audit_logs.view', 'admins.manage')" to="/admin/audit-logs" class="nav-link" active-class="active" @click="$emit('close')">
+                        <div class="icon-box"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                        <span>Nhật ký hoạt động</span>
+                    </router-link>
                     <router-link v-if="canAny('settings.manage', 'admins.manage')" to="/admin/settings" class="nav-link" active-class="active" @click="$emit('close')">
                         <div class="icon-box"><i class="fa-solid fa-sliders"></i></div>
                         <span>Cấu hình & Danh mục</span>
