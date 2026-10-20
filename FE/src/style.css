@@ -772,3 +772,20 @@ html[data-animation-mode="reduced"] *::after {
     border-radius: var(--radius-lg);
   }
 }
+
+/* ==========================================================================
+   Scrollbar Hiding Utilities
+   ========================================================================== */
+
+.no-scrollbar,
+.hide-scrollbar {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+.no-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
+  width: 0 !important;
+  height: 0 !important;
+}

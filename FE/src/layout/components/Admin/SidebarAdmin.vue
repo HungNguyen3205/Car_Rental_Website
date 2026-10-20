@@ -196,6 +196,14 @@ const handleLogout = async () => {
     overflow: hidden;
     background: #0B1220;
     border: 1px solid rgba(255, 255, 255, 0.08);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sidebar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
 }
 
 .sidebar-header {
@@ -262,6 +270,15 @@ const handleLogout = async () => {
     flex-direction: column;
     gap: 28px;
     overflow-y: auto;
+    /* Completely hide scrollbars while preserving full scrollability */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.sidebar-nav::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+    width: 0;
+    height: 0;
 }
 
 .nav-group {
