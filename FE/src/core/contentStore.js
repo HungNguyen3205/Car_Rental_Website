@@ -128,9 +128,9 @@ export const defaultContents = {
     ai_desc: 'Tra cứu thông số xe, bảng giá hoặc hướng dẫn đặt cọc ngay trong 5 giây mà không cần chờ đợi.',
   },
   process_page: {
-    badge: 'Quy trình đơn giản',
-    title: '4 Bước Thuê Xe Nhanh Chóng',
-    hero_desc: 'Bắt đầu hành trình của bạn chỉ trong vài phút với quy trình tối giản, trực quan và bảo mật.',
+    badge: 'MINH BẠCH • TINH GỌN • SỐ HÓA',
+    title: 'Quy Trình Thuê Xe Thông Minh',
+    hero_desc: 'Bắt đầu hành trình của bạn chỉ trong vài phút với quy trình số hóa 5 giai đoạn minh bạch, trực quan và an toàn tuyệt đối.',
     steps: [
       {
         step_number: '01',
