@@ -789,3 +789,15 @@ html[data-animation-mode="reduced"] *::after {
   width: 0 !important;
   height: 0 !important;
 }
+
+/* ==========================================================================
+   Table ID Badges (Never wrap hyphenated ID codes like #CAT-1, #REQ-12)
+   ========================================================================== */
+
+.id-tag,
+.tag-id,
+.badge-id {
+  white-space: nowrap !important;
+  display: inline-block !important;
+  word-break: keep-all !important;
+}

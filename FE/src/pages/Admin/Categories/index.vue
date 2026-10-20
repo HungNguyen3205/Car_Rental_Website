@@ -112,7 +112,7 @@
         <table class="premium-table" v-if="categories.length > 0">
           <thead>
             <tr>
-              <th width="100">Mã ID</th>
+              <th width="110" class="col-id">Mã ID</th>
               <th>Tên phân hạng / Danh mục</th>
               <th>Mô tả đặc điểm</th>
               <th width="160" class="text-center">Số xe đang gán</th>
@@ -123,7 +123,7 @@
           </thead>
           <tbody>
             <tr v-for="cat in categories" :key="cat.id" :class="{ 'row-inactive': !cat.is_active }">
-              <td>
+              <td class="col-id">
                 <span class="id-tag">#CAT-{{ cat.id }}</span>
               </td>
               <td>
@@ -934,14 +934,23 @@ onMounted(() => {
   background: #FFFDF7;
 }
 
+.col-id {
+  white-space: nowrap !important;
+  width: 110px;
+  min-width: 95px;
+}
+
 .id-tag {
+  display: inline-block;
+  white-space: nowrap !important;
   font-family: monospace;
   font-size: 11px;
   background: #F1F5F9;
   color: #475569;
   padding: 3px 8px;
   border-radius: 6px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
 .cat-title-cell {
