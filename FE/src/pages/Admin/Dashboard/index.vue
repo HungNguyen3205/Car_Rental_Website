@@ -424,7 +424,7 @@
 
         <!-- Biểu đồ cột CSS Bars -->
         <div class="chart-container">
-          <div v-if="stats.revenue_chart && stats.revenue_chart.length > 0" class="bar-chart">
+          <div v-if="stats.revenue_chart && stats.revenue_chart.length > 0" class="bar-chart" :class="{ 'compact-bars': stats.revenue_chart.length > 14 }">
             <div v-for="(item, index) in stats.revenue_chart" :key="index" class="bar-wrapper">
               <div 
                 class="bar-track"
@@ -434,10 +434,21 @@
                   class="bar-fill" 
                   :style="{ height: getBarHeightPercent(item) + '%' }"
                 >
-                  <span class="bar-tooltip">{{ formatCurrency(item.valid_paid_revenue ?? item.total) }}</span>
+                  <span class="bar-tooltip">
+                    <strong class="tooltip-date">{{ item.label || item.month }}</strong>
+                    <span>{{ formatCurrency(item.valid_paid_revenue ?? item.total) }}</span>
+                  </span>
                 </div>
               </div>
-              <span class="bar-label">{{ item.label || item.month }}</span>
+              <span 
+                class="bar-label" 
+                :class="{ 
+                  'label-dim': !shouldShowBarLabel(index, stats.revenue_chart.length),
+                  'label-active': shouldShowBarLabel(index, stats.revenue_chart.length) 
+                }"
+              >
+                {{ shouldShowBarLabel(index, stats.revenue_chart.length) ? (item.label || item.month) : '•' }}
+              </span>
             </div>
           </div>
           <div v-else class="empty-chart">
@@ -577,7 +588,7 @@ const datePresets = [
   { id: 'all', label: 'Toàn bộ' }
 ];
 
-const selectedPreset = ref('30days');
+const selectedPreset = ref('7days');
 const selectedDateBy = ref('payment_date');
 const customStartDate = ref('');
 const customEndDate = ref('');
@@ -697,30 +708,47 @@ const getBarHeightPercent = (item) => {
   return Math.min(100, Math.max(6, Math.round((val / maxRevenueValue.value) * 100)));
 };
 
+// Hiển thị nhãn trục hoành thông minh, chống đè chữ khi dải ngày dài
+const shouldShowBarLabel = (index, total) => {
+  if (total <= 10) return true; // Dưới 10 cột: hiển thị đầy đủ
+  if (total <= 16) return index % 2 === 0 || index === total - 1; // 10-16 cột: hiển thị cách 1 ngày
+  // Nếu > 16 cột (ví dụ 30 ngày): hiển thị mốc cách quãng đều đặn và mốc cuối cùng
+  const step = Math.ceil(total / 6);
+  return index % step === 0 || index === total - 1;
+};
+
+// Format ngày YYYY-MM-DD theo múi giờ địa phương
+const formatDateYmd = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 // Áp dụng Preset ngày
 const applyPreset = (presetId) => {
   selectedPreset.value = presetId;
   const today = new Date();
 
   if (presetId === 'today') {
-    const ymd = today.toISOString().slice(0, 10);
+    const ymd = formatDateYmd(today);
     customStartDate.value = ymd;
     customEndDate.value = ymd;
   } else if (presetId === '7days') {
     const past = new Date(today);
     past.setDate(past.getDate() - 6);
-    customStartDate.value = past.toISOString().slice(0, 10);
-    customEndDate.value = today.toISOString().slice(0, 10);
+    customStartDate.value = formatDateYmd(past);
+    customEndDate.value = formatDateYmd(today);
   } else if (presetId === '30days') {
     const past = new Date(today);
     past.setDate(past.getDate() - 29);
-    customStartDate.value = past.toISOString().slice(0, 10);
-    customEndDate.value = today.toISOString().slice(0, 10);
+    customStartDate.value = formatDateYmd(past);
+    customEndDate.value = formatDateYmd(today);
   } else if (presetId === 'this_month') {
     const start = new Date(today.getFullYear(), today.getMonth(), 1);
     const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    customStartDate.value = start.toISOString().slice(0, 10);
-    customEndDate.value = end.toISOString().slice(0, 10);
+    customStartDate.value = formatDateYmd(start);
+    customEndDate.value = formatDateYmd(end);
   } else if (presetId === 'all') {
     customStartDate.value = '';
     customEndDate.value = '';
@@ -822,7 +850,7 @@ const getPaymentStatusClass = (b) => {
 };
 
 onMounted(() => {
-  applyPreset('30days');
+  applyPreset('7days');
 });
 </script>
 
@@ -1612,6 +1640,8 @@ onMounted(() => {
   align-items: flex-end;
   padding: 10px 0 0 0;
   margin-top: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .bar-chart {
@@ -1620,7 +1650,11 @@ onMounted(() => {
   display: flex;
   align-items: flex-end;
   justify-content: space-around;
-  gap: 8px;
+  gap: 12px;
+}
+
+.bar-chart.compact-bars {
+  gap: 4px;
 }
 
 .bar-wrapper {
@@ -1630,62 +1664,90 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  min-width: 24px;
+  min-width: 18px;
 }
 
 .bar-track {
   width: 100%;
-  max-width: 38px;
+  max-width: 44px;
   height: calc(100% - 24px);
   display: flex;
   align-items: flex-end;
   background: #f8fafc;
   border-radius: 6px 6px 0 0;
   position: relative;
+  border: 1px solid #f1f5f9;
+}
+
+.compact-bars .bar-track {
+  max-width: 24px;
 }
 
 .bar-fill {
   width: 100%;
-  background: #059669;
-  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  border-radius: 5px 5px 0 0;
   position: relative;
   transition: height 0.3s ease;
   min-height: 4px;
 }
 
 .bar-fill:hover {
-  background: #047857;
+  background: linear-gradient(180deg, #34d399 0%, #047857 100%);
 }
 
 .bar-tooltip {
   position: absolute;
-  bottom: 105%;
+  bottom: 110%;
   left: 50%;
   transform: translateX(-50%);
   background: #0f172a;
   color: #ffffff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.tooltip-date {
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
 .bar-wrapper:hover .bar-tooltip {
   opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
 }
 
 .bar-label {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   color: #64748b;
   font-weight: 600;
-  margin-top: 6px;
+  margin-top: 8px;
   text-align: center;
   white-space: nowrap;
+  line-height: 1;
+}
+
+.bar-label.label-dim {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.bar-label.label-active {
+  color: #334155;
+  font-weight: 700;
 }
 
 .empty-chart {
