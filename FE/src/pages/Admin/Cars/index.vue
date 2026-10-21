@@ -69,55 +69,87 @@
         </button>
       </div>
 
-      <!-- Search & Filters -->
+      <!-- Search & Filters Toolbar -->
       <div class="table-tools">
-        <div class="search-input">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <input 
-            type="text" 
-            placeholder="Tìm theo tên xe, mã #CAR-ID, loại xe..." 
-            v-model="searchQuery" 
-            @input="onSearchInput"
-          />
-          <button v-if="searchQuery" class="clear-search-btn" @click="clearSearch" title="Xóa tìm kiếm">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+        <div class="search-box-wrap">
+          <div class="search-input">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input 
+              type="text" 
+              placeholder="Tìm theo tên xe, mã #CAR-ID, loại xe..." 
+              v-model="searchQuery" 
+              @input="onSearchInput"
+            />
+            <button v-if="searchQuery" class="clear-search-btn" @click="clearSearch" title="Xóa tìm kiếm">
+              <i class="fa-solid fa-circle-xmark"></i>
+            </button>
+          </div>
+          <span class="results-badge" v-if="!loading">
+            <strong>{{ pagination.total || cars.length }}</strong> xe
+          </span>
         </div>
 
         <div class="filter-group">
-          <!-- Filter Vận hành (chỉ dùng khi không ở thùng rác) -->
-          <select v-if="currentTab !== 'trash'" v-model="filterStatus" class="form-select" @change="fetchCars(1)">
-            <option value="">Tất cả vận hành</option>
-            <option value="available">Sẵn sàng (Hoạt động)</option>
-            <option value="maintenance">Bảo trì (Tạm ngưng)</option>
-          </select>
+          <!-- Filter 1: Vận hành (chỉ dùng khi không ở thùng rác) -->
+          <div 
+            v-if="currentTab !== 'trash'" 
+            class="filter-pill" 
+            :class="{ 'is-active': filterStatus }"
+            title="Lọc theo trạng thái vận hành"
+          >
+            <i class="fa-solid fa-sliders pill-icon"></i>
+            <select v-model="filterStatus" class="form-select" @change="fetchCars(1)">
+              <option value="">Tất cả vận hành</option>
+              <option value="available">Sẵn sàng (Hoạt động)</option>
+              <option value="maintenance">Bảo trì (Tạm ngưng)</option>
+            </select>
+            <i class="fa-solid fa-chevron-down pill-chevron"></i>
+          </div>
 
-          <!-- Filter Danh mục -->
-          <select v-model="filterCategory" class="form-select" @change="fetchCars(1)">
-            <option value="">Tất cả phân hạng</option>
-            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-          </select>
+          <!-- Filter 2: Phân hạng / Danh mục -->
+          <div 
+            class="filter-pill" 
+            :class="{ 'is-active': filterCategory }"
+            title="Lọc theo phân hạng xe"
+          >
+            <i class="fa-solid fa-tags pill-icon"></i>
+            <select v-model="filterCategory" class="form-select" @change="fetchCars(1)">
+              <option value="">Tất cả phân hạng</option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+            </select>
+            <i class="fa-solid fa-chevron-down pill-chevron"></i>
+          </div>
 
-          <!-- Filter Khu vực -->
-          <select v-model="filterCity" class="form-select" @change="fetchCars(1)">
-            <option value="">Tất cả khu vực</option>
-            <option value="sg">TP. Hồ Chí Minh</option>
-            <option value="hn">Hà Nội</option>
-            <option value="dn">Đà Nẵng</option>
-            <option value="nt">Nha Trang / Khánh Hòa</option>
-            <option value="hp">Hải Phòng</option>
-            <option value="ct">Cần Thơ</option>
-            <option value="all">Toàn quốc</option>
-          </select>
+          <!-- Filter 3: Khu vực -->
+          <div 
+            class="filter-pill" 
+            :class="{ 'is-active': filterCity }"
+            title="Lọc theo khu vực cho thuê"
+          >
+            <i class="fa-solid fa-location-dot pill-icon"></i>
+            <select v-model="filterCity" class="form-select" @change="fetchCars(1)">
+              <option value="">Tất cả khu vực</option>
+              <option value="sg">TP. Hồ Chí Minh</option>
+              <option value="hn">Hà Nội</option>
+              <option value="dn">Đà Nẵng</option>
+              <option value="nt">Nha Trang / Khánh Hòa</option>
+              <option value="hp">Hải Phòng</option>
+              <option value="ct">Cần Thơ</option>
+              <option value="all">Toàn quốc</option>
+            </select>
+            <i class="fa-solid fa-chevron-down pill-chevron"></i>
+          </div>
 
           <!-- Reset Filter Button -->
           <button 
-            v-if="searchQuery || filterStatus || filterCategory || filterCity" 
+            v-if="hasActiveFilters" 
             class="btn-reset-filters" 
             @click="resetFilters" 
-            title="Đặt lại các bộ lọc"
+            title="Đặt lại tất cả các bộ lọc"
           >
-            <i class="fa-solid fa-rotate-left"></i> Đặt lại
+            <i class="fa-solid fa-rotate-left"></i>
+            <span>Đặt lại</span>
+            <span v-if="activeFiltersCount > 0" class="active-count-tag">({{ activeFiltersCount }})</span>
           </button>
         </div>
       </div>
@@ -1044,6 +1076,18 @@ const switchTab = (tab) => {
   fetchCars(1);
 };
 
+const hasActiveFilters = computed(() => {
+  return !!(searchQuery.value.trim() || filterStatus.value || filterCategory.value || filterCity.value);
+});
+
+const activeFiltersCount = computed(() => {
+  let count = 0;
+  if (filterStatus.value) count++;
+  if (filterCategory.value) count++;
+  if (filterCity.value) count++;
+  return count;
+});
+
 const resetFilters = () => {
   searchQuery.value = '';
   filterStatus.value = '';
@@ -1559,48 +1603,64 @@ onUnmounted(() => {
 .badge-muted { background: #F1F5F9 !important; color: #64748B !important; }
 .badge-danger { background: #FEE2E2 !important; color: #B91C1C !important; }
 
-/* Tools */
+/* Tools & Filter Bar */
 .table-tools {
-  padding: 16px 20px;
+  padding: 14px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   border-bottom: 1px solid var(--color-border);
-  background: white;
+  background: #ffffff;
   flex-wrap: wrap;
+}
+
+.search-box-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 260px;
+  max-width: 420px;
 }
 
 .search-input {
   position: relative;
   flex: 1;
-  min-width: 260px;
-  max-width: 400px;
 }
 
-.search-input i {
+.search-input .search-icon {
   position: absolute;
-  left: 14px;
+  left: 13px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-text-muted);
+  color: #94a3b8;
+  font-size: 0.88rem;
+  pointer-events: none;
 }
 
 .search-input input {
   width: 100%;
-  padding: 9px 36px 9px 38px;
+  height: 38px;
+  padding: 0 34px 0 36px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--bg-surface-alt);
   outline: none;
-  font-size: 0.88rem;
-  transition: all 0.2s;
+  font-size: 0.86rem;
+  color: var(--color-text-main);
+  transition: all 0.2s ease;
+}
+
+.search-input input:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
 }
 
 .search-input input:focus {
   border-color: var(--color-primary);
-  background: white;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
 }
 
 .clear-search-btn {
@@ -1610,33 +1670,121 @@ onUnmounted(() => {
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: var(--color-text-muted);
+  color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  transition: color 0.15s;
 }
 
+.clear-search-btn:hover {
+  color: #ef4444;
+}
+
+.results-badge {
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+  background: var(--bg-surface-alt);
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  font-weight: 500;
+  border: 1px solid var(--color-border);
+}
+
+.results-badge strong {
+  color: var(--color-text-main);
+  font-weight: 700;
+}
+
+/* Modern Filter Group */
 .filter-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.form-select {
-  padding: 8px 14px;
+.filter-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   border-radius: var(--radius-sm);
+  background: #ffffff;
   border: 1px solid var(--color-border);
-  background: white;
+  transition: all 0.2s ease;
+  height: 38px;
+}
+
+.filter-pill:hover {
+  border-color: #cbd5e1;
+  background: var(--bg-surface-alt);
+}
+
+.filter-pill.is-active {
+  border-color: var(--color-primary);
+  background: #ecfdf5;
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.filter-pill .pill-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.8rem;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.filter-pill.is-active .pill-icon {
+  color: var(--color-primary);
+}
+
+.filter-pill .pill-chevron {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.68rem;
+  pointer-events: none;
+}
+
+.filter-pill.is-active .pill-chevron {
+  color: var(--color-primary);
+}
+
+.filter-pill .form-select {
+  height: 100%;
+  width: auto !important;
+  min-width: 145px;
+  padding: 0 28px 0 32px !important;
+  border: none !important;
+  background: transparent !important;
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--color-text-main);
-  outline: none;
+  outline: none !important;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.filter-pill.is-active .form-select {
+  color: #065f46;
 }
 
 .btn-reset-filters {
-  padding: 8px 14px;
+  height: 38px;
+  padding: 0 12px;
   border-radius: var(--radius-sm);
-  border: 1px dashed var(--color-border);
+  border: 1px dashed #cbd5e1;
   background: var(--bg-surface-alt);
   color: var(--color-text-muted);
   font-size: 0.82rem;
@@ -1645,12 +1793,23 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s;
+  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
 .btn-reset-filters:hover {
-  background: #E2E8F0;
-  color: var(--color-text-main);
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.active-count-tag {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.btn-reset-filters:hover .active-count-tag {
+  color: #dc2626;
 }
 
 /* Table */
@@ -2581,8 +2740,12 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .header-main { gap: 12px; }
   .page-title { font-size: 1.3rem; }
-  .table-tools { flex-direction: column; align-items: stretch; }
-  .search-input { max-width: 100%; }
+  .table-tools { flex-direction: column; align-items: stretch; gap: 12px; }
+  .search-box-wrap { max-width: 100%; min-width: unset; }
+  .filter-group { display: flex; flex-direction: column; width: 100%; gap: 8px; }
+  .filter-pill { width: 100%; }
+  .filter-pill .form-select { width: 100% !important; min-width: unset; }
+  .btn-reset-filters { justify-content: center; width: 100%; }
   .form-grid { grid-template-columns: 1fr; }
   .form-group.full { grid-column: span 1; }
   .privilege-grid { grid-template-columns: 1fr; }
